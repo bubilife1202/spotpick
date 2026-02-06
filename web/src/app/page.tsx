@@ -1,30 +1,66 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Coffee, Send, Bot, User, BarChart3, MapPin } from "lucide-react";
+import { Coffee, Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock } from "lucide-react";
 import { ChatMessage, StructuredChatResponse, RecommendationCardData } from "@/types/chat";
 import { SuggestedQuestions, InitialQuestions } from "@/components/SuggestedQuestions";
 import { ChatChartSection } from "@/components/ChatChart";
 import type { ChartData } from "@/types/chat";
-import { RecommendationCard } from "@/components/RecommendationCard";
+
 import { sendStructuredChatMessage, GLOSSARY } from "@/lib/chat-api";
-import { LocationRecommendation } from "@/lib/api";
+
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import SearchMode from "@/components/SearchMode";
 import { Onboarding, OnboardingData } from "@/components/Onboarding";
+import type { MapMarker } from "@/components/MiniMap";
 
-const MapView = dynamic(() => import("@/components/MapView"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full min-h-[280px] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-      <div className="text-center text-gray-500">
-        <MapPin size={40} className="mx-auto mb-2 opacity-60 animate-pulse" />
-        <p className="text-sm">지도 로딩 중...</p>
+interface DistrictSearchResult {
+  code: string;
+  name: string;
+  type: string;
+  monthly_sales: number;
+  store_count: number;
+  survival_rate: number;
+}
+
+interface DistrictSearchResponse {
+  results: DistrictSearchResult[];
+  total: number;
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  
+  return debouncedValue;
+}
+
+const MiniMap = dynamic(
+  () => import("@/components/MiniMap").then((mod) => ({ default: mod.MiniMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full min-h-[240px] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+        <div className="text-center text-gray-500">
+          <MapPin size={32} className="mx-auto mb-2 opacity-60 animate-pulse" />
+          <p className="text-sm">지도 로딩 중...</p>
+        </div>
       </div>
-    </div>
-  ),
-});
+    ),
+  }
+);
 
 function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => void; initialQuery?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -34,6 +70,84 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
   const initialQuerySent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const [districtResults, setDistrictResults] = useState<DistrictSearchResult[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+  
+  const debouncedInput = useDebounce(input, 300);
+  
+  const extractKoreanLocation = useCallback((text: string): string | null => {
+    const koreanPattern = /[\uAC00-\uD7A3]{2,}/g;
+    const matches = text.match(koreanPattern);
+    if (!matches) return null;
+    const lastMatch = matches[matches.length - 1];
+    return lastMatch.length >= 2 ? lastMatch : null;
+  }, []);
+  
+  useEffect(() => {
+    const searchDistricts = async () => {
+      const locationQuery = extractKoreanLocation(debouncedInput);
+      if (!locationQuery) {
+        setDistrictResults([]);
+        setShowAutocomplete(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(
+          `${API_BASE}/districts/search?q=${encodeURIComponent(locationQuery)}&limit=6`
+        );
+        if (response.ok) {
+          const data: DistrictSearchResponse = await response.json();
+          setDistrictResults(data.results);
+          setShowAutocomplete(data.results.length > 0);
+          setAutocompleteIndex(-1);
+        }
+      } catch {
+        setDistrictResults([]);
+        setShowAutocomplete(false);
+      }
+    };
+    
+    searchDistricts();
+  }, [debouncedInput, extractKoreanLocation]);
+  
+  const handleDistrictSelect = useCallback((district: DistrictSearchResult) => {
+    const locationQuery = extractKoreanLocation(input);
+    if (locationQuery) {
+      const newInput = input.replace(
+        new RegExp(locationQuery + "$"),
+        district.name
+      );
+      setInput(newInput);
+    } else {
+      setInput(input + " " + district.name);
+    }
+    setShowAutocomplete(false);
+    setDistrictResults([]);
+    inputRef.current?.focus();
+  }, [input, extractKoreanLocation]);
+  
+  const handleAutocompleteKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!showAutocomplete || districtResults.length === 0) return;
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setAutocompleteIndex(prev => 
+        prev < districtResults.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setAutocompleteIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === "Enter" && autocompleteIndex >= 0) {
+      e.preventDefault();
+      handleDistrictSelect(districtResults[autocompleteIndex]);
+    } else if (e.key === "Escape") {
+      setShowAutocomplete(false);
+    }
+  }, [showAutocomplete, districtResults, autocompleteIndex, handleDistrictSelect]);
 
   const makeKakaoMapUrl = (query: string) =>
     `https://map.kakao.com/link/search/${encodeURIComponent(query)}`;
@@ -85,50 +199,26 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
     }
   }, [hasStarted]);
 
-  // Convert RecommendationCardData to LocationRecommendation for RecommendationCard
-  const convertToLocationRecommendation = (rec: RecommendationCardData): LocationRecommendation => ({
-    rank: rec.rank,
-    lat: rec.coordinates?.lat || 37.5665,
-    lng: rec.coordinates?.lng || 126.9780,
-    address: rec.address || "",
-    area_name: rec.district_name,
-    area_type: rec.district_type,
-    success_probability: rec.success_probability,
-    confidence: 0.8,
-    estimated_monthly_rent: rec.estimated_rent,
-    estimated_monthly_sales: rec.monthly_sales,
-    survival_rate_2y: rec.survival_rate,
-    risk_factors: rec.risk_factors,
-    recommendations: rec.recommendations,
-    key_success_factors: rec.key_success_factors || [],
-    nearby_successful_stores: [],
-    area_stats: {
-      floating_population: 0,
-      competitor_count: rec.store_count || 0,
-      survival_rate_1y: (rec.survival_rate || 0.8) + 0.05,
-      survival_rate_3y: (rec.survival_rate || 0.8) - 0.05,
-    },
-    time_analysis: rec.peak_time ? {
-      peak_time: rec.peak_time,
-      time_00_06: 0,
-      time_06_11: 0,
-      time_11_14: 0,
-      time_14_17: 0,
-      time_17_21: 0,
-      time_21_24: 0,
-    } : undefined,
-    customer_analysis: rec.main_age_group ? {
-      main_age_group: rec.main_age_group,
-      male_ratio: 0.4,
-      female_ratio: 0.6,
-      age_10: 0,
-      age_20: 0,
-      age_30: 0,
-      age_40: 0,
-      age_50: 0,
-      age_60: 0,
-    } : undefined,
-  });
+  const convertToMapMarkers = useCallback((recommendations: RecommendationCardData[]): MapMarker[] => {
+    return recommendations
+      .filter((rec) => rec.coordinates?.lat && rec.coordinates?.lng)
+      .map((rec) => ({
+        lat: rec.coordinates!.lat,
+        lng: rec.coordinates!.lng,
+        label: rec.district_name,
+        type: "recommended" as const,
+        rank: rec.rank,
+        successProbability: rec.success_probability,
+      }));
+  }, []);
+  
+  const hasStructuredData = useCallback((message: ChatMessage) => {
+    return (
+      (message.structured?.recommendations && message.structured.recommendations.length > 0) ||
+      (message.structured?.charts && message.structured.charts.length > 0) ||
+      (message.structured?.suggestedQuestions && message.structured.suggestedQuestions.length > 0)
+    );
+  }, []);
 
   const handleSend = async (text?: string) => {
     const messageText = text || input.trim();
@@ -181,6 +271,12 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showAutocomplete && districtResults.length > 0) {
+      handleAutocompleteKeyDown(e);
+      if (["ArrowDown", "ArrowUp"].includes(e.key)) return;
+      if (e.key === "Enter" && autocompleteIndex >= 0) return;
+    }
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -268,7 +364,6 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
             {/* Initial questions */}
             <InitialQuestions onSelect={handleInitialQuestion} />
 
-            {/* Input bar */}
             <div className="w-full max-w-lg mt-8">
               <div className="relative">
                 <input
@@ -277,6 +372,8 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+                  onFocus={() => districtResults.length > 0 && setShowAutocomplete(true)}
                   placeholder="또는 직접 질문해보세요..."
                   className={cn(
                     "w-full pl-5 pr-14 py-4 text-sm",
@@ -302,6 +399,68 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
                 >
                   <Send size={18} />
                 </button>
+                
+                {showAutocomplete && districtResults.length > 0 && (
+                  <div 
+                    ref={autocompleteRef}
+                    className={cn(
+                      "absolute top-full left-0 right-0 mt-2",
+                      "bg-white border border-slate-200 rounded-xl",
+                      "shadow-xl shadow-slate-200/50",
+                      "max-h-64 overflow-y-auto",
+                      "animate-fade-in z-50"
+                    )}
+                  >
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        상권 자동완성
+                      </span>
+                    </div>
+                    <div className="p-1">
+                      {districtResults.map((district, index) => (
+                        <button
+                          key={district.code}
+                          onClick={() => handleDistrictSelect(district)}
+                          className={cn(
+                            "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg",
+                            "text-left transition-colors",
+                            index === autocompleteIndex
+                              ? "bg-blue-50 text-blue-700"
+                              : "hover:bg-slate-50 text-slate-700"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <MapPin size={14} className={cn(
+                              index === autocompleteIndex ? "text-blue-500" : "text-slate-400"
+                            )} />
+                            <div className="min-w-0">
+                              <span className="font-medium text-sm block truncate">
+                                {district.name}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {district.type}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {district.survival_rate > 0 && (
+                              <span className={cn(
+                                "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                                district.survival_rate >= 0.8 
+                                  ? "bg-emerald-50 text-emerald-600" 
+                                  : district.survival_rate >= 0.6 
+                                    ? "bg-amber-50 text-amber-600"
+                                    : "bg-rose-50 text-rose-600"
+                              )}>
+                                생존율 {Math.round(district.survival_rate * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -311,142 +470,207 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
             {/* Messages area */}
             <div className="flex-1 overflow-y-auto py-6 space-y-5">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex gap-3",
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {/* Assistant avatar */}
-                  {message.role === "assistant" && (
-                    <div className="flex-shrink-0">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                        <Bot size={18} className="text-white" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Message bubble */}
+                <div key={message.id} className="space-y-4">
                   <div
                     className={cn(
-                      "max-w-[85%] sm:max-w-[75%]",
-                      message.role === "user"
-                        ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 shadow-lg shadow-blue-500/20"
-                        : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-4 shadow-md"
+                      "flex gap-3",
+                      message.role === "user" ? "justify-end" : "justify-start"
                     )}
                   >
-                    {/* Text content */}
-                    {message.role === "assistant" 
-                      ? renderMessageContent(message.content)
-                      : <p className="text-sm leading-relaxed">{message.content}</p>
-                    }
-                    
-                    {/* Structured data: Recommendations */}
-                    {message.structured?.recommendations && message.structured.recommendations.length > 0 && (
-                      <div className="mt-4 space-y-3">
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          추천 상권
+                    {message.role === "assistant" && (
+                      <div className="flex-shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                          <Bot size={18} className="text-white" />
                         </div>
-                        {message.structured.recommendations.slice(0, 3).map((rec, i) => (
-                          <RecommendationCard 
-                            key={i} 
-                            recommendation={convertToLocationRecommendation(rec)}
-                            compact 
-                            onAskAI={handleSend}
-                          />
-                        ))}
                       </div>
                     )}
-
-                    {/* Structured data: Map */}
-                    {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
-                      const top = message.structured!.recommendations.slice(0, 3);
-                      const locations = top
-                        .filter((r) => !!r.coordinates)
-                        .map((r) => ({
-                          lat: r.coordinates!.lat,
-                          lng: r.coordinates!.lng,
-                          name: r.district_name,
-                          rank: r.rank,
-                        }));
-
-                      const links = (
-                        <div className="flex flex-wrap gap-2">
-                          {top.map((r) => {
-                            const q = r.address || `서울 ${r.district_name}`;
-                            const url = makeKakaoMapUrl(q);
-                            return (
-                              <a
-                                key={`map-${r.rank}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-white border border-gray-200 rounded-full text-gray-700 hover:bg-gray-50 transition-colors"
-                              >
-                                <MapPin size={12} className="text-blue-600" />
-                                <span>카카오맵: {r.district_name}</span>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      );
-
-                      if (locations.length === 0) {
-                        return (
-                          <div className="mt-4 space-y-2">
-                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                              지도
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              지도 좌표를 찾지 못해 외부 지도 링크로 안내합니다.
-                            </p>
-                            {links}
-                          </div>
-                        );
+                    
+                    <div
+                      className={cn(
+                        "max-w-[85%] sm:max-w-[75%]",
+                        message.role === "user"
+                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 shadow-lg shadow-blue-500/20"
+                          : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-4 shadow-md"
+                      )}
+                    >
+                      {message.role === "assistant" 
+                        ? renderMessageContent(message.content)
+                        : <p className="text-sm leading-relaxed">{message.content}</p>
                       }
+                    </div>
 
-                      return (
-                        <div className="mt-4 space-y-2">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            지도
-                          </div>
-                          <div className="rounded-xl overflow-hidden">
-                            <MapView
-                              locations={locations}
-                              selectedLocation={null}
-                              onLocationSelect={() => {}}
-                            />
-                          </div>
-                          {links}
+                    {message.role === "user" && (
+                      <div className="flex-shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                          <User size={18} className="text-gray-500" />
                         </div>
-                      );
-                    })()}
-                    
-                    {/* Structured data: Charts */}
-                    {message.structured?.charts && message.structured.charts.length > 0 && (
-                      <div className="mt-4">
-                        <ChatChartSection charts={message.structured.charts as ChartData[]} />
-                      </div>
-                    )}
-                    
-                    {/* Structured data: Suggested questions */}
-                    {message.structured?.suggestedQuestions && message.structured.suggestedQuestions.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-gray-100">
-                        <SuggestedQuestions 
-                          questions={message.structured.suggestedQuestions}
-                          onSelect={handleSend}
-                          variant="minimal"
-                        />
                       </div>
                     )}
                   </div>
-
-                  {/* User avatar */}
-                  {message.role === "user" && (
-                    <div className="flex-shrink-0">
-                      <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-                        <User size={18} className="text-gray-500" />
+                  
+                  {message.role === "assistant" && hasStructuredData(message) && (
+                    <div className="ml-12 animate-fade-in">
+                      <div className={cn(
+                        "relative overflow-hidden",
+                        "bg-gradient-to-br from-slate-50 via-white to-blue-50/50",
+                        "border border-slate-200/60 rounded-2xl",
+                        "shadow-lg shadow-slate-200/40"
+                      )}>
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/20 via-transparent to-transparent pointer-events-none" />
+                        
+                        <div className="relative px-4 py-3 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                              <LayoutDashboard size={14} className="text-white" />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700">상권 분석 결과</span>
+                          </div>
+                        </div>
+                        
+                        <div className="relative p-4 space-y-5">
+                          {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
+                            const recommendations = message.structured!.recommendations.slice(0, 3);
+                            const markers = convertToMapMarkers(recommendations);
+                            const hasCoordinates = markers.length > 0;
+                            
+                            return (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    <TrendingUp size={12} className="text-blue-500" />
+                                    추천 상권 TOP {recommendations.length}
+                                  </div>
+                                  <div className="space-y-2.5">
+                                    {recommendations.map((rec, i) => {
+                                      const probColor = rec.success_probability >= 0.7 
+                                        ? "text-emerald-600 bg-emerald-50" 
+                                        : rec.success_probability >= 0.5 
+                                          ? "text-amber-600 bg-amber-50" 
+                                          : "text-rose-600 bg-rose-50";
+                                      
+                                      return (
+                                        <div 
+                                          key={i}
+                                          className={cn(
+                                            "group relative p-3 rounded-xl",
+                                            "bg-white border border-slate-100",
+                                            "hover:border-blue-200 hover:shadow-md",
+                                            "transition-all duration-200 cursor-pointer"
+                                          )}
+                                          onClick={() => handleSend(`${rec.district_name} 상권에 대해 자세히 알려줘`)}
+                                        >
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                              <span className={cn(
+                                                "flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center",
+                                                "text-xs font-bold bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm"
+                                              )}>
+                                                {rec.rank}
+                                              </span>
+                                              <div className="min-w-0">
+                                                <span className="font-semibold text-slate-800 text-sm block truncate">
+                                                  {rec.district_name}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500 font-medium">
+                                                  {rec.district_type}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            <div className={cn("px-2 py-1 rounded-lg text-sm font-bold", probColor)}>
+                                              {Math.round(rec.success_probability * 100)}%
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-slate-50">
+                                            {rec.monthly_sales && (
+                                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                                                <Store size={10} className="text-slate-400" />
+                                                <span className="font-medium">{Math.round(rec.monthly_sales / 10000)}만</span>
+                                                <span className="text-slate-400">/월</span>
+                                              </div>
+                                            )}
+                                            {rec.store_count !== undefined && (
+                                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                                                <span className="font-medium">경쟁 {rec.store_count}개</span>
+                                              </div>
+                                            )}
+                                            {rec.peak_time && (
+                                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                                                <Clock size={10} className="text-slate-400" />
+                                                <span className="font-medium">{rec.peak_time}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    <MapPin size={12} className="text-blue-500" />
+                                    위치 지도
+                                  </div>
+                                  {hasCoordinates ? (
+                                    <div className="rounded-xl overflow-hidden border border-slate-100">
+                                      <MiniMap 
+                                        markers={markers} 
+                                        height={240}
+                                        zoom={12}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                      <p className="text-xs text-slate-500 mb-3">
+                                        지도 좌표를 찾지 못해 외부 지도 링크로 안내합니다.
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {recommendations.map((r) => (
+                                          <a
+                                            key={`map-${r.rank}`}
+                                            href={makeKakaoMapUrl(r.address || `서울 ${r.district_name}`)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={cn(
+                                              "inline-flex items-center gap-1.5 text-xs px-3 py-1.5",
+                                              "bg-white border border-slate-200 rounded-full",
+                                              "text-slate-700 hover:border-blue-300 hover:text-blue-600",
+                                              "transition-colors shadow-sm"
+                                            )}
+                                          >
+                                            <MapPin size={11} className="text-blue-500" />
+                                            <span>{r.district_name}</span>
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          
+                          {message.structured?.charts && message.structured.charts.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                <BarChart3 size={12} className="text-blue-500" />
+                                매출 분석
+                              </div>
+                              <ChatChartSection charts={message.structured.charts as ChartData[]} />
+                            </div>
+                          )}
+                          
+                          {message.structured?.suggestedQuestions && message.structured.suggestedQuestions.length > 0 && (
+                            <div className="pt-3 border-t border-slate-100">
+                              <SuggestedQuestions 
+                                questions={message.structured.suggestedQuestions}
+                                onSelect={handleSend}
+                                variant="minimal"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -474,7 +698,6 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
               <div ref={messagesEndRef} />
             </div>
             
-            {/* Input area - sticky at bottom */}
             <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-6">
               <div className="relative">
                 <input
@@ -483,6 +706,8 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+                  onFocus={() => districtResults.length > 0 && setShowAutocomplete(true)}
                   placeholder="메시지를 입력하세요..."
                   disabled={isLoading}
                   className={cn(
@@ -510,11 +735,72 @@ function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => 
                 >
                   <Send size={18} />
                 </button>
+                
+                {showAutocomplete && districtResults.length > 0 && (
+                  <div 
+                    ref={autocompleteRef}
+                    className={cn(
+                      "absolute bottom-full left-0 right-0 mb-2",
+                      "bg-white border border-slate-200 rounded-xl",
+                      "shadow-xl shadow-slate-200/50",
+                      "max-h-64 overflow-y-auto",
+                      "animate-fade-in z-50"
+                    )}
+                  >
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        상권 자동완성
+                      </span>
+                    </div>
+                    <div className="p-1">
+                      {districtResults.map((district, index) => (
+                        <button
+                          key={district.code}
+                          onClick={() => handleDistrictSelect(district)}
+                          className={cn(
+                            "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg",
+                            "text-left transition-colors",
+                            index === autocompleteIndex
+                              ? "bg-blue-50 text-blue-700"
+                              : "hover:bg-slate-50 text-slate-700"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <MapPin size={14} className={cn(
+                              index === autocompleteIndex ? "text-blue-500" : "text-slate-400"
+                            )} />
+                            <div className="min-w-0">
+                              <span className="font-medium text-sm block truncate">
+                                {district.name}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {district.type}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {district.survival_rate > 0 && (
+                              <span className={cn(
+                                "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                                district.survival_rate >= 0.8 
+                                  ? "bg-emerald-50 text-emerald-600" 
+                                  : district.survival_rate >= 0.6 
+                                    ? "bg-amber-50 text-amber-600"
+                                    : "bg-rose-50 text-rose-600"
+                              )}>
+                                생존율 {Math.round(district.survival_rate * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
-              {/* Hint text */}
               <p className="mt-2 text-center text-xs text-gray-400">
-                Enter로 전송
+                Enter로 전송 · 지역명 입력시 자동완성
               </p>
             </div>
           </div>

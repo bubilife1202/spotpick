@@ -10,6 +10,7 @@ from .routes.chat import router as chat_router
 from .routes.prediction import router as prediction_router
 from .routes.simulation import router as simulation_router
 from .routes.nearby import router as nearby_router
+from .routes.districts import router as districts_router
 
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(prediction_router, prefix="/api/v1", tags=["Prediction"])
     app.include_router(simulation_router, prefix="/api/v1", tags=["Simulation"])
     app.include_router(nearby_router, prefix="/api/v1", tags=["Nearby"])
+    app.include_router(districts_router, prefix="/api/v1", tags=["Districts"])
 
     # Imported via importlib to avoid type-checker import resolution issues
     # in some local environments.
