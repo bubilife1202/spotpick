@@ -10,12 +10,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 import httpx
+from dotenv import load_dotenv  # type: ignore[import-not-found]
+
+_ = load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
+KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 
 
 @dataclass(frozen=True)
@@ -130,10 +136,44 @@ class GeocodingService:
                 # Don't cache transient failures; just return None.
                 return None
 
-            # Cache negative result to avoid repeated misses.
+            # Nominatim miss → try Kakao keyword search as fallback.
+            kakao_result = await self._geocode_via_kakao(q)
+            if kakao_result is not None:
+                self._cache[q] = kakao_result
+                self._save_cache()
+                return kakao_result
+
             self._cache[q] = None
             self._save_cache()
             return None
+
+    async def _geocode_via_kakao(self, query: str) -> Optional[Coordinates]:
+        if not KAKAO_REST_API_KEY:
+            return None
+        try:
+            if self._client is None:
+                self._client = httpx.AsyncClient(
+                    timeout=10.0,
+                    headers={
+                        "User-Agent": "builder_curation/0.1 (local dev)",
+                        "Accept-Language": "ko",
+                    },
+                )
+            resp = await self._client.get(
+                "https://dapi.kakao.com/v2/local/search/keyword.json",
+                params={"query": query, "size": 1},
+                headers={"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"},
+            )
+            resp.raise_for_status()
+            docs = resp.json().get("documents", [])
+            if docs:
+                x = docs[0].get("x")
+                y = docs[0].get("y")
+                if x and y:
+                    return Coordinates(lat=float(y), lng=float(x))
+        except Exception:
+            pass
+        return None
 
 
 _geocoding_service: Optional[GeocodingService] = None
