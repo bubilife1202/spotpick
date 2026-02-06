@@ -26,11 +26,12 @@ const MapView = dynamic(() => import("@/components/MapView"), {
   ),
 });
 
-function ChatHome({ onSwitchToSearch }: { onSwitchToSearch: () => void }) {
+function ChatHome({ onSwitchToSearch, initialQuery }: { onSwitchToSearch: () => void; initialQuery?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const initialQuerySent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +62,14 @@ function ChatHome({ onSwitchToSearch }: { onSwitchToSearch: () => void }) {
       }]);
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    if (initialQuery && !initialQuerySent.current && messages.length > 0) {
+      initialQuerySent.current = true;
+      handleSend(initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, messages.length]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -520,6 +529,29 @@ type Mode = "search" | "chat";
 const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
 const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
 
+const CAFE_TYPE_LABELS: Record<string, string> = {
+  takeout: "테이크아웃 카페",
+  brunch: "브런치 카페",
+  aesthetic: "감성 카페",
+  study: "스터디 카페",
+};
+
+const BUDGET_RENT_LABELS: Record<string, string> = {
+  low: "월세 150~300만원",
+  mid: "월세 200~500만원",
+  high: "월세 300~800만원",
+  unknown: "",
+};
+
+function buildAutoQuery(data: OnboardingData): string {
+  const location = data.district ? `서울 ${data.district}` : "서울";
+  const rent = BUDGET_RENT_LABELS[data.budget];
+  const rentPart = rent ? ` ${rent}으로` : "";
+  const cafeLabel = CAFE_TYPE_LABELS[data.cafeType] || "카페";
+
+  return `${location}에서${rentPart} ${cafeLabel} 창업 추천해줘`;
+}
+
 function rentDefaultsFromOnboarding(budgetId: OnboardingData["budget"]): {
   budgetMin: number;
   budgetMax: number;
@@ -540,6 +572,7 @@ function rentDefaultsFromOnboarding(budgetId: OnboardingData["budget"]): {
 export default function Page() {
   const [mode, setMode] = useState<Mode>("chat");
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
   const [initialSearchParams, setInitialSearchParams] = useState<{
     budgetMin: number;
     budgetMax: number;
@@ -573,6 +606,7 @@ export default function Page() {
       budgetMax,
       district: data.district || undefined,
     });
+    setInitialQuery(buildAutoQuery(data));
     setShowOnboarding(false);
     setMode("chat");
   };
@@ -602,5 +636,5 @@ export default function Page() {
     );
   }
 
-  return <ChatHome onSwitchToSearch={() => setMode("search")} />;
+  return <ChatHome onSwitchToSearch={() => setMode("search")} initialQuery={initialQuery} />;
 }
