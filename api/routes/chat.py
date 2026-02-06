@@ -91,6 +91,10 @@ class RecommendationCardData(BaseModel):
     survival_rate: Optional[float] = Field(None, description="2년 생존율(0-1)")
     key_success_factors: list[str] = Field(default_factory=list, description="핵심 성공 요인")
     coordinates: Optional[dict[str, float]] = Field(None, description="지도 좌표 (lat/lng)")
+    foot_traffic_total: Optional[int] = Field(None)
+    worker_total: Optional[int] = Field(None)
+    facility_subway: Optional[int] = Field(None)
+    change_indicator: Optional[str] = Field(None)
 
 
 class StructuredChatResponse(BaseModel):

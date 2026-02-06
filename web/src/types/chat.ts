@@ -92,10 +92,12 @@ export interface RecommendationCardData {
     lat: number;
     lng: number;
   };
-  /** Key success factors for the location */
   key_success_factors?: string[];
-  /** Address string */
   address?: string;
+  foot_traffic_total?: number;
+  worker_total?: number;
+  facility_subway?: number;
+  change_indicator?: string;
 }
 
 // ============================================================================

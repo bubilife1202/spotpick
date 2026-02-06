@@ -590,6 +590,36 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               </div>
                                             )}
                                           </div>
+                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator) && (
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                              {rec.foot_traffic_total ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 font-medium">
+                                                  유동 {rec.foot_traffic_total >= 1000000 ? `${(rec.foot_traffic_total / 10000).toFixed(0)}만` : `${(rec.foot_traffic_total / 1000).toFixed(0)}K`}
+                                                </span>
+                                              ) : null}
+                                              {rec.worker_total ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 font-medium">
+                                                  직장인 {rec.worker_total >= 10000 ? `${(rec.worker_total / 10000).toFixed(1)}만` : `${(rec.worker_total / 1000).toFixed(1)}K`}
+                                                </span>
+                                              ) : null}
+                                              {rec.facility_subway ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-600 font-medium">
+                                                  🚇 {rec.facility_subway}개역
+                                                </span>
+                                              ) : null}
+                                              {rec.change_indicator && (
+                                                <span className={cn(
+                                                  "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                                  rec.change_indicator.includes("HH") || rec.change_indicator.includes("성장") ? "bg-emerald-50 text-emerald-600" :
+                                                  rec.change_indicator.includes("HL") || rec.change_indicator.includes("안정") ? "bg-sky-50 text-sky-600" :
+                                                  rec.change_indicator.includes("LL") || rec.change_indicator.includes("쇠퇴") ? "bg-rose-50 text-rose-600" :
+                                                  "bg-slate-50 text-slate-500"
+                                                )}>
+                                                  {rec.change_indicator}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}

@@ -1537,6 +1537,10 @@ class ChatService:
                         "survival_rate": r["survival_rate_2y"],
                         "key_success_factors": r["key_success_factors"],
                         "coordinates": None,
+                        "foot_traffic_total": r.get("foot_traffic_total", 0),
+                        "worker_total": r.get("worker_total", 0),
+                        "facility_subway": r.get("facility_subway", 0),
+                        "change_indicator": r.get("change_indicator", ""),
                     }
                 )
 
