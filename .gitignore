@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -41,10 +41,9 @@ htmlcov/
 
 # Data
 data/
-*.json
-*.jsonl
 !package.json
 !tsconfig.json
+!*.eslintrc.json
 
 # Models
 models/*.pkl

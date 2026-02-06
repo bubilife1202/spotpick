@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 from typing import Optional
 
 from api.services.chat_service import (
+    ConversationContext,
     HistoryMessage,
     StructuredChatPayload,
     get_chat_service,
@@ -42,6 +43,10 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., description="사용자 메시지")
     history: Optional[list[ChatMessage]] = Field(None, description="이전 대화 히스토리")
+    context: Optional[dict[str, object]] = Field(
+        None,
+        description="클라이언트에서 제공하는 추가 컨텍스트(온보딩 등). 예: budget_min/budget_max/district/cafe_type",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -96,7 +101,28 @@ async def chat(request: ChatRequest, req: Request):
         if request.history:
             history = [{"role": m.role, "content": m.content} for m in request.history]
 
-        response: StructuredChatPayload = await service.chat(request.message, history)
+        seed_context: ConversationContext | None = None
+        if request.context and isinstance(request.context, dict):
+            seed_context = ConversationContext(
+                district=(request.context.get("district") if isinstance(request.context.get("district"), str) else None),
+                budget_min=(request.context.get("budget_min") if isinstance(request.context.get("budget_min"), int) else None),
+                budget_max=(request.context.get("budget_max") if isinstance(request.context.get("budget_max"), int) else None),
+                area_type=(request.context.get("area_type") if isinstance(request.context.get("area_type"), str) else None),
+                time_preference=(
+                    request.context.get("time_preference")
+                    if isinstance(request.context.get("time_preference"), str)
+                    else None
+                ),
+                age_target=(request.context.get("age_target") if isinstance(request.context.get("age_target"), str) else None),
+                gender_target=(
+                    request.context.get("gender_target")
+                    if isinstance(request.context.get("gender_target"), str)
+                    else None
+                ),
+                cafe_type=(request.context.get("cafe_type") if isinstance(request.context.get("cafe_type"), str) else None),
+            )
+
+        response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
         recommendations = [RecommendationCardData(**r) for r in response["recommendations"]]
         charts = [
             ChartData(
@@ -140,7 +166,52 @@ async def chat_stream(request: ChatRequest, req: Request):
             if request.history:
                 history = [{"role": m.role, "content": m.content} for m in request.history]
 
-            response: StructuredChatPayload = await service.chat(request.message, history)
+            seed_context: ConversationContext | None = None
+            if request.context and isinstance(request.context, dict):
+                seed_context = ConversationContext(
+                    district=(
+                        request.context.get("district")
+                        if isinstance(request.context.get("district"), str)
+                        else None
+                    ),
+                    budget_min=(
+                        request.context.get("budget_min")
+                        if isinstance(request.context.get("budget_min"), int)
+                        else None
+                    ),
+                    budget_max=(
+                        request.context.get("budget_max")
+                        if isinstance(request.context.get("budget_max"), int)
+                        else None
+                    ),
+                    area_type=(
+                        request.context.get("area_type")
+                        if isinstance(request.context.get("area_type"), str)
+                        else None
+                    ),
+                    time_preference=(
+                        request.context.get("time_preference")
+                        if isinstance(request.context.get("time_preference"), str)
+                        else None
+                    ),
+                    age_target=(
+                        request.context.get("age_target")
+                        if isinstance(request.context.get("age_target"), str)
+                        else None
+                    ),
+                    gender_target=(
+                        request.context.get("gender_target")
+                        if isinstance(request.context.get("gender_target"), str)
+                        else None
+                    ),
+                    cafe_type=(
+                        request.context.get("cafe_type")
+                        if isinstance(request.context.get("cafe_type"), str)
+                        else None
+                    ),
+                )
+
+            response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
             reply = response["reply"]
 
             words = reply.split()

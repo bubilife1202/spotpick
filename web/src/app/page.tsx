@@ -518,6 +518,7 @@ function ChatHome({ onSwitchToSearch }: { onSwitchToSearch: () => void }) {
 type Mode = "search" | "chat";
 
 const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
+const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
 
 function rentDefaultsFromOnboarding(budgetId: OnboardingData["budget"]): {
   budgetMin: number;
@@ -556,6 +557,17 @@ export default function Page() {
       window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
     }
     const { budgetMin, budgetMax } = rentDefaultsFromOnboarding(data.budget);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        ONBOARDING_CONTEXT_KEY,
+        JSON.stringify({
+          district: data.district,
+          budget_min: budgetMin,
+          budget_max: budgetMax,
+          cafe_type: data.cafeType,
+        })
+      );
+    }
     setInitialSearchParams({
       budgetMin,
       budgetMax,
@@ -568,6 +580,7 @@ export default function Page() {
   const skipOnboarding = () => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+      window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
     }
     setShowOnboarding(false);
   };

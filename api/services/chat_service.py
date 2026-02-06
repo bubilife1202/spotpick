@@ -142,8 +142,8 @@ class ChartData(TypedDict):
 
 class ContextMeta(TypedDict, total=False):
     district: Optional[str]
-    budget_min: int
-    budget_max: int
+    budget_min: Optional[int]
+    budget_max: Optional[int]
     area_type: Optional[str]
     time_preference: Optional[str]
     age_target: Optional[str]
@@ -152,6 +152,7 @@ class ContextMeta(TypedDict, total=False):
     unsupported_regions: list[str]
     data_error: str
     llm_error: str
+    intake_needs: list[str]
 
 
 class Summary(TypedDict):
@@ -1256,6 +1257,21 @@ class ChatService:
             context = self._merge_context(context, extracted, "history")
         return context
 
+    def _compute_merged_context(
+        self,
+        query: str,
+        history: list[HistoryMessage] | None,
+        seed_context: ConversationContext | None,
+    ) -> ConversationContext:
+        base = ConversationContext()
+        if seed_context is not None:
+            base = self._merge_context(base, seed_context, "seed")
+        history_context = self._extract_context_from_history(history or [])
+        base = self._merge_context(base, history_context, "history")
+        current_context = self._extract_context_from_text(query)
+        base = self._merge_context(base, current_context, "current")
+        return base
+
     def _filter_recommendations_by_context(
         self,
         recs: list[Recommendation],
@@ -1312,14 +1328,14 @@ class ChatService:
         self,
         query: str,
         history: list[HistoryMessage] | None = None,
+        seed_context: ConversationContext | None = None,
+        merged_context: ConversationContext | None = None,
     ) -> tuple[str, list[StructuredRecommendation], list[ChartData], ContextMeta]:
         context_parts: list[str] = []
         structured_recommendations: list[StructuredRecommendation] = []
         charts: list[ChartData] = []
 
-        history_context = self._extract_context_from_history(history or [])
-        current_context = self._extract_context_from_text(query)
-        merged_context = self._merge_context(history_context, current_context, "current")
+        merged_context = merged_context or self._compute_merged_context(query, history, seed_context)
 
         budget_min = merged_context.budget_min or 1500000
         budget_max = merged_context.budget_max or 10000000
@@ -1497,7 +1513,10 @@ class ChatService:
         return "\n".join(context_parts), structured_recommendations, charts, context_meta
 
     async def chat(
-        self, message: str, history: list[HistoryMessage] | None = None
+        self,
+        message: str,
+        history: list[HistoryMessage] | None = None,
+        seed_context: ConversationContext | None = None,
     ) -> StructuredChatPayload:
         """대화형 응답 생성"""
 
@@ -1523,9 +1542,92 @@ class ChatService:
                 "context": {"unsupported_regions": out_of_scope},
             }
 
+        merged_context = self._compute_merged_context(message, history, seed_context)
+        missing_district = merged_context.district is None
+        missing_budget = merged_context.budget_max is None
+
+        if missing_district or missing_budget:
+            known_parts: list[str] = []
+            if merged_context.district:
+                known_parts.append(f"지역: {merged_context.district}")
+            if merged_context.budget_min is not None and merged_context.budget_max is not None:
+                known_parts.append(
+                    f"월세: {merged_context.budget_min // 10000:,}~{merged_context.budget_max // 10000:,}만원"
+                )
+            if merged_context.cafe_type:
+                known_parts.append(f"카페 유형: {merged_context.cafe_type}")
+
+            reply_lines: list[str] = []
+            reply_lines.append("추천을 정확하게 하려면 몇 가지만 확인할게요.")
+            if known_parts:
+                reply_lines.append(f"(현재 파악된 정보: {', '.join(known_parts)})")
+            if missing_district:
+                reply_lines.append("1) 희망 지역이 어디인가요? (예: 강남/홍대/성수/종로)")
+            if missing_budget:
+                reply_lines.append("2) 월세 예산은 어느 정도인가요? (예: 200~400만원)")
+            reply_lines.append("선택) 타겟 고객(직장인/20대/여성)이나 컨셉(테이크아웃/디저트/브런치/작업)도 알려주면 더 정확해요.")
+
+            district = merged_context.district or ""
+            suggested: list[str] = []
+            if missing_district and missing_budget:
+                suggested = [
+                    "서울 홍대에서 월세 300만원대 카페 추천해줘",
+                    "서울 강남에서 월세 200~400만원 카페 추천해줘",
+                    "서울 성수에서 월세 250만원대, 테이크아웃 위주 추천해줘",
+                    "서울 종로에서 월세 200~300만원, 직장인 점심 타겟 추천해줘",
+                ]
+            elif missing_district and not missing_budget:
+                bmin = merged_context.budget_min or int((merged_context.budget_max or 3000000) * 0.7)
+                bmax = merged_context.budget_max or int((merged_context.budget_min or 3000000) * 1.3)
+                suggested = [
+                    f"서울 홍대에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
+                    f"서울 강남에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
+                    f"서울 성수에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
+                ]
+            elif missing_budget and district:
+                suggested = [
+                    f"서울 {district}에서 월세 200~300만원대 카페 추천해줘",
+                    f"서울 {district}에서 월세 300~400만원대 카페 추천해줘",
+                    f"서울 {district}에서 월세 400~600만원대, 발달상권 추천해줘",
+                ]
+            else:
+                suggested = [
+                    "서울 강남에서 월세 300만원대 카페 추천해줘",
+                    "서울 홍대에서 20대 여성 타겟 상권 추천해줘",
+                    "서울 성수 골목상권 추천해줘",
+                ]
+
+            return {
+                "reply": "\n".join(reply_lines).strip(),
+                "recommendations": [],
+                "charts": [],
+                "suggested_questions": suggested,
+                "context": {
+                    "district": merged_context.district,
+                    "budget_min": merged_context.budget_min,
+                    "budget_max": merged_context.budget_max,
+                    "area_type": merged_context.area_type,
+                    "time_preference": merged_context.time_preference,
+                    "age_target": merged_context.age_target,
+                    "gender_target": merged_context.gender_target,
+                    "cafe_type": merged_context.cafe_type,
+                    "intake_needs": [
+                        k
+                        for k in [
+                            "district" if missing_district else "",
+                            "budget" if missing_budget else "",
+                        ]
+                        if k
+                    ],
+                },
+            }
+
         # 관련 데이터 조회
         context_text, recommendations, charts, context_meta = self._get_relevant_data(
-            message, history
+            message,
+            history,
+            seed_context=seed_context,
+            merged_context=merged_context,
         )
 
         # Best-effort local insights (Kakao): only when user asks.

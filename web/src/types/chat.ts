@@ -139,8 +139,16 @@ export interface ConversationContext {
   budget_min?: number;
   /** Maximum budget in KRW */
   budget_max?: number;
-  /** Type of commercial area preference */
+  /** Preferred commercial area type */
   area_type?: string;
+  /** Preferred time segment */
+  time_preference?: string;
+  /** Target age group */
+  age_target?: string;
+  /** Target gender */
+  gender_target?: string;
+  /** Cafe concept/type */
+  cafe_type?: string;
   /** Target customer demographics */
   target_demographic?: string;
   /** Preferred business hours */
