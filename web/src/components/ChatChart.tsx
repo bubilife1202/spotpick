@@ -136,6 +136,8 @@ export function ChatChart({ chart, expanded: initialExpanded = false }: ChatChar
     chart.data[0]
   );
 
+  const topBuckets = [...chart.data].sort((a, b) => b.value - a.value).slice(0, 3);
+
   const renderChart = () => {
     switch (chart.type) {
       case "gender":
@@ -212,6 +214,21 @@ export function ChatChart({ chart, expanded: initialExpanded = false }: ChatChar
       >
         <div className="px-3 pb-3">{renderChart()}</div>
       </div>
+
+      {expanded && topBuckets.length > 0 && (
+        <div className="px-3 pb-3">
+          <div className="grid gap-1">
+            {topBuckets.map((item) => (
+              <div key={item.name} className="flex items-baseline justify-between gap-3">
+                <span className="text-[11px] font-medium text-gray-700">{item.name}</span>
+                <span className="text-[11px] text-gray-500 text-right">
+                  {item.value.toFixed(1)}%{item.label ? ` · ${item.label}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Decorative corner element */}
       <div
@@ -341,6 +358,7 @@ function GenderChart({ data, expanded }: { data: ChartData["data"]; expanded: bo
     <div className={cn("flex items-center", expanded ? "gap-4" : "gap-2")}>
       <ResponsiveContainer width={expanded ? 140 : 80} height={expanded ? 140 : 80}>
         <PieChart>
+          <Tooltip content={<CustomTooltip theme={CHART_THEMES.gender} />} />
           <Pie
             data={data}
             cx="50%"
@@ -372,7 +390,7 @@ function GenderChart({ data, expanded }: { data: ChartData["data"]; expanded: bo
             />
             <span className="text-xs text-gray-600">{item.name}</span>
             <span className="text-xs font-semibold text-gray-800">
-              {((item.value / total) * 100).toFixed(0)}%
+              {total > 0 ? item.value.toFixed(1) : "0.0"}%
             </span>
           </div>
         ))}

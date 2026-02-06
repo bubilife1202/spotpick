@@ -1,6 +1,7 @@
 """
-서울시 커피숍 상권 데이터 분석 스크립트 (풀버전)
-- 55개 필드 전체 반영
+서울시 커피숍 상권 데이터 분석 스크립트 (풀버전 v2)
+- 55개 기존 필드 + 추가 API 데이터 병합
+- 직장인구/상주인구/유동인구/집객시설/상권변화지표 통합
 - 시간대별, 요일별, 연령대별 상세 분석
 - 6년 트렌드 분석
 """
@@ -15,6 +16,189 @@ OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# ---------------------------------------------------------------------------
+# 추가 API 데이터 로딩 유틸
+# ---------------------------------------------------------------------------
+
+def _load_extra_json(filename: str) -> list:
+    """data/seoul/{filename}.json 로드. 없으면 빈 리스트."""
+    path = DATA_DIR / f"{filename}.json"
+    if not path.exists():
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _build_extra_lookup(rows: list, key_field: str = "TRDAR_CD") -> dict:
+    """상권코드 기준 딕셔너리로 변환. 같은 상권코드가 여러 행이면 마지막 것 사용."""
+    lookup: dict = {}
+    for row in rows:
+        code = row.get(key_field)
+        if code:
+            lookup[code] = row
+    return lookup
+
+
+def load_extra_data() -> dict:
+    """추가 API 데이터 6종 로드 → {service_key: {상권코드: row}} 반환"""
+    extra: dict = {}
+
+    # 직장인구
+    rows = _load_extra_json("worker_population")
+    if rows:
+        extra["worker"] = _build_extra_lookup(rows)
+        print(f"  직장인구: {len(extra['worker']):,}개 상권")
+
+    # 상주인구
+    rows = _load_extra_json("resident_population")
+    if rows:
+        extra["resident"] = _build_extra_lookup(rows)
+        print(f"  상주인구: {len(extra['resident']):,}개 상권")
+
+    # 유동인구
+    rows = _load_extra_json("foot_traffic")
+    if rows:
+        extra["foot_traffic"] = _build_extra_lookup(rows)
+        print(f"  유동인구: {len(extra['foot_traffic']):,}개 상권")
+
+    # 집객시설
+    rows = _load_extra_json("facilities")
+    if rows:
+        extra["facilities"] = _build_extra_lookup(rows)
+        print(f"  집객시설: {len(extra['facilities']):,}개 상권")
+
+    # 상권변화지표
+    rows = _load_extra_json("change_indicator")
+    if rows:
+        extra["change"] = _build_extra_lookup(rows)
+        print(f"  상권변화지표: {len(extra['change']):,}개 상권")
+
+    # 점포(전업종)
+    rows = _load_extra_json("stores_all")
+    if rows:
+        extra["stores_all"] = _build_extra_lookup(rows)
+        print(f"  점포(전업종): {len(extra['stores_all']):,}개 상권")
+
+    return extra
+
+
+def _safe_int(val) -> int:
+    """None/빈문자열 안전 int 변환"""
+    if val is None:
+        return 0
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return 0
+
+
+def _safe_float(val, default: float = 0.0) -> float:
+    """None/빈문자열 안전 float 변환"""
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def enrich_district(district: dict, extra: dict) -> dict:
+    """추가 API 데이터를 기존 district dict에 병합"""
+    code = district["district_code"]
+
+    # --- 직장인구 ---
+    w = extra.get("worker", {}).get(code, {})
+    district["worker_total"] = _safe_int(w.get("TOT_WRC_POPLTN_CO"))
+    district["worker_male"] = _safe_int(w.get("ML_WRC_POPLTN_CO"))
+    district["worker_female"] = _safe_int(w.get("FML_WRC_POPLTN_CO"))
+    district["worker_age_10"] = _safe_int(w.get("AGRDE_10_WRC_POPLTN_CO"))
+    district["worker_age_20"] = _safe_int(w.get("AGRDE_20_WRC_POPLTN_CO"))
+    district["worker_age_30"] = _safe_int(w.get("AGRDE_30_WRC_POPLTN_CO"))
+    district["worker_age_40"] = _safe_int(w.get("AGRDE_40_WRC_POPLTN_CO"))
+    district["worker_age_50"] = _safe_int(w.get("AGRDE_50_WRC_POPLTN_CO"))
+    district["worker_age_60"] = _safe_int(w.get("AGRDE_60_ABOVE_WRC_POPLTN_CO"))
+
+    # --- 상주인구 ---
+    r = extra.get("resident", {}).get(code, {})
+    district["resident_total"] = _safe_int(r.get("TOT_RESIDENT_CO"))
+    district["resident_male"] = _safe_int(r.get("ML_RESIDENT_CO"))
+    district["resident_female"] = _safe_int(r.get("FML_RESIDENT_CO"))
+    district["resident_age_10"] = _safe_int(r.get("AGRDE_10_RESIDENT_CO"))
+    district["resident_age_20"] = _safe_int(r.get("AGRDE_20_RESIDENT_CO"))
+    district["resident_age_30"] = _safe_int(r.get("AGRDE_30_RESIDENT_CO"))
+    district["resident_age_40"] = _safe_int(r.get("AGRDE_40_RESIDENT_CO"))
+    district["resident_age_50"] = _safe_int(r.get("AGRDE_50_RESIDENT_CO"))
+    district["resident_age_60"] = _safe_int(r.get("AGRDE_60_ABOVE_RESIDENT_CO"))
+    district["resident_apt"] = _safe_int(r.get("APT_HSHOLD_CO"))
+
+    # --- 유동인구 ---
+    ft = extra.get("foot_traffic", {}).get(code, {})
+    district["foot_traffic_total"] = _safe_int(ft.get("TOT_FLPOP_CO"))
+    district["foot_traffic_male"] = _safe_int(ft.get("ML_FLPOP_CO"))
+    district["foot_traffic_female"] = _safe_int(ft.get("FML_FLPOP_CO"))
+    district["foot_traffic_age_10"] = _safe_int(ft.get("AGRDE_10_FLPOP_CO"))
+    district["foot_traffic_age_20"] = _safe_int(ft.get("AGRDE_20_FLPOP_CO"))
+    district["foot_traffic_age_30"] = _safe_int(ft.get("AGRDE_30_FLPOP_CO"))
+    district["foot_traffic_age_40"] = _safe_int(ft.get("AGRDE_40_FLPOP_CO"))
+    district["foot_traffic_age_50"] = _safe_int(ft.get("AGRDE_50_FLPOP_CO"))
+    district["foot_traffic_age_60"] = _safe_int(ft.get("AGRDE_60_ABOVE_FLPOP_CO"))
+    # 시간대별 유동인구
+    district["foot_traffic_00_06"] = _safe_int(ft.get("TMZON_00_06_FLPOP_CO"))
+    district["foot_traffic_06_11"] = _safe_int(ft.get("TMZON_06_11_FLPOP_CO"))
+    district["foot_traffic_11_14"] = _safe_int(ft.get("TMZON_11_14_FLPOP_CO"))
+    district["foot_traffic_14_17"] = _safe_int(ft.get("TMZON_14_17_FLPOP_CO"))
+    district["foot_traffic_17_21"] = _safe_int(ft.get("TMZON_17_21_FLPOP_CO"))
+    district["foot_traffic_21_24"] = _safe_int(ft.get("TMZON_21_24_FLPOP_CO"))
+
+    # --- 집객시설 ---
+    fac = extra.get("facilities", {}).get(code, {})
+    district["facility_govt"] = _safe_int(fac.get("VIATR_FCLTY_CO"))  # 관공서
+    district["facility_bank"] = _safe_int(fac.get("BANK_CO"))
+    district["facility_hospital"] = _safe_int(fac.get("GNRL_HSPTL_CO"))
+    district["facility_pharmacy"] = _safe_int(fac.get("PHARMCY_CO"))
+    district["facility_kindergarten"] = _safe_int(fac.get("KNDRGR_CO"))
+    district["facility_school"] = _safe_int(fac.get("ELESCH_CO")) + _safe_int(fac.get("MSKUL_CO")) + _safe_int(fac.get("HGSCHL_CO"))
+    district["facility_university"] = _safe_int(fac.get("UNIV_CO"))
+    district["facility_dept_store"] = _safe_int(fac.get("DRTS_CO"))  # 백화점
+    district["facility_supermarket"] = _safe_int(fac.get("LRGMRT_CO"))  # 대형마트
+    district["facility_theater"] = _safe_int(fac.get("MVR_NM_CO"))  # 극장
+    district["facility_accommodation"] = _safe_int(fac.get("KSTTL_CO"))  # 숙박
+    district["facility_airport"] = _safe_int(fac.get("AIRPORT_CO"))
+    district["facility_train_station"] = _safe_int(fac.get("RLROAD_STATN_CO"))  # 철도역
+    district["facility_bus_terminal"] = _safe_int(fac.get("BUS_TRMINL_CO"))
+    district["facility_subway"] = _safe_int(fac.get("SUBWAY_STATN_CO"))  # 지하철역
+    district["facility_bus_stop"] = _safe_int(fac.get("BUS_STTN_CO"))  # 버스정거장
+    # 집객시설 합계 점수 (가중)
+    district["facility_score"] = (
+        district["facility_subway"] * 10
+        + district["facility_bus_stop"] * 2
+        + district["facility_university"] * 8
+        + district["facility_school"] * 3
+        + district["facility_hospital"] * 4
+        + district["facility_bank"] * 2
+        + district["facility_supermarket"] * 5
+        + district["facility_dept_store"] * 7
+        + district["facility_theater"] * 4
+        + district["facility_accommodation"] * 3
+        + district["facility_train_station"] * 8
+        + district["facility_bus_terminal"] * 6
+    )
+
+    # --- 상권변화지표 ---
+    ch = extra.get("change", {}).get(code, {})
+    district["change_indicator"] = ch.get("TRDAR_CHNGE_IX_CD_NM", "")  # LL/LH/HL/HH 코드명
+    district["change_indicator_code"] = ch.get("TRDAR_CHNGE_IX_CD", "")
+    district["avg_operation_months"] = _safe_float(ch.get("OPR_SALE_MT_AVRG"))  # 평균영업개월수
+
+    # --- 점포(전업종) —- 전체 업종 합계로 상권 활성도 파악
+    sa = extra.get("stores_all", {}).get(code, {})
+    district["total_stores_all"] = _safe_int(sa.get("STOR_CO"))  # 전업종 점포 수
+    district["total_new_stores_all"] = _safe_int(sa.get("OPBIZ_STOR_CO"))
+    district["total_closed_stores_all"] = _safe_int(sa.get("CLSBIZ_STOR_CO"))
+
+    return district
+
+
 def load_all_data():
     """전체 데이터 로드"""
     # 매출 데이터
@@ -23,9 +207,10 @@ def load_all_data():
         with open(f, "r", encoding="utf-8") as file:
             all_sales.extend(json.load(file))
 
-    # 점포 데이터
     all_stores = []
     for f in sorted(DATA_DIR.glob("stores_*.json")):
+        if f.name == "stores_all.json":
+            continue
         with open(f, "r", encoding="utf-8") as file:
             all_stores.extend(json.load(file))
 
@@ -346,27 +531,33 @@ def create_summary(districts, trends):
 
 def main():
     print("=" * 60)
-    print("서울시 커피숍 상권 데이터 분석 (풀버전)")
+    print("서울시 커피숍 상권 데이터 분석 (풀버전 v2)")
     print("=" * 60)
 
-    # 1. 데이터 로드
     sales_df, stores_df = load_all_data()
 
-    # 2. 최신 분기 가공
     print("\n최신 분기 데이터 가공 중...")
     districts = process_latest_quarter(sales_df, stores_df)
     print(f"  → {len(districts)}개 상권 처리 완료")
 
-    # 3. 트렌드 계산
+    print("\n추가 API 데이터 로드 중...")
+    extra = load_extra_data()
+    if extra:
+        print(f"\n추가 데이터 병합 중...")
+        for d in districts:
+            enrich_district(d, extra)
+        enriched_count = sum(1 for d in districts if d.get("foot_traffic_total", 0) > 0)
+        print(f"  → {enriched_count}/{len(districts)}개 상권에 추가 데이터 병합됨")
+    else:
+        print("  추가 데이터 없음 — 기본 필드만 사용")
+
     print("\n6년 트렌드 분석 중...")
     trends = calculate_trends(sales_df, stores_df)
     print(f"  → {len(trends)}개 연도 처리 완료")
 
-    # 4. 요약 통계
     print("\n요약 통계 생성 중...")
     summary = create_summary(districts, trends)
 
-    # 5. 저장
     with open(OUTPUT_DIR / "coffee_districts.json", "w", encoding="utf-8") as f:
         json.dump(districts, f, ensure_ascii=False, indent=2)
     print(f"\n저장: coffee_districts.json ({len(districts)}개 상권)")
@@ -375,7 +566,6 @@ def main():
         json.dump(summary, f, ensure_ascii=False, indent=2)
     print(f"저장: summary.json")
 
-    # 결과 출력
     print("\n" + "=" * 60)
     print("처리 완료!")
     print(f"  - 상권 수: {summary['total_districts']}개")

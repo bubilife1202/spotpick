@@ -24,6 +24,10 @@ export interface ChartDataPoint {
   value: number;
   /** Optional additional label */
   label?: string;
+  /** Optional absolute sales amount in KRW (same bucket as value) */
+  sales?: number;
+  /** Optional transaction count (same bucket as value) */
+  transactions?: number;
 }
 
 /**
@@ -69,8 +73,16 @@ export interface RecommendationCardData {
   recommendations: string[];
   
   // Extended fields for detailed analysis
-  /** Estimated monthly sales in KRW */
+  /** Estimated monthly sales per store in KRW (new store perspective) */
   monthly_sales?: number;
+  /** Total monthly sales for the district in KRW (district aggregate) */
+  monthly_sales_total?: number;
+  /** Explicit per-store monthly sales in KRW (same as monthly_sales) */
+  monthly_sales_per_store?: number;
+  /** Total monthly transactions for the district */
+  monthly_transactions_total?: number;
+  /** Average ticket size (monthly_sales_total / monthly_transactions_total) */
+  avg_ticket?: number;
   /** Number of competing stores */
   store_count?: number;
   /** 2-year survival rate (0.0 - 1.0) */
@@ -133,28 +145,18 @@ export interface MapViewport {
  * Context information extracted from conversation
  */
 export interface ConversationContext {
-  /** Selected district/area name */
   district?: string;
-  /** Minimum budget in KRW */
   budget_min?: number;
-  /** Maximum budget in KRW */
   budget_max?: number;
-  /** Preferred commercial area type */
   area_type?: string;
-  /** Preferred time segment */
   time_preference?: string;
-  /** Target age group */
   age_target?: string;
-  /** Target gender */
   gender_target?: string;
-  /** Cafe concept/type */
   cafe_type?: string;
-  /** Target customer demographics */
   target_demographic?: string;
-  /** Preferred business hours */
   preferred_hours?: string;
-  /** Additional user preferences */
   preferences?: Record<string, string | number | boolean>;
+  intake_needs?: string[];
 }
 
 /**
@@ -185,6 +187,10 @@ export interface StructuredChatResponse {
     /** Confidence score for the response */
     confidence?: number;
   };
+  /** Competitive analysis insights */
+  competitive?: CompetitiveInsight;
+  /** Startup simulation data */
+  simulation?: SimulationData;
 }
 
 // ============================================================================
@@ -195,17 +201,109 @@ export interface StructuredChatResponse {
  * Structured data attached to assistant messages
  * All fields are optional for progressive enhancement
  */
+export interface CompetitiveInsight {
+  total_nearby_cafes: number;
+  cafe_types: Array<{ type: string; count: number; ratio: number; examples: string[] }>;
+  market_gaps: Array<{ gap_type: string; description: string; opportunity_score: number }>;
+  strategies: Array<{ strategy: string; reason: string; priority: string }>;
+  top_competitors: Array<{ name: string; category: string; address: string }>;
+}
+
+export interface MenuCostItem {
+  menu: string;
+  selling_price: number;
+  cost: number;
+  margin: number;
+  margin_rate: number;
+  category: string;
+}
+
+export interface SimulationData {
+  district_name: string;
+  district_type: string;
+  revenue: {
+    monthly_sales_per_store: number;
+    monthly_transactions_per_store: number;
+    avg_ticket: number;
+    pessimistic: number;
+    optimistic: number;
+    daily_sales: number;
+    peak_time_sales: number;
+    peak_time: string;
+  };
+  startup_cost: {
+    deposit: number;
+    interior: number;
+    equipment_min: number;
+    equipment_max: number;
+    initial_inventory_min: number;
+    initial_inventory_max: number;
+    permits_misc_min: number;
+    permits_misc_max: number;
+    total_min: number;
+    total_max: number;
+    interior_grade: string;
+    area_pyeong: number;
+  };
+  operating_cost: {
+    rent: number;
+    cogs: number;
+    labor: number;
+    utilities: number;
+    other: number;
+    total: number;
+  };
+  break_even: {
+    monthly_revenue: number;
+    monthly_operating_cost: number;
+    monthly_net_profit: number;
+    net_profit_margin: number;
+    initial_investment_min: number;
+    initial_investment_max: number;
+    break_even_months_min: number;
+    break_even_months_max: number;
+    daily_break_even_sales: number;
+  };
+  competition: {
+    store_count: number;
+    new_stores: number;
+    closed_stores: number;
+    franchise_stores: number;
+    franchise_ratio: number;
+    survival_rate: number;
+  };
+  assumptions?: {
+    area_pyeong: number;
+    area_sqm: number;
+    seats_min: number;
+    seats_max: number;
+    summary: string;
+    disclaimer: string;
+  };
+  risk_summary: string[];
+  menu_costs?: {
+    menu_costs: MenuCostItem[];
+    avg_margin_rate: number;
+    daily_sales_scenario: {
+      daily_cups: number;
+      daily_revenue: number;
+      daily_cogs: number;
+      daily_gross_profit: number;
+      monthly_revenue: number;
+      monthly_gross_profit: number;
+    };
+  };
+}
+
 export interface MessageStructuredData {
-  /** Location recommendations */
   recommendations?: RecommendationCardData[];
-  /** Chart visualizations */
   charts?: ChartData[];
-  /** Map markers */
   maps?: MapMarker[];
-  /** Map viewport configuration */
   mapViewport?: MapViewport;
-  /** Suggested follow-up questions */
   suggestedQuestions?: string[];
+  isIntake?: boolean;
+  competitive?: CompetitiveInsight;
+  simulation?: SimulationData;
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Coffee, Croissant, Camera, BookOpen, ArrowRight, ArrowLeft, Sparkles, MapPin } from "lucide-react";
+import { Coffee, Croissant, Camera, BookOpen, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OnboardingProps {
@@ -12,6 +12,7 @@ interface OnboardingProps {
 export interface OnboardingData {
   cafeType: string;
   budget: string;
+  target: string;
   district: string | null;
 }
 
@@ -26,7 +27,15 @@ const BUDGETS = [
   { id: "low", label: "3천만원 이하", desc: "소규모 창업", emoji: "💰" },
   { id: "mid", label: "3천~1억", desc: "일반 창업", emoji: "💰💰" },
   { id: "high", label: "1억 이상", desc: "프리미엄", emoji: "💰💰💰" },
-  { id: "unknown", label: "잘 모르겠어요", desc: "AI가 추천", emoji: "❓" },
+];
+
+const TARGETS = [
+  { id: "office", label: "직장인", desc: "점심·퇴근 피크", emoji: "💼" },
+  { id: "20s_female", label: "20대 여성", desc: "SNS·감성 소비", emoji: "👩" },
+  { id: "30s", label: "30~40대", desc: "안정적 소비층", emoji: "👔" },
+  { id: "student", label: "대학생", desc: "가성비·장시간", emoji: "🎓" },
+  { id: "local", label: "동네 주민", desc: "단골 위주", emoji: "🏘️" },
+  { id: "tourist", label: "관광객", desc: "유동인구 높음", emoji: "🧳" },
 ];
 
 const DISTRICTS = [
@@ -34,16 +43,20 @@ const DISTRICTS = [
   "영등포", "종로", "중구", "강서", "양천", "구로",
 ];
 
+const TOTAL_STEPS = 4;
+
 export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
   const [step, setStep] = useState(1);
+  const [shakeStep, setShakeStep] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     cafeType: "",
     budget: "",
+    target: "",
     district: null,
   });
 
   const handleNext = () => {
-    if (step < 3) {
+    if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
       onComplete(data);
@@ -60,13 +73,31 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
     switch (step) {
       case 1: return data.cafeType !== "";
       case 2: return data.budget !== "";
-      case 3: return true;
+      case 3: return data.target !== "";
+      case 4: return true;
       default: return false;
+    }
+  };
+
+  const shakeMessage = () => {
+    switch (step) {
+      case 1: return "카페 유형을 선택해주세요";
+      case 2: return "예산을 선택해주세요";
+      case 3: return "타겟 고객을 선택해주세요";
+      default: return "";
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-4px); }
+          40%, 80% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
+      `}</style>
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
           <div className="flex items-center justify-between text-white">
@@ -75,7 +106,7 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
               <span className="font-semibold">시작하기</span>
             </div>
             <div className="flex gap-1">
-              {[1, 2, 3].map((s) => (
+              {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
                 <div
                   key={s}
                   className={cn(
@@ -131,21 +162,23 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
                 <h2 className="text-xl font-bold text-gray-900">예산은 어느 정도세요?</h2>
                 <p className="text-sm text-gray-500 mt-1">보증금 + 인테리어 + 운영자금 기준</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {BUDGETS.map((budget) => (
                   <button
                     key={budget.id}
                     onClick={() => setData({ ...data, budget: budget.id })}
                     className={cn(
-                      "p-4 rounded-xl border-2 text-left transition-all",
+                      "p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3",
                       data.budget === budget.id
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
                     )}
                   >
                     <span className="text-2xl">{budget.emoji}</span>
-                    <p className="font-medium text-gray-900 mt-2">{budget.label}</p>
-                    <p className="text-xs text-gray-500">{budget.desc}</p>
+                    <div>
+                      <p className="font-medium text-gray-900">{budget.label}</p>
+                      <p className="text-xs text-gray-500">{budget.desc}</p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -155,8 +188,35 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
           {step === 3 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">주요 타겟 고객은?</h2>
+                <p className="text-sm text-gray-500 mt-1">고객층에 따라 최적 입지가 달라져요</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {TARGETS.map((target) => (
+                  <button
+                    key={target.id}
+                    onClick={() => setData({ ...data, target: target.id })}
+                    className={cn(
+                      "p-4 rounded-xl border-2 text-left transition-all",
+                      data.target === target.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <span className="text-2xl">{target.emoji}</span>
+                    <p className="font-medium text-gray-900 mt-2">{target.label}</p>
+                    <p className="text-xs text-gray-500">{target.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900">선호하는 지역이 있으세요?</h2>
-                <p className="text-sm text-gray-500 mt-1">없으면 AI가 추천해드려요</p>
+                <p className="text-sm text-gray-500 mt-1">선택 안 해도 분석 가능해요</p>
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {DISTRICTS.map((district) => (
@@ -174,22 +234,17 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => setData({ ...data, district: null })}
-                className={cn(
-                  "w-full py-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                  data.district === null
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                )}
-              >
-                <MapPin size={16} />
-                잘 모르겠어요, AI가 추천해주세요
-              </button>
             </div>
           )}
         </div>
 
+        {shakeStep && (
+          <div className="px-6 pb-2 text-center">
+            <p className="text-sm text-rose-500 font-medium animate-pulse">
+              {shakeMessage()}
+            </p>
+          </div>
+        )}
         <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
           <button
             onClick={step === 1 ? onSkip : handleBack}
@@ -205,11 +260,20 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
             )}
           </button>
           <button
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            onClick={() => {
+              if (!canProceed()) {
+                setShakeStep(true);
+                setTimeout(() => setShakeStep(false), 600);
+                return;
+              }
+              handleNext();
+            }}
+            className={cn(
+              "px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2",
+              shakeStep && "animate-shake"
+            )}
           >
-            {step === 3 ? "분석 시작!" : "다음"}
+            {step === TOTAL_STEPS ? "분석 시작!" : "다음"}
             <ArrowRight size={16} />
           </button>
         </div>

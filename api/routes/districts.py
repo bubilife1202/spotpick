@@ -13,30 +13,39 @@ def search_districts(
     from ..services.data_service import get_data_service
 
     svc = get_data_service()
-    q_lower = q.strip().lower()
+    q_clean = (q or "").strip()
+    q_lower = q_clean.lower()
 
     if not q_lower:
         return {"results": [], "total": 0}
 
-    matches: list[dict] = []
-    for d in svc.districts:
-        name: str = d.get("district_name", "")
-        dtype: str = d.get("district_type", "")
-        if q_lower in name.lower() or q_lower in dtype.lower():
-            matches.append(
-                {
-                    "code": d["district_code"],
-                    "name": name,
-                    "type": dtype,
-                    "monthly_sales": d.get("monthly_sales"),
-                    "store_count": d.get("store_count"),
-                    "survival_rate": d.get("survival_rate"),
-                }
-            )
-        if len(matches) >= limit:
-            break
+    # Use DataService ranking to avoid "강남" -> only "강남구청..." results due to input order + early break.
+    raw = svc.search_districts(q_clean, limit=limit)
 
-    return {"results": matches, "total": len(matches)}
+    def clamp_rate(v: object) -> float | None:
+        try:
+            if isinstance(v, (int, float)):
+                return float(max(0.0, min(1.0, float(v))))
+        except Exception:
+            return None
+        return None
+
+    results: list[dict[str, object]] = []
+    for d in raw:
+        name = d.get("district_name", "")
+        dtype = d.get("district_type", "")
+        results.append(
+            {
+                "code": d["district_code"],
+                "name": name,
+                "type": dtype,
+                "monthly_sales": d.get("monthly_sales"),
+                "store_count": d.get("store_count"),
+                "survival_rate": clamp_rate(d.get("survival_rate")),
+            }
+        )
+
+    return {"results": results, "total": len(results)}
 
 
 @router.get("/list")

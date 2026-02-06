@@ -35,6 +35,16 @@ def check_rate_limit(client_ip: str) -> bool:
     return True
 
 
+def get_context_str(context: dict[str, object], key: str) -> Optional[str]:
+    value = context.get(key)
+    return value if isinstance(value, str) else None
+
+
+def get_context_int(context: dict[str, object], key: str) -> Optional[int]:
+    value = context.get(key)
+    return value if isinstance(value, int) else None
+
+
 class ChatMessage(BaseModel):
     role: str = Field(..., description="메시지 역할 (user/assistant)")
     content: str = Field(..., description="메시지 내용")
@@ -61,6 +71,7 @@ class ChartData(BaseModel):
 
 class RecommendationCardData(BaseModel):
     rank: int = Field(..., description="추천 순위")
+    district_code: Optional[str] = Field(None, description="상권 코드")
     district_name: str = Field(..., description="상권명")
     district_type: str = Field(..., description="상권 유형")
     success_probability: float = Field(..., description="성공 확률")
@@ -72,6 +83,10 @@ class RecommendationCardData(BaseModel):
     # Optional extended fields (progressively enhanced UI)
     address: Optional[str] = Field(None, description="주소")
     monthly_sales: Optional[int] = Field(None, description="예상 월매출")
+    monthly_sales_total: Optional[int] = Field(None, description="상권 월매출 총액")
+    monthly_sales_per_store: Optional[int] = Field(None, description="점포당 월매출")
+    monthly_transactions_total: Optional[int] = Field(None, description="상권 월 거래수")
+    avg_ticket: Optional[int] = Field(None, description="평균 객단가")
     store_count: Optional[int] = Field(None, description="경쟁 점포 수")
     survival_rate: Optional[float] = Field(None, description="2년 생존율(0-1)")
     key_success_factors: list[str] = Field(default_factory=list, description="핵심 성공 요인")
@@ -84,6 +99,8 @@ class StructuredChatResponse(BaseModel):
     charts: list[ChartData] = Field(default_factory=list)
     suggested_questions: list[str] = Field(default_factory=list)
     context: dict[str, object] = Field(default_factory=dict)
+    competitive: Optional[dict[str, object]] = Field(None, description="경쟁 분석 데이터")
+    simulation: Optional[dict[str, object]] = Field(None, description="창업 시뮬레이션 데이터")
 
 
 @router.post("/chat", response_model=StructuredChatResponse)
@@ -102,43 +119,40 @@ async def chat(request: ChatRequest, req: Request):
             history = [{"role": m.role, "content": m.content} for m in request.history]
 
         seed_context: ConversationContext | None = None
-        if request.context and isinstance(request.context, dict):
+        if isinstance(request.context, dict):
+            context = request.context
             seed_context = ConversationContext(
-                district=(request.context.get("district") if isinstance(request.context.get("district"), str) else None),
-                budget_min=(request.context.get("budget_min") if isinstance(request.context.get("budget_min"), int) else None),
-                budget_max=(request.context.get("budget_max") if isinstance(request.context.get("budget_max"), int) else None),
-                area_type=(request.context.get("area_type") if isinstance(request.context.get("area_type"), str) else None),
-                time_preference=(
-                    request.context.get("time_preference")
-                    if isinstance(request.context.get("time_preference"), str)
-                    else None
-                ),
-                age_target=(request.context.get("age_target") if isinstance(request.context.get("age_target"), str) else None),
-                gender_target=(
-                    request.context.get("gender_target")
-                    if isinstance(request.context.get("gender_target"), str)
-                    else None
-                ),
-                cafe_type=(request.context.get("cafe_type") if isinstance(request.context.get("cafe_type"), str) else None),
+                district=get_context_str(context, "district"),
+                budget_min=get_context_int(context, "budget_min"),
+                budget_max=get_context_int(context, "budget_max"),
+                area_type=get_context_str(context, "area_type"),
+                time_preference=get_context_str(context, "time_preference"),
+                age_target=get_context_str(context, "age_target"),
+                gender_target=get_context_str(context, "gender_target"),
+                cafe_type=get_context_str(context, "cafe_type"),
             )
 
         response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
-        recommendations = [RecommendationCardData(**r) for r in response["recommendations"]]
+        recommendations = [
+            RecommendationCardData(**r) for r in response.get("recommendations", [])
+        ]
         charts = [
             ChartData(
                 type=c["type"],
                 title=c["title"],
                 data=[dict(d) for d in c["data"]],
             )
-            for c in response["charts"]
+            for c in response.get("charts", [])
         ]
 
         return StructuredChatResponse(
-            reply=response["reply"],
+            reply=response.get("reply", ""),
             recommendations=recommendations,
             charts=charts,
-            suggested_questions=response["suggested_questions"],
-            context=dict(response["context"]),
+            suggested_questions=response.get("suggested_questions", []),
+            context=dict(response.get("context") or {}),
+            competitive=response.get("competitive"),  # type: ignore[arg-type]
+            simulation=response.get("simulation"),  # type: ignore[arg-type]
         )
 
     except Exception as e:
@@ -167,52 +181,21 @@ async def chat_stream(request: ChatRequest, req: Request):
                 history = [{"role": m.role, "content": m.content} for m in request.history]
 
             seed_context: ConversationContext | None = None
-            if request.context and isinstance(request.context, dict):
+            if isinstance(request.context, dict):
+                context = request.context
                 seed_context = ConversationContext(
-                    district=(
-                        request.context.get("district")
-                        if isinstance(request.context.get("district"), str)
-                        else None
-                    ),
-                    budget_min=(
-                        request.context.get("budget_min")
-                        if isinstance(request.context.get("budget_min"), int)
-                        else None
-                    ),
-                    budget_max=(
-                        request.context.get("budget_max")
-                        if isinstance(request.context.get("budget_max"), int)
-                        else None
-                    ),
-                    area_type=(
-                        request.context.get("area_type")
-                        if isinstance(request.context.get("area_type"), str)
-                        else None
-                    ),
-                    time_preference=(
-                        request.context.get("time_preference")
-                        if isinstance(request.context.get("time_preference"), str)
-                        else None
-                    ),
-                    age_target=(
-                        request.context.get("age_target")
-                        if isinstance(request.context.get("age_target"), str)
-                        else None
-                    ),
-                    gender_target=(
-                        request.context.get("gender_target")
-                        if isinstance(request.context.get("gender_target"), str)
-                        else None
-                    ),
-                    cafe_type=(
-                        request.context.get("cafe_type")
-                        if isinstance(request.context.get("cafe_type"), str)
-                        else None
-                    ),
+                    district=get_context_str(context, "district"),
+                    budget_min=get_context_int(context, "budget_min"),
+                    budget_max=get_context_int(context, "budget_max"),
+                    area_type=get_context_str(context, "area_type"),
+                    time_preference=get_context_str(context, "time_preference"),
+                    age_target=get_context_str(context, "age_target"),
+                    gender_target=get_context_str(context, "gender_target"),
+                    cafe_type=get_context_str(context, "cafe_type"),
                 )
 
             response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
-            reply = response["reply"]
+            reply = response.get("reply", "")
 
             words = reply.split()
             buffer = ""

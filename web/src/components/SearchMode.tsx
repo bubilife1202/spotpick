@@ -126,7 +126,7 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
               1,077개 상권 · 64개 분석 지표
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              커피숍 창업,<br className="sm:hidden" /> 어디서 해야 성공할까?
+              카페 창업,<br className="sm:hidden" /> 어디서 해야 성공할까?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto text-sm sm:text-base">
               서울시 6년간 데이터를 AI가 분석했습니다.<br />

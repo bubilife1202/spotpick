@@ -13,10 +13,11 @@ from pathlib import Path
 from typing import Optional, Protocol, TypedDict, cast
 from dotenv import load_dotenv  # type: ignore[import-not-found]
 
-from api.services.data_service import DataService, get_data_service
+from api.services.data_service import DataService, estimate_rent, get_data_service
 from api.services.geocoding_service import get_geocoding_service
 from api.services.kakao_local_service import KakaoLocalService, get_kakao_local_service
 from api.services.competitive_analysis_service import (
+    CompetitiveAnalysis,
     CompetitiveAnalysisService,
     get_competitive_analysis_service,
 )
@@ -112,6 +113,7 @@ class Recommendation(TypedDict):
 
 class StructuredRecommendation(TypedDict):
     rank: int
+    district_code: str
     district_name: str
     district_type: str
     success_probability: float
@@ -121,7 +123,14 @@ class StructuredRecommendation(TypedDict):
     risk_factors: list[str]
     recommendations: list[str]
     address: str
+    # Backward compatible field used by the web UI.
+    # NOTE: This represents per-store monthly sales (new store perspective), not total district sales.
     monthly_sales: int
+    # New: explicit totals/breakdown helpers for UI
+    monthly_sales_total: Optional[int]
+    monthly_sales_per_store: Optional[int]
+    monthly_transactions_total: Optional[int]
+    avg_ticket: Optional[int]
     store_count: int
     survival_rate: float
     key_success_factors: list[str]
@@ -132,6 +141,8 @@ class ChartDatum(TypedDict, total=False):
     name: str
     value: float
     label: str
+    sales: int
+    transactions: int
 
 
 class ChartData(TypedDict):
@@ -163,12 +174,14 @@ class Summary(TypedDict):
     district_types: dict[str, int]
 
 
-class StructuredChatPayload(TypedDict):
+class StructuredChatPayload(TypedDict, total=False):
     reply: str
     recommendations: list[StructuredRecommendation]
     charts: list[ChartData]
     suggested_questions: list[str]
     context: ContextMeta
+    competitive: dict[str, object]
+    simulation: dict[str, object]
 
 
 @dataclass
@@ -237,8 +250,127 @@ class ChatService:
         self.kakao_service: KakaoLocalService = get_kakao_local_service()
         self.model: str = "gemini-2.5-flash"
 
+        # Broad district tokens (구 단위/대표 지역명) used for coarse context extraction.
+        # NOTE: These are NOT the 1,077 district names; these are for fallback only.
+        self._broad_district_tokens: list[str] = [
+            "강남",
+            "서초",
+            "마포",
+            "홍대",
+            "이태원",
+            "성수",
+            "용산",
+            "종로",
+            "강동",
+            "송파",
+            "영등포",
+            "구로",
+            "관악",
+            "동대문",
+            "성북",
+            "노원",
+            "강북",
+            "은평",
+            "서대문",
+            "양천",
+            "강서",
+            "금천",
+            "성동",
+            "광진",
+            "중랑",
+            "도봉",
+            "중구",
+        ]
+        self._broad_district_token_set: set[str] = set(self._broad_district_tokens)
+
+        # Fast path index: prefer matching real district_name (e.g., "강남역") from the dataset.
+        # This enables disambiguation and avoids collapsing everything into "강남".
+        self._district_name_index: list[str] = self._build_district_name_index()
+
         # 시스템 프롬프트
         self.system_prompt: str = self._build_system_prompt()
+
+    def _build_district_name_index(self) -> list[str]:
+        names: list[str] = []
+        try:
+            for d in getattr(self.data_service, "districts", []) or []:
+                if not isinstance(d, dict):
+                    continue
+                name = d.get("district_name")
+                if isinstance(name, str):
+                    name = name.strip()
+                    if name:
+                        names.append(name)
+        except Exception:
+            names = []
+
+        # de-dup while preserving first-seen order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for n in names:
+            if n in seen:
+                continue
+            seen.add(n)
+            unique.append(n)
+
+        # longest-first so "강남구청(청담역_8번, ...)" wins over "강남구청"
+        unique.sort(key=len, reverse=True)
+        return unique
+
+    def _top_subdistricts(self, broad: str, limit: int = 4) -> list[dict[str, object]]:
+        """Return TOP sub-district candidates for a broad token (e.g. "강남").
+
+        Sorted by monthly_sales desc to surface the canonical places first.
+        """
+        broad = (broad or "").strip()
+        if not broad:
+            return []
+
+        matches: list[dict[str, object]] = []
+        try:
+            for d in getattr(self.data_service, "districts", []) or []:
+                if not isinstance(d, dict):
+                    continue
+                name = d.get("district_name")
+                if not isinstance(name, str):
+                    continue
+                if broad in name:
+                    matches.append(d)
+        except Exception:
+            return []
+
+        def as_int(v: object) -> int:
+            try:
+                return int(v) if isinstance(v, int) else 0
+            except Exception:
+                return 0
+
+        # Prefer "{broad}역" when present, then sales.
+        def sort_key(d: dict[str, object]) -> tuple[int, int]:
+            name = d.get("district_name")
+            station_boost = 1 if isinstance(name, str) and name == f"{broad}역" else 0
+            sales = as_int(d.get("monthly_sales"))
+            return (station_boost, sales)
+
+        matches.sort(key=sort_key, reverse=True)
+        return matches[: max(1, limit)]
+
+    def _estimate_monthly_rent_from_district(self, d: dict[str, object]) -> int | None:
+        try:
+            ms = d.get("monthly_sales")
+            sc = d.get("store_count")
+            dt = d.get("district_type")
+            dc = d.get("district_code")
+            if not ms or not isinstance(ms, (int, float)):
+                return None
+            if not isinstance(dt, str):
+                return None
+            store_count = int(sc) if isinstance(sc, (int, float)) and sc else 1
+            sales_per_store = int(int(ms) / max(1, store_count))
+            pctile = self.data_service._sales_percentile.get(str(dc), 0.5) if dc else 0.5
+            return estimate_rent(str(dt), sales_per_store, pctile)
+        except Exception:
+            return None
 
     def _build_fallback_reply(
         self,
@@ -439,7 +571,7 @@ class ChatService:
         )
         avg_survival_rate = float(summary["avg_survival_rate"])
 
-        return f"""당신은 서울시 커피숍 창업 전문 AI 컨설턴트 "빌더"입니다.
+        return f"""당신은 서울시 카페 창업 전문 AI 컨설턴트 "빌더"입니다.
 
 ## 역할
 - 예비 창업자의 질문에 친절하고 전문적으로 답변
@@ -448,7 +580,7 @@ class ChatService:
 
 ## 보유 데이터 (64개 필드, 6년 트렌드 분석)
 - 서울시 {summary["total_districts"]}개 상권 분석 완료
-- 커피숍 {summary["total_stores"]}개 점포 데이터
+- 카페 {summary["total_stores"]}개 점포 데이터
 - 평균 월 매출: {summary["avg_monthly_sales"]:,.0f}원
 - 평균 2년 생존율: {avg_survival_rate * 100:.1f}%
 - 상권 유형: 골목상권, 발달상권, 전통시장, 관광특구
@@ -461,22 +593,17 @@ class ChatService:
 - 📊 **경쟁 현황**: 점포수, 신규 개업, 폐업, 프랜차이즈 비율
 - 📈 **6년 트렌드**: 2019~2025년 분기별 매출 추이
 
-## 응답 스타일 — AI 창업 코파일럿답게
+## 응답 스타일 — 짧고 강렬하게
 당신은 데이터를 나열하는 도구가 아니라, 데이터를 **해석하고 맞춤형 결론을 내려주는 코파일럿**입니다.
 
-1. **결론부터** 말하세요. "이 상권은 당신에게 ___한 이유로 적합합니다" 또는 "이 상권은 ___한 위험이 있습니다"
-2. **왜?** 를 설명하세요. 숫자를 나열하지 말고, 숫자가 의미하는 바를 해석하세요
-3. **비교** 해주세요. "평균 대비 1.5배 높은 매출" 처럼 맥락을 제공하세요
-4. **실행 조언** 을 주세요. "이 상권에서 성공하려면 ___하세요"
-5. 리스크는 솔직하게, 하지만 대안과 함께
-6. 3~5문장으로 핵심만. 차트와 카드가 숫자를 보여주므로, 텍스트는 해석에 집중하세요
+**절대 규칙: 응답은 최대 5~8문장. 매출/투자비/BEP 숫자는 카드와 차트가 보여주므로 텍스트에서 반복하지 마세요.**
 
-## 추천 시 텍스트에 포함할 내용 (숫자는 카드/차트가 보여주므로 텍스트는 해석 위주)
-- 왜 이 상권을 추천하는지 (사용자의 조건과 매칭되는 이유)
-- 이 상권의 핵심 강점과 기회
-- 주의해야 할 리스크와 대처 방법
-- 구체적인 운영 전략 제안 (피크 시간대 활용법, 타겟 고객 공략법)
-- 경쟁사 대비 차별화 포인트
+1. **한 줄 결론**: "이 상권은 ___에 적합합니다" (1문장)
+2. **핵심 이유**: 왜 추천/비추인지 2~3문장
+3. **리스크 + 대안**: 1~2문장
+4. **차별화 한 줄**: "___로 승부하세요"
+
+숫자 나열 금지. 해석만. 매출/투자비/원가/BEP는 이미 구조화된 카드로 사용자에게 보여지므로 텍스트에서 중복하지 마세요.
 
 ## 💰 시뮬레이션 기능 (매출·투자비·손익분기점)
 "여기서 열면 얼마 벌어?", "초기 투자비는?", "몇 개월이면 본전?" 같은 질문에는 시뮬레이션 데이터를 활용해 답변합니다.
@@ -486,18 +613,19 @@ class ChatService:
 - 낙관/비관 시나리오 = 같은 상권 유형 25%/75% 분위수
 - 평균 객단가 = 월매출 ÷ 월 거래수
 
-### 초기 투자비 (10평 기준, 업계 벤치마크)
-- 보증금: 월세 × 10~15배 (골목: ×10, 발달: ×15)
-- 인테리어: 평당 160~275만원 (기본/중급/프리미엄)
+### 초기 투자비 (10평/약 33㎡/8~12석 기준, 상권유형별 차등)
+- 보증금: 월세 × 8~15배 (전통시장 ×8, 골목 ×10, 발달·관광특구 ×15)
+- 인테리어: 평당 150~280만원 (전통시장 150 < 골목 180 < 발달 250 < 관광특구 280)
 - 장비/설비: 2,700~4,600만원
 - 초기 재료비: 300~500만원
 - 기타(허가/간판): 500~1,000만원
 
-### 운영비 (업계 평균 비율)
-- 원가율: 32%
-- 인건비: 25%
+### 운영비 (상권유형별 차등)
+- 원가율: 32% (전 상권 동일 — 원두·우유 단가 차이 없음)
+- 인건비: 24~27% (전통시장 24% < 골목 25% < 관광특구 26% < 발달 27%)
 - 공과금: 3.5%
 - 기타 운영비: 7.5%
+- ⚠️ 업종 평균 추정치이며, 실제는 ±20% 차이 가능
 
 ### 손익분기점
 - 월 순이익 = 월매출 - 운영비(임대료+원가+인건비+공과금+기타)
@@ -870,27 +998,20 @@ class ChatService:
         ]
         return any(k in text for k in keywords)
 
-    async def _build_local_insights_context(
+    async def _build_local_insights_with_data(
         self,
         message: str,
         recommendations: list[StructuredRecommendation],
-    ) -> str:
-        """Build best-effort context from Kakao Local + benchmarks.
-
-        - Only uses TOP1 recommendation
-        - Never raises (caller should also guard)
-        """
+    ) -> tuple[str, dict[str, object] | None]:
         if not recommendations:
-            return ""
-        if not self._should_fetch_local_insights(message):
-            return ""
+            return ("", None)
         if not getattr(self.kakao_service, "available", False):
-            return ""
+            return ("", None)
 
         top = recommendations[0]
         district_name = (top.get("district_name") or "").strip()
         if not district_name:
-            return ""
+            return ("", None)
 
         coords = top.get("coordinates")
         if not coords:
@@ -934,7 +1055,7 @@ class ChatService:
             except Exception:
                 parking_task = None
 
-        analysis = None
+        analysis: CompetitiveAnalysis | None = None
         if analysis_task is not None:
             try:
                 analysis = await asyncio.wait_for(analysis_task, timeout=6.5)
@@ -1038,7 +1159,11 @@ class ChatService:
             except Exception:
                 pass
 
-        return "\n".join(lines).strip()
+        comp_dict: dict[str, object] | None = None
+        if analysis and isinstance(analysis, dict):
+            comp_dict = dict(analysis)
+
+        return ("\n".join(lines).strip(), comp_dict)
 
     def _normalize_budget_value(self, value: int, unit: str) -> int:
         if "백만" in unit:
@@ -1046,37 +1171,22 @@ class ChatService:
         return value * 10000
 
     def _extract_context_from_text(self, text: str) -> ConversationContext:
-        districts = [
-            "강남",
-            "서초",
-            "마포",
-            "홍대",
-            "이태원",
-            "성수",
-            "용산",
-            "종로",
-            "강동",
-            "송파",
-            "영등포",
-            "구로",
-            "관악",
-            "동대문",
-            "성북",
-            "노원",
-            "강북",
-            "은평",
-            "서대문",
-            "양천",
-            "강서",
-            "금천",
-            "성동",
-            "광진",
-            "중랑",
-            "도봉",
-            "중구",
-        ]
+        district: str | None = None
 
-        district = next((d for d in districts if d in text), None)
+        # 1) Prefer matching the real district_name from the dataset.
+        #    This avoids collapsing "강남역" -> "강남".
+        #    If user mentions multiple, we pick the longest-first match.
+        try:
+            for name in self._district_name_index:
+                if name and name in text:
+                    district = name
+                    break
+        except Exception:
+            district = None
+
+        # 2) Fallback: broad tokens (구 단위 등)
+        if district is None:
+            district = next((d for d in self._broad_district_tokens if d in text), None)
 
         budget_min = None
         budget_max = None
@@ -1256,6 +1366,10 @@ class ChatService:
     ) -> ConversationContext:
         context = ConversationContext()
         for message in history[-10:]:
+            # Only trust user utterances for context extraction.
+            # Assistant replies contain many district names (recommendations/examples) and will pollute context.
+            if message.get("role") != "user":
+                continue
             content = message.get("content")
             if not content:
                 continue
@@ -1383,20 +1497,27 @@ class ChatService:
 
                 detail = self.data_service.get_district_detail(r["district_code"])
                 sales_detail = ""
+                monthly_sales_total: int | None = None
+                monthly_transactions_total: int | None = None
+                avg_ticket_total: int | None = None
                 if detail:
                     monthly_sales = detail.get("sales", {}).get("monthly")
                     monthly_transactions = detail.get("sales", {}).get("transactions")
                     avg_ticket = detail.get("sales", {}).get("avg_ticket")
                     if isinstance(monthly_sales, int):
+                        monthly_sales_total = monthly_sales
                         sales_detail += f"\n- 월 매출 총액: {monthly_sales:,}원"
                     if isinstance(monthly_transactions, int):
+                        monthly_transactions_total = monthly_transactions
                         sales_detail += f"\n- 월 거래수: {monthly_transactions:,}건"
                     if isinstance(avg_ticket, int):
+                        avg_ticket_total = avg_ticket
                         sales_detail += f"\n- 평균 객단가: {avg_ticket:,}원"
 
                 structured_recommendations.append(
                     {
                         "rank": r["rank"],
+                        "district_code": r["district_code"],
                         "district_name": r["district_name"],
                         "district_type": r["district_type"],
                         "success_probability": r["success_probability"],
@@ -1406,7 +1527,12 @@ class ChatService:
                         "risk_factors": r["risk_factors"],
                         "recommendations": r["recommendations"],
                         "address": r["address"],
+                        # Backward compatible: per-store (new store perspective)
                         "monthly_sales": r["estimated_monthly_sales"],
+                        "monthly_sales_total": monthly_sales_total,
+                        "monthly_sales_per_store": r["estimated_monthly_sales"],
+                        "monthly_transactions_total": monthly_transactions_total,
+                        "avg_ticket": avg_ticket_total,
                         "store_count": int(comp.get("store_count", 0)),
                         "survival_rate": r["survival_rate_2y"],
                         "key_success_factors": r["key_success_factors"],
@@ -1500,9 +1626,9 @@ class ChatService:
                 Summary,
                 cast(object, self.data_service.get_summary()),  # pyright: ignore[reportUnknownMemberType]
             )
-            context_parts.append(f"""## 서울시 커피숍 상권 현황 (2019-2025 데이터)
+            context_parts.append(f"""## 서울시 카페 상권 현황 (2019-2025 데이터)
 - 분석 상권 수: {summary["total_districts"]}개
-- 총 커피숍 수: {summary["total_stores"]}개
+- 총 카페 수: {summary["total_stores"]}개
 - 평균 월 매출: {summary["avg_monthly_sales"]:,.0f}원
 - 평균 2년 생존율: {summary["avg_survival_rate"] * 100:.1f}%
 - 상권 유형별: 골목상권 {summary["district_types"].get("골목상권", 0)}개, 발달상권 {summary["district_types"].get("발달상권", 0)}개
@@ -1552,7 +1678,30 @@ class ChatService:
         missing_district = merged_context.district is None
         missing_budget = merged_context.budget_max is None
 
-        if missing_district or missing_budget:
+        needs_district_disambiguation = False
+        broad_token = merged_context.district
+
+        already_disambiguated = False
+        if history:
+            for h in history[-6:]:
+                ctx = h.get("context") if isinstance(h, dict) else None
+                if isinstance(ctx, dict):
+                    intake = ctx.get("intake_needs", [])
+                    if "district_detail" in intake:
+                        already_disambiguated = True
+                        break
+
+        if (
+            isinstance(broad_token, str)
+            and broad_token in self._broad_district_token_set
+            and broad_token in message
+            and not already_disambiguated
+        ):
+            options = self._top_subdistricts(broad_token, limit=6)
+            if len(options) >= 3:
+                needs_district_disambiguation = True
+
+        if missing_district or missing_budget or needs_district_disambiguation:
             known_parts: list[str] = []
             if merged_context.district:
                 known_parts.append(f"지역: {merged_context.district}")
@@ -1567,15 +1716,61 @@ class ChatService:
             reply_lines.append("추천을 정확하게 하려면 몇 가지만 확인할게요.")
             if known_parts:
                 reply_lines.append(f"(현재 파악된 정보: {', '.join(known_parts)})")
-            if missing_district:
-                reply_lines.append("1) 희망 지역이 어디인가요? (예: 강남/홍대/성수/종로)")
-            if missing_budget:
-                reply_lines.append("2) 월세 예산은 어느 정도인가요? (예: 200~400만원)")
-            reply_lines.append("선택) 타겟 고객(직장인/20대/여성)이나 컨셉(테이크아웃/디저트/브런치/작업)도 알려주면 더 정확해요.")
+            if needs_district_disambiguation and isinstance(broad_token, str):
+                reply_lines.append(
+                    f"1) '{broad_token}'은 범위가 넓어요. 아래 중 **어느 상권**을 말하는지 골라주세요."
+                )
+                options = self._top_subdistricts(broad_token, limit=4)
+                for i, opt in enumerate(options, 1):
+                    name = opt.get("district_name")
+                    dtype = opt.get("district_type")
+                    rent = self._estimate_monthly_rent_from_district(opt)
+                    if isinstance(name, str) and name:
+                        if isinstance(dtype, str) and dtype:
+                            if isinstance(rent, int):
+                                reply_lines.append(
+                                    f"   {i}) {name} ({dtype}) · 예상 월세 {rent // 10000:,}만원대"
+                                )
+                            else:
+                                reply_lines.append(f"   {i}) {name} ({dtype})")
+                        else:
+                            reply_lines.append(f"   {i}) {name}")
 
-            district = merged_context.district or ""
+                # Budget still matters; ask if missing.
+                if missing_budget:
+                    reply_lines.append("2) 월세 예산은 어느 정도인가요? (예: 200~400만원)")
+            else:
+                if missing_district:
+                    reply_lines.append("1) 희망 지역이 어디인가요? (예: 강남/홍대/성수/종로)")
+                if missing_budget:
+                    reply_lines.append("2) 월세 예산은 어느 정도인가요? (예: 200~400만원)")
+
+            reply_lines.append(
+                "선택) 타겟 고객(직장인/20대/여성)이나 컨셉(테이크아웃/디저트/브런치/작업)도 알려주면 더 정확해요."
+            )
+
             suggested: list[str] = []
-            if missing_district and missing_budget:
+            if needs_district_disambiguation and isinstance(broad_token, str):
+                base_bmin = merged_context.budget_min or 2000000
+                base_bmax = merged_context.budget_max or 5000000
+                top_opts = self._top_subdistricts(broad_token, limit=6)
+                for opt in top_opts[:4]:
+                    name = opt.get("district_name")
+                    if isinstance(name, str) and name:
+                        rent = self._estimate_monthly_rent_from_district(opt)
+                        bmin = base_bmin
+                        bmax = base_bmax
+                        if isinstance(rent, int) and base_bmax and rent > base_bmax:
+                            bmin = int(rent * 0.8)
+                            bmax = int(rent * 1.2)
+                        suggested.append(
+                            f"서울 {name}에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘"
+                        )
+                suggested.append(
+                    f"서울 {broad_token}에서 월세 {base_bmin // 10000:,}~{base_bmax // 10000:,}만원으로 가능한 상권만 추천해줘"
+                )
+
+            elif missing_district and missing_budget:
                 suggested = [
                     "서울 홍대에서 월세 300만원대 카페 추천해줘",
                     "서울 강남에서 월세 200~400만원 카페 추천해줘",
@@ -1590,7 +1785,8 @@ class ChatService:
                     f"서울 강남에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
                     f"서울 성수에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
                 ]
-            elif missing_budget and district:
+            elif missing_budget and merged_context.district:
+                district = merged_context.district
                 suggested = [
                     f"서울 {district}에서 월세 200~300만원대 카페 추천해줘",
                     f"서울 {district}에서 월세 300~400만원대 카페 추천해줘",
@@ -1622,13 +1818,13 @@ class ChatService:
                         for k in [
                             "district" if missing_district else "",
                             "budget" if missing_budget else "",
+                            "district_detail" if needs_district_disambiguation else "",
                         ]
                         if k
                     ],
                 },
             }
 
-        # 관련 데이터 조회
         context_text, recommendations, charts, context_meta = self._get_relevant_data(
             message,
             history,
@@ -1636,13 +1832,62 @@ class ChatService:
             merged_context=merged_context,
         )
 
-        # Best-effort local insights (Kakao): only when user asks.
+        if not recommendations and not missing_district and not missing_budget:
+            budget_min_man = (merged_context.budget_min or 0) // 10000
+            budget_max_man = (merged_context.budget_max or 0) // 10000
+            district_label = merged_context.district or "해당 지역"
+
+            no_result_lines = [
+                f"**{district_label}** 주변에서 월세 **{budget_min_man:,}~{budget_max_man:,}만원** 범위에 맞는 카페 상권을 찾지 못했습니다.",
+                "",
+                "조건을 조금 조정해보시겠어요?",
+            ]
+            suggested = []
+            if budget_max_man > 0:
+                wider = int(budget_max_man * 1.5)
+                suggested.append(
+                    f"서울 {district_label}에서 월세 {budget_min_man:,}~{wider:,}만원 카페 추천해줘"
+                )
+            suggested.append(f"서울 {district_label} 골목상권 카페 추천해줘")
+            suggested.append("서울 전체에서 월세 저렴한 카페 상권 추천해줘")
+
+            return {
+                "reply": "\n".join(no_result_lines),
+                "recommendations": [],
+                "charts": [],
+                "suggested_questions": suggested,
+                "context": context_meta,
+            }
+
+        # Best-effort local insights (Kakao): always run when recommendations exist.
+        competitive_data: dict[str, object] | None = None
         try:
-            local_insights = await self._build_local_insights_context(message, recommendations)
+            local_insights, comp_raw = await self._build_local_insights_with_data(message, recommendations)
             if local_insights:
                 context_text = f"{context_text}\n\n{local_insights}".strip()
+            if comp_raw:
+                competitive_data = comp_raw
         except Exception:
             pass
+
+        # Best-effort simulation for top recommendation
+        simulation_data: dict[str, object] | None = None
+        if recommendations:
+            try:
+                top_rec = recommendations[0]
+                sim = self.simulation_service.simulate(top_rec["district_code"])
+                if sim:
+                    # Also attach menu costs
+                    menu_costs_data = None
+                    try:
+                        menu_costs_data = CompetitiveAnalysisService.get_menu_costs()
+                    except Exception:
+                        pass
+                    simulation_data = dict(sim)
+                    if menu_costs_data:
+                        simulation_data["menu_costs"] = dict(menu_costs_data)
+            except Exception:
+                pass
 
         # 프롬프트 구성
         full_prompt = f"""{self.system_prompt}
@@ -1710,13 +1955,18 @@ class ChatService:
         # Map enrichment (best-effort): attach coordinates for in-app map rendering.
         await self._enrich_recommendations_with_coordinates(recommendations)
 
-        return {
+        payload: StructuredChatPayload = {
             "reply": reply_text,
             "recommendations": recommendations,
             "charts": charts,
             "suggested_questions": suggested_questions,
             "context": context_meta,
         }
+        if competitive_data:
+            payload["competitive"] = competitive_data
+        if simulation_data:
+            payload["simulation"] = simulation_data
+        return payload
 
     def chat_sync(
         self, message: str, history: list[HistoryMessage] | None = None

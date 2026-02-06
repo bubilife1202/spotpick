@@ -9,17 +9,18 @@ from __future__ import annotations
 import math
 from typing import Any, Optional, TypedDict
 
-from api.services.data_service import DataService, get_data_service
+from api.services.data_service import DataService, estimate_rent, get_data_service
 
 
 # ---------------------------------------------------------------------------
 # 업계 벤치마크 상수
 # ---------------------------------------------------------------------------
 
-INTERIOR_COST_PER_PYEONG = {
-    "basic": 1_600_000,
-    "mid": 2_150_000,
-    "premium": 2_750_000,
+DISTRICT_TYPE_FACTORS = {
+    "골목상권": {"interior_per_pyeong": 1_800_000, "labor_ratio": 0.25, "deposit_mult": 10},
+    "발달상권": {"interior_per_pyeong": 2_500_000, "labor_ratio": 0.27, "deposit_mult": 15},
+    "전통시장": {"interior_per_pyeong": 1_500_000, "labor_ratio": 0.24, "deposit_mult": 8},
+    "관광특구": {"interior_per_pyeong": 2_800_000, "labor_ratio": 0.26, "deposit_mult": 15},
 }
 
 EQUIPMENT_COST = {
@@ -33,21 +34,15 @@ EQUIPMENT_COST = {
 INITIAL_INVENTORY = (3_000_000, 5_000_000)
 PERMITS_AND_MISC = (5_000_000, 10_000_000)
 
-DEPOSIT_MULTIPLIER = {
-    "골목상권": 10,
-    "발달상권": 15,
-    "전통시장": 8,
-    "관광특구": 15,
-}
-
-OPERATING_RATIOS = {
-    "cogs": 0.32,
-    "labor": 0.25,
-    "utilities": 0.035,
-    "other": 0.075,
-}
+COGS_RATIO = 0.32
+UTILITIES_RATIO = 0.035
+OTHER_RATIO = 0.075
 
 OPERATING_MARGIN_RANGE = (0.08, 0.15)
+
+
+def estimate_seats(pyeong: int) -> tuple[int, int]:
+    return (int(pyeong * 0.8), int(pyeong * 1.2))
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +98,15 @@ class BreakEvenResult(TypedDict):
     daily_break_even_sales: int
 
 
+class SimulationAssumptions(TypedDict):
+    area_pyeong: int
+    area_sqm: int
+    seats_min: int
+    seats_max: int
+    summary: str
+    disclaimer: str
+
+
 class SimulationResult(TypedDict):
     district_name: str
     district_type: str
@@ -111,6 +115,7 @@ class SimulationResult(TypedDict):
     startup_cost: StartupCost
     operating_cost: OperatingCost
     break_even: BreakEvenResult
+    assumptions: SimulationAssumptions
     competition: dict[str, Any]
     risk_summary: list[str]
 
@@ -204,13 +209,12 @@ class SimulationService:
         monthly_rent: int,
         district_type: str,
         area_pyeong: int = 10,
-        interior_grade: str = "mid",
     ) -> StartupCost:
-        deposit_mult = DEPOSIT_MULTIPLIER.get(district_type, 10)
-        deposit = monthly_rent * deposit_mult
+        factors = DISTRICT_TYPE_FACTORS.get(district_type, DISTRICT_TYPE_FACTORS["골목상권"])
+        deposit_mult = factors["deposit_mult"]
+        deposit = int(monthly_rent * deposit_mult)
 
-        cost_per_pyeong = INTERIOR_COST_PER_PYEONG.get(interior_grade, INTERIOR_COST_PER_PYEONG["mid"])
-        interior = cost_per_pyeong * area_pyeong
+        interior = int(factors["interior_per_pyeong"] * area_pyeong)
 
         eq_min = sum(lo for lo, _ in EQUIPMENT_COST.values())
         eq_max = sum(hi for _, hi in EQUIPMENT_COST.values())
@@ -224,9 +228,9 @@ class SimulationService:
             initial_inventory_max=INITIAL_INVENTORY[1],
             permits_misc_min=PERMITS_AND_MISC[0],
             permits_misc_max=PERMITS_AND_MISC[1],
-            total_min=deposit + interior + eq_min + INITIAL_INVENTORY[0] + PERMITS_AND_MISC[0],
-            total_max=deposit + interior + eq_max + INITIAL_INVENTORY[1] + PERMITS_AND_MISC[1],
-            interior_grade=interior_grade,
+            total_min=int(deposit + interior + eq_min + INITIAL_INVENTORY[0] + PERMITS_AND_MISC[0]),
+            total_max=int(deposit + interior + eq_max + INITIAL_INVENTORY[1] + PERMITS_AND_MISC[1]),
+            interior_grade="mid",
             area_pyeong=area_pyeong,
         )
 
@@ -234,11 +238,17 @@ class SimulationService:
     # 3. 운영비
     # -----------------------------------------------------------------------
 
-    def estimate_operating_cost(self, monthly_revenue: int, monthly_rent: int) -> OperatingCost:
-        cogs = int(monthly_revenue * OPERATING_RATIOS["cogs"])
-        labor = int(monthly_revenue * OPERATING_RATIOS["labor"])
-        utilities = int(monthly_revenue * OPERATING_RATIOS["utilities"])
-        other = int(monthly_revenue * OPERATING_RATIOS["other"])
+    def estimate_operating_cost(
+        self,
+        monthly_revenue: int,
+        monthly_rent: int,
+        district_type: str,
+    ) -> OperatingCost:
+        factors = DISTRICT_TYPE_FACTORS.get(district_type, DISTRICT_TYPE_FACTORS["골목상권"])
+        cogs = int(monthly_revenue * COGS_RATIO)
+        labor = int(monthly_revenue * factors["labor_ratio"])
+        utilities = int(monthly_revenue * UTILITIES_RATIO)
+        other = int(monthly_revenue * OTHER_RATIO)
         total = monthly_rent + cogs + labor + utilities + other
 
         return OperatingCost(
@@ -292,7 +302,6 @@ class SimulationService:
         self,
         district_code: str,
         area_pyeong: int = 10,
-        interior_grade: str = "mid",
     ) -> SimulationResult | None:
         detail_raw: dict[str, Any] | None = None
         district: dict[str, Any] | None = None
@@ -307,19 +316,19 @@ class SimulationService:
 
         sc = max(1, district.get("store_count", 1))
         sps = int(district["monthly_sales"] / sc)
-        estimated_rent = int(sps * 0.07 / 10_000) * 10_000
-        estimated_rent = max(1_500_000, min(estimated_rent, 15_000_000))
+        pctile = self.data_service._sales_percentile.get(district["district_code"], 0.5)
+        estimated_rent = estimate_rent(district["district_type"], sps, pctile)
 
         revenue = self.estimate_revenue(district)
         startup = self.estimate_startup_cost(
             monthly_rent=estimated_rent,
             district_type=district["district_type"],
             area_pyeong=area_pyeong,
-            interior_grade=interior_grade,
         )
         operating = self.estimate_operating_cost(
             monthly_revenue=revenue["monthly_sales_per_store"],
             monthly_rent=estimated_rent,
+            district_type=district["district_type"],
         )
         break_even = self.calculate_break_even(
             monthly_revenue=revenue["monthly_sales_per_store"],
@@ -329,13 +338,24 @@ class SimulationService:
 
         risks: list[str] = []
         if district.get("store_count", 0) > 20:
-            risks.append(f"높은 경쟁 밀도 (커피숍 {district['store_count']}개)")
+            risks.append(f"높은 경쟁 밀도 (카페 {district['store_count']}개)")
         if district.get("survival_rate", 1) < 0.7:
             risks.append(f"낮은 생존율 ({district['survival_rate'] * 100:.0f}%)")
         if district.get("closed_stores", 0) > district.get("new_stores", 0):
             risks.append("폐업이 개업보다 많은 상권")
         if break_even["break_even_months_max"] > 36:
             risks.append("투자 회수 3년 이상 소요 예상")
+
+        area_sqm = int(area_pyeong * 3.3)
+        seats_min, seats_max = estimate_seats(area_pyeong)
+        assumptions = SimulationAssumptions(
+            area_pyeong=area_pyeong,
+            area_sqm=area_sqm,
+            seats_min=seats_min,
+            seats_max=seats_max,
+            summary=f"{area_pyeong}평(약 {area_sqm}㎡) / {seats_min}~{seats_max}석 기준",
+            disclaimer="업종 평균 기준 추정치입니다. 실제 비용은 입지·인테리어 수준에 따라 ±20% 차이가 있을 수 있습니다.",
+        )
 
         return SimulationResult(
             district_name=district["district_name"],
@@ -345,6 +365,7 @@ class SimulationService:
             startup_cost=startup,
             operating_cost=operating,
             break_even=break_even,
+            assumptions=assumptions,
             competition={
                 "store_count": district.get("store_count", 0),
                 "new_stores": district.get("new_stores", 0),
