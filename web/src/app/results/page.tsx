@@ -19,6 +19,7 @@ import {
   X,
   CheckSquare,
   Square,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
@@ -894,6 +895,36 @@ function ResultsContent() {
           </div>
         </div>
 
+        {/* Filter summary banner */}
+        {(() => {
+          const hasFilters = district || areaType || budgetMin !== 3000 || budgetMax !== 20000;
+          const parts: string[] = [];
+          parts.push(`${industry.icon} ${industry.name}`);
+          parts.push(district || "서울 전체");
+          if (areaType) parts.push(areaType);
+          if (budgetMin !== 3000 || budgetMax !== 20000) {
+            parts.push(`예산 ${formatBudgetLabel(budgetMin)}~${formatBudgetLabel(budgetMax)}원`);
+          }
+
+          return (
+            <div className={cn(
+              "rounded-xl px-4 py-3 text-sm flex items-center gap-2",
+              hasFilters
+                ? "bg-blue-50 border border-blue-200 text-blue-700"
+                : "bg-slate-50 border border-slate-200 text-slate-600"
+            )}>
+              <Info size={16} className="flex-shrink-0" />
+              {hasFilters ? (
+                <span>
+                  <span className="font-semibold">{parts.join(" · ")}</span> 기준 추천 결과입니다
+                </span>
+              ) : (
+                <span>전체 업종 · 서울 전체 기준 추천 결과입니다. 필터를 설정하면 맞춤 결과를 볼 수 있습니다.</span>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Results count */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-600">
@@ -935,7 +966,26 @@ function ResultsContent() {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center">
                 <MapPin size={40} className="mx-auto mb-3 text-slate-300" />
                 <p className="text-slate-600 font-medium mb-1">조건에 맞는 상권이 없습니다</p>
-                <p className="text-slate-400 text-sm">필터를 조정해보세요.</p>
+                <p className="text-slate-400 text-sm mb-4">필터를 조정해보세요.</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      setBudgetMin(3000);
+                      setBudgetMax(20000);
+                      setDistrict("");
+                      setAreaType("");
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    필터 초기화
+                  </button>
+                  <Link
+                    href="/chat"
+                    className="px-4 py-2 bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-300 transition-colors"
+                  >
+                    AI에게 질문하기
+                  </Link>
+                </div>
               </div>
             )}
 
