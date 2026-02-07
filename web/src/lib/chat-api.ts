@@ -28,6 +28,11 @@ export const SUGGESTED_QUESTIONS = [...DEFAULT_SUGGESTED_QUESTIONS];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
 
+function getStoredIndustryCode(): string {
+  if (typeof window === "undefined") return "CS100010";
+  return window.localStorage.getItem("builder_curation_industry_code") || "CS100010";
+}
+
 function loadStoredChatContext(): ChatRequest["context"] | undefined {
   if (typeof window === "undefined") return undefined;
   const raw = window.localStorage.getItem("builder_curation_onboarding_context");
@@ -71,6 +76,7 @@ export async function sendChatMessage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      industry_code: getStoredIndustryCode(),
       history: history.slice(-6).map((m) => ({
         role: m.role,
         content: m.content,
@@ -110,6 +116,7 @@ export async function sendStructuredChatMessage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      industry_code: getStoredIndustryCode(),
       history: history.slice(-6).map((m) => ({
         role: m.role,
         content: m.content,
@@ -156,6 +163,7 @@ export async function* streamChatMessage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      industry_code: getStoredIndustryCode(),
       history: history.slice(-6).map((m) => ({
         role: m.role,
         content: m.content,
@@ -226,6 +234,7 @@ export async function* streamStructuredChatMessage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      industry_code: getStoredIndustryCode(),
       history: history.slice(-6).map((m) => ({
         role: m.role,
         content: m.content,

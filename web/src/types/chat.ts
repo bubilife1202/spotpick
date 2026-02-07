@@ -98,6 +98,11 @@ export interface RecommendationCardData {
   worker_total?: number;
   facility_subway?: number;
   change_indicator?: string;
+  transit_percentile?: number;
+  positioning?: string;
+  positioning_detail?: string;
+  purchasing_power?: number;
+  scorecard?: ScorecardResult;
 }
 
 // ============================================================================
@@ -159,6 +164,7 @@ export interface ConversationContext {
   preferred_hours?: string;
   preferences?: Record<string, string | number | boolean>;
   intake_needs?: string[];
+  industry_code?: string;
 }
 
 /**
@@ -193,6 +199,10 @@ export interface StructuredChatResponse {
   competitive?: CompetitiveInsight;
   /** Startup simulation data */
   simulation?: SimulationData;
+  /** Startup timeline data */
+  timeline?: TimelineData;
+  /** Trademark conflict check result */
+  trademark?: TrademarkCheckResult;
 }
 
 // ============================================================================
@@ -287,7 +297,10 @@ export interface SimulationData {
     menu_costs: MenuCostItem[];
     avg_margin_rate: number;
     daily_sales_scenario: {
-      daily_cups: number;
+      daily_cups?: number;
+      daily_orders?: number;
+      unit?: string;
+      unit_name?: string;
       daily_revenue: number;
       daily_cogs: number;
       daily_gross_profit: number;
@@ -295,6 +308,37 @@ export interface SimulationData {
       monthly_gross_profit: number;
     };
   };
+}
+
+export interface TimelineStage {
+  name: string;
+  duration_weeks: number;
+  start_week: number;
+  end_week: number;
+  can_overlap: boolean;
+  description: string;
+}
+
+export interface TimelineData {
+  stages: TimelineStage[];
+  total_weeks: number;
+  total_months: number;
+  fast_estimate_months: number;
+  slow_estimate_months: number;
+  summary: string;
+  disclaimer: string;
+}
+
+export interface TrademarkConflict {
+  name: string;
+  similarity: number;
+}
+
+export interface TrademarkCheckResult {
+  query: string;
+  conflicts: TrademarkConflict[];
+  risk_level: "high" | "medium" | "low";
+  suggestions: string[];
 }
 
 export interface MessageStructuredData {
@@ -306,6 +350,8 @@ export interface MessageStructuredData {
   isIntake?: boolean;
   competitive?: CompetitiveInsight;
   simulation?: SimulationData;
+  timeline?: TimelineData;
+  trademark?: TrademarkCheckResult;
 }
 
 /**
@@ -411,6 +457,7 @@ export interface ChatRequest {
   }>;
   /** Session context */
   context?: ConversationContext;
+  industry_code?: string;
 }
 
 /**
@@ -436,6 +483,47 @@ export interface StreamingChunk {
     code: string;
     message: string;
   };
+}
+
+// ============================================================================
+// Scorecard Types
+// ============================================================================
+
+export interface ScorecardItem {
+  feature: string;
+  label: string;
+  raw_value: number;
+  percentile: number;
+  weight: number;
+  weighted_score: number;
+}
+
+export interface ScorecardCategory {
+  name: string;
+  weight: number;
+  score: number;
+  items: ScorecardItem[];
+}
+
+export interface ScorecardResult {
+  district_code: string;
+  district_name: string;
+  total_score: number;
+  rank: number;
+  percentile: number;
+  categories: ScorecardCategory[];
+}
+
+// ============================================================================
+// Industry Types
+// ============================================================================
+
+export interface IndustryInfo {
+  code: string;
+  name: string;
+  display_name: string;
+  icon: string;
+  color: string;
 }
 
 // ============================================================================

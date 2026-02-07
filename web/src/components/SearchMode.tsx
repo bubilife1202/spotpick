@@ -126,7 +126,7 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
               1,077개 상권 · 64개 분석 지표
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              카페 창업,<br className="sm:hidden" /> 어디서 해야 성공할까?
+              창업, 어디서 해야<br className="sm:hidden" /> 성공할까?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto text-sm sm:text-base">
               서울시 6년간 데이터를 AI가 분석했습니다.<br />
@@ -301,7 +301,7 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
             <section className="mt-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white text-center">
               <h3 className="text-2xl font-bold mb-3">AI와 대화하며 상권 분석하기</h3>
               <p className="text-blue-100 mb-6 max-w-lg mx-auto">
-                &quot;홍대에서 20대 여성 타겟 카페 추천해줘&quot; 처럼<br />
+                &quot;홍대에서 20대 여성 타겟 상권 추천해줘&quot; 처럼<br />
                 자연어로 질문하면 맞춤 분석을 제공합니다.
               </p>
               <button

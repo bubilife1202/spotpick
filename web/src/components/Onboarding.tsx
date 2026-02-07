@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Coffee, Croissant, Camera, BookOpen, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IndustrySelector } from "@/components/IndustrySelector";
 
 interface OnboardingProps {
   onComplete: (data: OnboardingData) => void;
@@ -10,6 +11,7 @@ interface OnboardingProps {
 }
 
 export interface OnboardingData {
+  industryCode: string;
   cafeType: string;
   budget: string;
   target: string;
@@ -43,34 +45,51 @@ const DISTRICTS = [
   "영등포", "종로", "중구", "강서", "양천", "구로",
 ];
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
+
+// Steps where cafe-specific sub-type selection is shown
+const CAFE_INDUSTRY_CODE = "CS100010";
 
 export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [shakeStep, setShakeStep] = useState(false);
   const [data, setData] = useState<OnboardingData>({
+    industryCode: "",
     cafeType: "",
     budget: "",
     target: "",
     district: null,
   });
 
+  const isCafe = data.industryCode === CAFE_INDUSTRY_CODE;
+
   const handleNext = () => {
-    if (step < TOTAL_STEPS) {
-      setStep(step + 1);
+    if (step < TOTAL_STEPS - 1) {
+      let nextStep = step + 1;
+      // Skip cafe sub-type step (step 1) for non-cafe industries
+      if (step === 0 && !isCafe) {
+        nextStep = 2;
+      }
+      setStep(nextStep);
     } else {
       onComplete(data);
     }
   };
 
   const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
+    if (step > 0) {
+      let prevStep = step - 1;
+      // Skip cafe sub-type step (step 1) for non-cafe industries
+      if (step === 2 && !isCafe) {
+        prevStep = 0;
+      }
+      setStep(prevStep);
     }
   };
 
   const canProceed = () => {
     switch (step) {
+      case 0: return data.industryCode !== "";
       case 1: return data.cafeType !== "";
       case 2: return data.budget !== "";
       case 3: return data.target !== "";
@@ -81,6 +100,7 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
 
   const shakeMessage = () => {
     switch (step) {
+      case 0: return "업종을 선택해주세요";
       case 1: return "카페 유형을 선택해주세요";
       case 2: return "예산을 선택해주세요";
       case 3: return "타겟 고객을 선택해주세요";
@@ -106,7 +126,7 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
               <span className="font-semibold">시작하기</span>
             </div>
             <div className="flex gap-1">
-              {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
+              {Array.from({ length: TOTAL_STEPS }, (_, i) => i).map((s) => (
                 <div
                   key={s}
                   className={cn(
@@ -120,6 +140,19 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
         </div>
 
         <div className="p-6">
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">어떤 업종을 준비하세요?</h2>
+                <p className="text-sm text-gray-500 mt-1">업종에 따라 분석 기준이 달라져요</p>
+              </div>
+              <IndustrySelector
+                value={data.industryCode}
+                onChange={(code) => setData({ ...data, industryCode: code, cafeType: "" })}
+              />
+            </div>
+          )}
+
           {step === 1 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
@@ -247,10 +280,10 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
         )}
         <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
           <button
-            onClick={step === 1 ? onSkip : handleBack}
+            onClick={step === 0 ? onSkip : handleBack}
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
           >
-            {step === 1 ? (
+            {step === 0 ? (
               "건너뛰기"
             ) : (
               <>
@@ -273,7 +306,7 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
               shakeStep && "animate-shake"
             )}
           >
-            {step === TOTAL_STEPS ? "분석 시작!" : "다음"}
+            {step === TOTAL_STEPS - 1 ? "분석 시작!" : "다음"}
             <ArrowRight size={16} />
           </button>
         </div>

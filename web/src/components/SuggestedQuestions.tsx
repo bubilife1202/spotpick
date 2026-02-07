@@ -268,19 +268,36 @@ export function SuggestedQuestions({
 // ─────────────────────────────────────────────────────────────────────────────
 const INITIAL_QUESTION_ICONS = [TrendingUp, MapPin, Zap, MapPin, TrendingUp] as const;
 
-const INITIAL_QUESTIONS = [
-  "서울 강남에서 월세 300~400만원으로 카페 창업 추천해줘",
-  "서울 홍대에서 20대 여성 타겟 카페 상권 추천해줘",
+const DEFAULT_INITIAL_QUESTIONS = [
+  "서울 강남에서 월세 300~400만원으로 창업 추천해줘",
+  "서울 홍대에서 20대 여성 타겟 상권 추천해줘",
   "서울에서 직장인 점심(11-14) 피크 상권 추천해줘",
   "서울 홍대 vs 성수 상권 비교해줘",
   "서울 성수에서 골목상권 + 월세 200~300만원 추천해줘",
 ] as const;
 
-export function InitialQuestions({ onSelect }: { onSelect: (q: string) => void }) {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+
+export function InitialQuestions({ onSelect, industryCode }: { onSelect: (q: string) => void; industryCode?: string }) {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [questions, setQuestions] = useState<string[]>([...DEFAULT_INITIAL_QUESTIONS]);
+
+  useEffect(() => {
+    if (!industryCode) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/industries/${industryCode}/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(cfg => {
+        if (!cancelled && cfg?.INITIAL_QUESTIONS?.length) {
+          setQuestions(cfg.INITIAL_QUESTIONS);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [industryCode]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);
@@ -302,7 +319,7 @@ export function InitialQuestions({ onSelect }: { onSelect: (q: string) => void }
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setFocusedIndex((prev) => Math.min(prev + 1, INITIAL_QUESTIONS.length - 1));
+          setFocusedIndex((prev) => Math.min(prev + 1, questions.length - 1));
           break;
         case "ArrowUp":
           e.preventDefault();
@@ -311,7 +328,7 @@ export function InitialQuestions({ onSelect }: { onSelect: (q: string) => void }
         case "Enter":
         case " ":
           e.preventDefault();
-          handleClick(INITIAL_QUESTIONS[index], index);
+          handleClick(questions[index], index);
           break;
       }
     },
@@ -328,7 +345,7 @@ export function InitialQuestions({ onSelect }: { onSelect: (q: string) => void }
   return (
     <div ref={containerRef} className="w-full max-w-lg" role="group" aria-label="시작 질문">
       <div className="space-y-2.5">
-        {INITIAL_QUESTIONS.map((q, i) => {
+        {questions.map((q, i) => {
           const Icon = INITIAL_QUESTION_ICONS[i % INITIAL_QUESTION_ICONS.length];
           return (
             <button
