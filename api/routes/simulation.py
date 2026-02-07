@@ -158,3 +158,93 @@ async def simulate_by_code(
         industry_code=industry_code,
     )
     return await simulate(request)
+
+
+# ---------------------------------------------------------------------------
+# What-if 시뮬레이터 기본값 엔드포인트
+# ---------------------------------------------------------------------------
+
+
+class SimulatorDefaultsResponse(BaseModel):
+    district_name: str
+    district_type: str
+    district_code: str
+    # 슬라이더 기본값
+    area_pyeong: int
+    avg_ticket: int
+    daily_visitors: int
+    cogs_ratio: float
+    monthly_rent: int
+    labor_count: int
+    startup_cost_min: int
+    startup_cost_max: int
+    # 베이스라인 시뮬레이션 전체 결과
+    baseline: SimulationResponse
+
+
+@router.get(
+    "/{district_code}/defaults",
+    response_model=SimulatorDefaultsResponse,
+)
+async def get_simulator_defaults(
+    district_code: str,
+    industry_code: str = "CS100010",
+    area_pyeong: int = 10,
+) -> SimulatorDefaultsResponse:
+    """What-if 시뮬레이터 슬라이더 기본값 + 베이스라인 시뮬레이션 결과 반환."""
+    service = get_simulation_service(industry_code=industry_code)
+    result = await service.simulate(
+        district_code=district_code,
+        area_pyeong=area_pyeong,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"상권 코드 {district_code}를 찾을 수 없습니다",
+        )
+
+    revenue = result["revenue"]
+    operating = result["operating_cost"]
+    startup = result["startup_cost"]
+
+    # 일 방문객 = 월 거래건수 / 30
+    daily_visitors = max(1, revenue["monthly_transactions_per_store"] // 30)
+
+    # 인건비에서 인원수 역산 (1인당 250만원 기준)
+    labor_per_person = 2_500_000
+    labor_count = max(1, round(operating["labor"] / labor_per_person))
+
+    # 베이스라인 응답 구성
+    franchise_bm = None
+    if result.get("franchise_benchmark"):
+        franchise_bm = FranchiseBenchmarkResponse(**result["franchise_benchmark"])
+
+    baseline = SimulationResponse(
+        district_name=result["district_name"],
+        district_type=result["district_type"],
+        district_code=result["district_code"],
+        revenue=RevenueResponse(**revenue),
+        startup_cost=StartupCostResponse(**startup),
+        operating_cost=OperatingCostResponse(**operating),
+        break_even=BreakEvenResponse(**result["break_even"]),
+        competition=CompetitionResponse(**result["competition"]),
+        risk_summary=result["risk_summary"],
+        franchise_benchmark=franchise_bm,
+        cost_data_source=result.get("cost_data_source"),
+    )
+
+    return SimulatorDefaultsResponse(
+        district_name=result["district_name"],
+        district_type=result["district_type"],
+        district_code=district_code,
+        area_pyeong=area_pyeong,
+        avg_ticket=revenue["avg_ticket"],
+        daily_visitors=daily_visitors,
+        cogs_ratio=round(service._cogs_ratio, 4),
+        monthly_rent=operating["rent"],
+        labor_count=labor_count,
+        startup_cost_min=startup["total_min"],
+        startup_cost_max=startup["total_max"],
+        baseline=baseline,
+    )
