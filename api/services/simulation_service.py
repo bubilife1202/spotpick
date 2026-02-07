@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any, Optional, TypedDict
 
 from api.services.data_service import DataService, estimate_rent, get_data_service
 from config.industry_config import load_industry_config, DEFAULT_INDUSTRY
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +111,7 @@ class SimulationAssumptions(TypedDict):
     disclaimer: str
 
 
-class SimulationResult(TypedDict):
+class SimulationResult(TypedDict, total=False):
     district_name: str
     district_type: str
     district_code: str
@@ -119,6 +122,7 @@ class SimulationResult(TypedDict):
     assumptions: SimulationAssumptions
     competition: dict[str, Any]
     risk_summary: list[str]
+    franchise_benchmark: dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
@@ -368,10 +372,45 @@ class SimulationService:
         )
 
     # -----------------------------------------------------------------------
+    # 공정위 가맹사업 벤치마크 보강
+    # -----------------------------------------------------------------------
+
+    async def enrich_with_franchise_data(
+        self, result: SimulationResult,
+    ) -> SimulationResult:
+        """공정위 가맹사업 데이터로 시뮬레이션 결과를 보강한다."""
+        try:
+            from api.services.franchise_data_service import get_franchise_benchmark
+
+            benchmark = await get_franchise_benchmark(self.industry_code)
+            if benchmark and benchmark.get("available"):
+                franchise_info: dict[str, Any] = {
+                    "source": f"공정거래위원회 가맹사업 정보공개서 {benchmark.get('year', '')}".strip(),
+                }
+                if benchmark.get("avg_total_startup_cost"):
+                    franchise_info["avg_total_startup_cost"] = benchmark["avg_total_startup_cost"]
+                if benchmark.get("avg_interior_cost"):
+                    franchise_info["avg_interior_cost"] = benchmark["avg_interior_cost"]
+                # 브랜드 수, 가맹점 수 합산
+                statuses = benchmark.get("industry_status", [])
+                if statuses:
+                    franchise_info["brand_count"] = sum(
+                        s.get("brand_count", 0) for s in statuses
+                    )
+                    franchise_info["store_count"] = sum(
+                        s.get("store_count", 0) for s in statuses
+                    )
+                result["franchise_benchmark"] = franchise_info
+        except Exception as e:
+            logger.warning("공정위 데이터 보강 실패 (무시): %s", e)
+
+        return result
+
+    # -----------------------------------------------------------------------
     # 통합 시뮬레이션
     # -----------------------------------------------------------------------
 
-    def simulate(
+    async def simulate(
         self,
         district_code: str,
         area_pyeong: int = 10,
@@ -430,7 +469,7 @@ class SimulationService:
             disclaimer="업종 평균 기준 추정치입니다. 실제 비용은 입지·인테리어 수준에 따라 ±20% 차이가 있을 수 있습니다.",
         )
 
-        return SimulationResult(
+        result = SimulationResult(
             district_name=district["district_name"],
             district_type=district["district_type"],
             district_code=district_code,
@@ -454,6 +493,11 @@ class SimulationService:
             },
             risk_summary=risks,
         )
+
+        # 공정위 가맹사업 벤치마크 데이터 보강
+        result = await self.enrich_with_franchise_data(result)
+
+        return result
 
 
 # ---------------------------------------------------------------------------

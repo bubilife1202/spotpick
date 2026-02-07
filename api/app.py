@@ -114,6 +114,9 @@ def create_app() -> FastAPI:
     trends_router = cast(APIRouter, import_module("api.routes.trends").router)
     app.include_router(trends_router, prefix="/api/v1", tags=["Trends"])
 
+    franchise_router = cast(APIRouter, import_module("api.routes.franchise").router)
+    app.include_router(franchise_router, prefix="/api/v1", tags=["Franchise"])
+
     return app
 
 

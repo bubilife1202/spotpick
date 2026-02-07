@@ -1833,7 +1833,7 @@ class ChatService:
 
         return filtered
 
-    def _get_relevant_data(
+    async def _get_relevant_data(
         self,
         query: str,
         history: list[HistoryMessage] | None = None,
@@ -1962,7 +1962,7 @@ class ChatService:
                 except Exception:
                     pass
 
-                sim = self.simulation_service.simulate(r["district_code"])
+                sim = await self.simulation_service.simulate(r["district_code"])
                 sim_text = ""
                 if sim:
                     rev = sim["revenue"]
@@ -2333,7 +2333,7 @@ class ChatService:
             charts,
             context_meta,
             timeline_data_for_response,
-        ) = self._get_relevant_data(
+        ) = await self._get_relevant_data(
             message,
             history,
             seed_context=seed_context,
@@ -2383,7 +2383,7 @@ class ChatService:
         if recommendations:
             try:
                 top_rec = recommendations[0]
-                sim = self.simulation_service.simulate(top_rec["district_code"])
+                sim = await self.simulation_service.simulate(top_rec["district_code"])
                 if sim:
                     # Also attach menu costs
                     menu_costs_data = None

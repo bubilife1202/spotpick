@@ -83,6 +83,14 @@ class CompetitionResponse(BaseModel):
     survival_rate: float
 
 
+class FranchiseBenchmarkResponse(BaseModel):
+    source: Optional[str] = None
+    avg_total_startup_cost: Optional[int] = None
+    avg_interior_cost: Optional[int] = None
+    brand_count: Optional[int] = None
+    store_count: Optional[int] = None
+
+
 class SimulationResponse(BaseModel):
     district_name: str
     district_type: str
@@ -93,6 +101,7 @@ class SimulationResponse(BaseModel):
     break_even: BreakEvenResponse
     competition: CompetitionResponse
     risk_summary: list[str]
+    franchise_benchmark: Optional[FranchiseBenchmarkResponse] = None
 
 
 @router.post("/simulate", response_model=SimulationResponse)
@@ -103,10 +112,9 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
     매출 예측 · 초기 투자비용 · 운영비 · 손익분기점을 종합 산출합니다.
     """
     service = get_simulation_service(industry_code=request.industry_code)
-    result = service.simulate(
+    result = await service.simulate(
         district_code=request.district_code,
         area_pyeong=request.area_pyeong,
-        interior_grade=request.interior_grade,
     )
 
     if result is None:
@@ -114,6 +122,10 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
             status_code=404,
             detail=f"상권 코드 {request.district_code}를 찾을 수 없습니다",
         )
+
+    franchise_bm = None
+    if result.get("franchise_benchmark"):
+        franchise_bm = FranchiseBenchmarkResponse(**result["franchise_benchmark"])
 
     return SimulationResponse(
         district_name=result["district_name"],
@@ -125,6 +137,7 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
         break_even=BreakEvenResponse(**result["break_even"]),
         competition=CompetitionResponse(**result["competition"]),
         risk_summary=result["risk_summary"],
+        franchise_benchmark=franchise_bm,
     )
 
 
