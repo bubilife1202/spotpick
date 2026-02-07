@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays } from "lucide-react";
+import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays, Search, X, ChevronRight, Sparkles } from "lucide-react";
 import { ChatMessage, StructuredChatResponse, RecommendationCardData } from "@/types/chat";
 import { SuggestedQuestions } from "@/components/SuggestedQuestions";
 import { ChatChartSection } from "@/components/ChatChart";
@@ -63,17 +63,17 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
-    
+
     return () => {
       clearTimeout(handler);
     };
   }, [value, delay]);
-  
+
   return debouncedValue;
 }
 
@@ -103,14 +103,14 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
   const initialQuerySent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const [districtResults, setDistrictResults] = useState<DistrictSearchResult[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
   const autocompleteRef = useRef<HTMLDivElement>(null);
-  
+
   const debouncedInput = useDebounce(input, 450);
-  
+
   const extractKoreanLocation = useCallback((text: string): string | null => {
     const raw = (text || "").trim();
     if (!raw) return null;
@@ -171,9 +171,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     return null;
   }, []);
-  
+
   const lastSearchRef = useRef("");
-  
+
   useEffect(() => {
     const locationQuery = extractKoreanLocation(debouncedInput);
     if (!locationQuery || locationQuery.length < 2) {
@@ -181,12 +181,12 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
       setShowAutocomplete(false);
       return;
     }
-    
+
     if (locationQuery === lastSearchRef.current) return;
     lastSearchRef.current = locationQuery;
 
     let cancelled = false;
-    
+
     fetch(`${API_BASE}/districts/search?q=${encodeURIComponent(locationQuery)}&limit=10`)
       .then(r => r.ok ? r.json() : null)
       .then((data: DistrictSearchResponse | null) => {
@@ -204,7 +204,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     return () => { cancelled = true; };
   }, [debouncedInput, extractKoreanLocation]);
-  
+
   const handleDistrictSelect = useCallback((district: DistrictSearchResult) => {
     const locationQuery = extractKoreanLocation(input);
     const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -221,13 +221,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     setDistrictResults([]);
     inputRef.current?.focus();
   }, [input, extractKoreanLocation]);
-  
+
   const handleAutocompleteKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!showAutocomplete || districtResults.length === 0) return;
-    
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setAutocompleteIndex(prev => 
+      setAutocompleteIndex(prev =>
         prev < districtResults.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === "ArrowUp") {
@@ -318,7 +318,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
         successProbability: rec.success_probability,
       }));
   }, []);
-  
+
   const hasStructuredData = useCallback((message: ChatMessage) => {
     return (
       (message.structured?.recommendations && message.structured.recommendations.length > 0) ||
@@ -344,10 +344,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     try {
       const response: StructuredChatResponse = await sendStructuredChatMessage(messageText, messages);
-      
+
       const isIntake = Boolean(
-        response.context?.intake_needs && 
-        Array.isArray(response.context.intake_needs) && 
+        response.context?.intake_needs &&
+        Array.isArray(response.context.intake_needs) &&
         response.context.intake_needs.length > 0
       );
 
@@ -388,7 +388,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
       if (["ArrowDown", "ArrowUp"].includes(e.key)) return;
       if (e.key === "Enter" && autocompleteIndex >= 0) return;
     }
-    
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -400,7 +400,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
   const renderMessageContent = (content: string, messageIndex?: number) => {
     let processedContent = content;
-    
+
     Object.keys(GLOSSARY).forEach((term) => {
       const regex = new RegExp(`(${term})`, "g");
       processedContent = processedContent.replace(
@@ -534,7 +534,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                       </div>
                     )}
                   </div>
-                  
+
                   {message.role === "assistant" && hasStructuredData(message) && (
                     <div className="ml-12 animate-fade-in">
                       <div className={cn(
@@ -544,7 +544,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                         "shadow-lg shadow-slate-200/40"
                       )}>
                         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/20 via-transparent to-transparent pointer-events-none" />
-                        
+
                         <div className="relative px-4 py-3 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
@@ -553,13 +553,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             <span className="text-sm font-semibold text-slate-700">상권 분석 결과</span>
                           </div>
                         </div>
-                        
+
                         <div className="relative p-4 space-y-5">
                           {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
                             const recommendations = message.structured!.recommendations.slice(0, 3);
                             const markers = convertToMapMarkers(recommendations);
                             const hasCoordinates = markers.length > 0;
-                            
+
                             return (
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <div className="space-y-3">
@@ -572,12 +572,12 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   <div className="lg:space-y-2.5">
                                     <div className="flex lg:flex-col gap-2.5 overflow-x-auto lg:overflow-x-visible snap-x snap-mandatory scrollbar-hide pb-2 lg:pb-0 -mx-1 px-1">
                                     {recommendations.map((rec, i) => {
-                                      const probColor = rec.success_probability >= 0.7 
-                                        ? "text-emerald-600 bg-emerald-50" 
-                                        : rec.success_probability >= 0.5 
-                                          ? "text-amber-600 bg-amber-50" 
+                                      const probColor = rec.success_probability >= 0.7
+                                        ? "text-emerald-600 bg-emerald-50"
+                                        : rec.success_probability >= 0.5
+                                          ? "text-amber-600 bg-amber-50"
                                           : "text-rose-600 bg-rose-50";
-                                      
+
                                       return (
                                         <div
                                           key={i}
@@ -611,7 +611,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               {Math.round(rec.success_probability * 100)}%
                                             </div>
                                           </div>
-                                          
+
                                           <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-slate-50">
                                             {(rec.monthly_sales_total || rec.monthly_sales) && (
                                               <div className="flex items-center gap-2 text-[11px] text-slate-600 min-w-0">
@@ -720,7 +720,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     </div>
                                   </div>
                                 </div>
-                                
+
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                     <MapPin size={12} className="text-blue-500" />
@@ -728,8 +728,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   </div>
                                   {hasCoordinates ? (
                                     <div className="rounded-xl overflow-hidden border border-slate-100">
-                                      <MiniMap 
-                                        markers={markers} 
+                                      <MiniMap
+                                        markers={markers}
                                         height={240}
                                         zoom={12}
                                       />
@@ -764,7 +764,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               </div>
                             );
                           })()}
-                          
+
                           {/* 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
                           {SHOW_DETAIL_SECTIONS && message.structured?.charts && message.structured.charts.length > 0 && (
                             <div className="space-y-3">
@@ -812,11 +812,11 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   {message.structured.competitive.total_nearby_cafes}개 {industry.name} 분석
                                 </span>
                               </div>
-                              
+
                               {message.structured.competitive.cafe_types.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                   {message.structured.competitive.cafe_types.slice(0, 4).map((ct, i) => (
-                                    <span 
+                                    <span
                                       key={i}
                                       className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-medium",
@@ -1234,7 +1234,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               </div>
                             ) : (
                               <div className="pt-3 border-t border-slate-100">
-                                <SuggestedQuestions 
+                                <SuggestedQuestions
                                   questions={message.structured.suggestedQuestions}
                                   onSelect={handleSend}
                                   variant="minimal"
@@ -1248,7 +1248,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   )}
                 </div>
               ))}
-              
+
               {/* Loading indicator */}
               {isLoading && (
                 <div className="flex gap-3 justify-start">
@@ -1266,10 +1266,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
-            
+
             <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 sm:pt-4 sm:pb-6">
               <div className="relative">
                 <input
@@ -1307,9 +1307,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                 >
                   <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
-                
+
                 {showAutocomplete && districtResults.length > 0 && (
-                  <div 
+                  <div
                     ref={autocompleteRef}
                     className={cn(
                       "absolute bottom-full left-0 right-0 mb-2",
@@ -1354,9 +1354,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             {district.survival_rate > 0 && (
                               <span className={cn(
                                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                                district.survival_rate >= 0.8 
-                                  ? "bg-emerald-50 text-emerald-600" 
-                                  : district.survival_rate >= 0.6 
+                                district.survival_rate >= 0.8
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : district.survival_rate >= 0.6
                                     ? "bg-amber-50 text-amber-600"
                                     : "bg-rose-50 text-rose-600"
                               )}>
@@ -1370,7 +1370,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   </div>
                 )}
               </div>
-              
+
               <p className="mt-2 text-center text-xs text-gray-400">
                 Enter로 전송 · 지역명 입력시 자동완성
               </p>
@@ -1380,20 +1380,396 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
        </div>
      </main>
    );
- }
+}
+
+// ---------------------------------------------------------------------------
+// Smart Search NLP parser
+// ---------------------------------------------------------------------------
+
+const INDUSTRY_KEYWORD_MAP: Record<string, string> = {
+  "카페": "CS100010", "커피": "CS100010", "커피숍": "CS100010",
+  "치킨": "CS100007",
+  "한식": "CS100001", "한식당": "CS100001", "한정식": "CS100001",
+  "중식": "CS100002", "중국집": "CS100002", "중화": "CS100002",
+  "일식": "CS100003", "일본": "CS100003", "초밥": "CS100003", "라멘": "CS100003",
+  "양식": "CS100004", "레스토랑": "CS100004", "파스타": "CS100004",
+  "베이커리": "CS100005", "빵": "CS100005", "빵집": "CS100005", "제과": "CS100005",
+  "패스트푸드": "CS100006", "버거": "CS100006", "햄버거": "CS100006",
+  "분식": "CS100008", "떡볶이": "CS100008", "분식집": "CS100008",
+  "호프": "CS100009", "주점": "CS100009", "술집": "CS100009", "술": "CS100009", "바": "CS100009",
+};
+
+const DISTRICT_KEYWORDS = [
+  "강남", "서초", "송파", "마포", "용산", "성동", "광진", "종로",
+  "중구", "영등포", "관악", "동작", "강서", "양천", "구로", "금천",
+  "은평", "서대문", "노원", "도봉", "강북", "성북", "동대문", "중랑", "강동",
+];
+
+interface ParsedQuery {
+  industryCode: string | null;
+  industryName: string | null;
+  district: string | null;
+  budgetMan: number | null; // in 만원
+}
+
+function parseSmartQuery(text: string): ParsedQuery {
+  const result: ParsedQuery = {
+    industryCode: null,
+    industryName: null,
+    district: null,
+    budgetMan: null,
+  };
+
+  const normalized = text.trim();
+  if (!normalized) return result;
+
+  // 1. Industry detection
+  for (const [keyword, code] of Object.entries(INDUSTRY_KEYWORD_MAP)) {
+    if (normalized.includes(keyword)) {
+      result.industryCode = code;
+      result.industryName = INDUSTRY_NAMES[code];
+      break;
+    }
+  }
+
+  // 2. District detection (strip particles first)
+  const stripped = normalized.replace(/(에서|으로|로|에|의|은|는|을|를|과|와|구)/g, " ");
+  for (const district of DISTRICT_KEYWORDS) {
+    if (stripped.includes(district) || normalized.includes(district)) {
+      result.district = `${district}구`;
+      break;
+    }
+  }
+
+  // 3. Budget extraction
+  // Match patterns like: 8천만원, 1억, 1억5천만원, 5000만원, 8천, 5000만
+  const budgetPatterns = [
+    // 억 + 천만원 pattern: "1억5천만원" or "1억 5천만원"
+    /(\d+)\s*억\s*(\d+)\s*천\s*만?\s*원?/,
+    // 억원 pattern: "1억원" or "1억"
+    /(\d+)\s*억\s*원?/,
+    // 천만원 pattern: "8천만원" or "8천만"
+    /(\d+)\s*천\s*만?\s*원?/,
+    // Direct 만원: "5000만원" or "5000만"
+    /(\d+)\s*만\s*원?/,
+  ];
+
+  // Try 억+천 first
+  const eokCheonMatch = normalized.match(budgetPatterns[0]);
+  if (eokCheonMatch) {
+    const eok = parseInt(eokCheonMatch[1]);
+    const cheon = parseInt(eokCheonMatch[2]);
+    result.budgetMan = eok * 10000 + cheon * 1000;
+  } else {
+    // 억 only
+    const eokMatch = normalized.match(budgetPatterns[1]);
+    if (eokMatch) {
+      result.budgetMan = parseInt(eokMatch[1]) * 10000;
+    } else {
+      // 천만원
+      const cheonMatch = normalized.match(budgetPatterns[2]);
+      if (cheonMatch) {
+        result.budgetMan = parseInt(cheonMatch[1]) * 1000;
+      } else {
+        // Direct 만원
+        const manMatch = normalized.match(budgetPatterns[3]);
+        if (manMatch) {
+          result.budgetMan = parseInt(manMatch[1]);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+function formatBudgetDisplay(manWon: number): string {
+  if (manWon >= 10000) {
+    const eok = Math.floor(manWon / 10000);
+    const remainder = manWon % 10000;
+    if (remainder > 0) {
+      return `${eok}억 ${remainder.toLocaleString()}만원`;
+    }
+    return `${eok}억원`;
+  }
+  return `${manWon.toLocaleString()}만원`;
+}
+
+// ---------------------------------------------------------------------------
+// Landing page components
+// ---------------------------------------------------------------------------
 
 type Mode = "landing" | "onboarding" | "search" | "chat";
 
 const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
 const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
 
+// Step indicator for the landing page
+function StepIndicator({ current }: { current: number }) {
+  const steps = [
+    { num: 1, label: "탐색" },
+    { num: 2, label: "분석" },
+    { num: 3, label: "계획서" },
+  ];
+  return (
+    <div className="flex items-center justify-center gap-0 mb-8">
+      {steps.map((step, i) => (
+        <div key={step.num} className="flex items-center">
+          <div className="flex flex-col items-center">
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+              step.num === current
+                ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
+                : step.num < current
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-slate-100 text-slate-400"
+            )}>
+              {step.num}
+            </div>
+            <span className={cn(
+              "text-[10px] mt-1 font-medium",
+              step.num === current ? "text-blue-600" : "text-slate-400"
+            )}>{step.label}</span>
+          </div>
+          {i < steps.length - 1 && (
+            <div className={cn(
+              "w-12 h-0.5 mx-1 -mt-3",
+              step.num < current ? "bg-blue-300" : "bg-slate-200"
+            )} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
-function LandingPage({ onStart, hasSaved, onResume, onClear }: {
-  onStart: () => void;
+// Confirmation toast after smart search parse
+interface ConfirmationToastProps {
+  parsed: ParsedQuery;
+  onConfirm: () => void;
+  onEdit: () => void;
+  onDismiss: () => void;
+}
+
+function ConfirmationToast({ parsed, onConfirm, onEdit, onDismiss }: ConfirmationToastProps) {
+  const parts: string[] = [];
+  if (parsed.industryName) parts.push(parsed.industryName);
+  if (parsed.district) parts.push(parsed.district);
+  if (parsed.budgetMan) parts.push(`예산 ${formatBudgetDisplay(parsed.budgetMan)}`);
+
+  return (
+    <div className="animate-fade-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md">
+      <div className={cn(
+        "bg-white rounded-2xl shadow-2xl shadow-slate-300/50",
+        "border border-slate-200 p-4"
+      )}>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <p className="text-sm font-medium text-slate-800">
+            {parts.join(" / ")} 맞으시죠?
+          </p>
+          <button onClick={onDismiss} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+        {!parsed.industryCode && (
+          <p className="text-xs text-amber-600 mb-2">
+            업종이 감지되지 않았어요. 기본값(카페)으로 진행합니다.
+          </p>
+        )}
+        {!parsed.district && (
+          <p className="text-xs text-amber-600 mb-2">
+            지역이 감지되지 않았어요. 서울 전체로 진행합니다.
+          </p>
+        )}
+        {!parsed.budgetMan && (
+          <p className="text-xs text-amber-600 mb-2">
+            예산이 감지되지 않았어요. 기본값(5,000만원)으로 진행합니다.
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onConfirm}
+            className={cn(
+              "flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold",
+              "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
+              "shadow-md shadow-blue-500/25",
+              "hover:shadow-lg active:scale-[0.98] transition-all"
+            )}
+          >
+            맞아요
+          </button>
+          <button
+            onClick={onEdit}
+            className={cn(
+              "flex-1 px-4 py-2.5 rounded-xl text-sm font-medium",
+              "bg-slate-100 text-slate-700",
+              "hover:bg-slate-200 active:scale-[0.98] transition-all"
+            )}
+          >
+            수정
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Industry grid modal
+function IndustryModal({ onSelect, onClose }: { onSelect: (code: string) => void; onClose: () => void }) {
+  const industries = Object.entries(INDUSTRY_NAMES).map(([code, name]) => ({
+    code, name, icon: INDUSTRY_ICONS[code],
+  }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-800">업종 선택</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {industries.map(({ code, name, icon }) => (
+            <button
+              key={code}
+              onClick={() => onSelect(code)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl text-left",
+                "border border-slate-200 bg-white",
+                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
+                "active:scale-[0.97] transition-all duration-150"
+              )}
+            >
+              <span className="text-2xl">{icon}</span>
+              <span className="text-sm font-medium text-slate-700">{name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// District selection modal
+function DistrictModal({ onSelect, onClose }: { onSelect: (district: string) => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 animate-fade-in max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-800">지역 선택</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {DISTRICT_KEYWORDS.map((d) => (
+            <button
+              key={d}
+              onClick={() => onSelect(`${d}구`)}
+              className={cn(
+                "px-3 py-2.5 rounded-xl text-sm font-medium text-center",
+                "border border-slate-200 bg-white",
+                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
+                "active:scale-[0.97] transition-all duration-150"
+              )}
+            >
+              {d}구
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Budget input modal
+function BudgetModal({ onSelect, onClose }: { onSelect: (budgetMan: number) => void; onClose: () => void }) {
+  const [value, setValue] = useState("");
+  const presets = [
+    { label: "3,000만원", man: 3000 },
+    { label: "5,000만원", man: 5000 },
+    { label: "8,000만원", man: 8000 },
+    { label: "1억원", man: 10000 },
+    { label: "1.5억원", man: 15000 },
+    { label: "2억원", man: 20000 },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-800">총 예산 설정</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {presets.map(({ label, man }) => (
+            <button
+              key={man}
+              onClick={() => onSelect(man)}
+              className={cn(
+                "px-3 py-2.5 rounded-xl text-sm font-medium",
+                "border border-slate-200 bg-white",
+                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
+                "active:scale-[0.97] transition-all duration-150"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="직접 입력"
+              className="w-full pl-3 pr-12 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && value) {
+                  onSelect(parseInt(value));
+                }
+              }}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">만원</span>
+          </div>
+          <button
+            onClick={() => value && onSelect(parseInt(value))}
+            disabled={!value}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-sm font-medium",
+              value
+                ? "bg-blue-500 text-white hover:bg-blue-600"
+                : "bg-slate-100 text-slate-400"
+            )}
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// New Landing Page with Smart Search + Scenario Cards
+// ---------------------------------------------------------------------------
+
+function LandingPage({ onStartOnboarding, hasSaved, onResume, onClear }: {
+  onStartOnboarding: () => void;
   hasSaved: boolean;
   onResume: () => void;
   onClear: () => void;
 }) {
+  const router = useRouter();
+  const [searchInput, setSearchInput] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
+  const [activeModal, setActiveModal] = useState<"industry" | "district" | "budget" | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [savedLabel, setSavedLabel] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1403,51 +1779,237 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
       if (raw) {
         const ctx = JSON.parse(raw);
         const parts: string[] = [];
-        if (ctx.district) parts.push(ctx.district);
-        if (ctx.cafe_type) parts.push(ctx.cafe_type);
-        setSavedLabel(parts.length ? parts.join(" · ") : null);
+        if (ctx.districts && ctx.districts.length) parts.push(ctx.districts[0]);
+        if (ctx.industry_code) parts.push(INDUSTRY_NAMES[ctx.industry_code] || "");
+        setSavedLabel(parts.filter(Boolean).length ? parts.filter(Boolean).join(" · ") : null);
       }
     } catch { /* ignore */ }
   }, [hasSaved]);
 
+  const saveAndNavigate = useCallback((opts: {
+    industryCode?: string;
+    district?: string;
+    budgetMan?: number;
+  }) => {
+    if (typeof window === "undefined") return;
+    const ic = opts.industryCode || "CS100010";
+    const districts = opts.district ? [opts.district] : [];
+    const budgetMin = 0;
+    const budgetMax = opts.budgetMan || 5000;
+
+    window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
+    window.localStorage.setItem("builder_curation_industry_code", ic);
+    window.localStorage.setItem("builder_curation_budget_min", String(budgetMin));
+    window.localStorage.setItem("builder_curation_budget_max", String(budgetMax));
+    window.localStorage.setItem("builder_curation_districts", districts.join(","));
+    window.localStorage.setItem(
+      ONBOARDING_CONTEXT_KEY,
+      JSON.stringify({
+        districts,
+        budget_min: budgetMin,
+        budget_max: budgetMax,
+        industry_code: ic,
+      })
+    );
+    router.push("/results");
+  }, [router]);
+
+  const handleSmartSearch = useCallback(() => {
+    const text = searchInput.trim();
+    if (!text) return;
+
+    const parsed = parseSmartQuery(text);
+    setParsedQuery(parsed);
+    setShowConfirmation(true);
+  }, [searchInput]);
+
+  const handleConfirm = useCallback(() => {
+    if (!parsedQuery) return;
+    setShowConfirmation(false);
+    saveAndNavigate({
+      industryCode: parsedQuery.industryCode || undefined,
+      district: parsedQuery.district || undefined,
+      budgetMan: parsedQuery.budgetMan || undefined,
+    });
+  }, [parsedQuery, saveAndNavigate]);
+
+  const handleIndustrySelect = useCallback((code: string) => {
+    setActiveModal(null);
+    saveAndNavigate({ industryCode: code });
+  }, [saveAndNavigate]);
+
+  const handleDistrictSelect = useCallback((district: string) => {
+    setActiveModal(null);
+    saveAndNavigate({ district });
+  }, [saveAndNavigate]);
+
+  const handleBudgetSelect = useCallback((budgetMan: number) => {
+    setActiveModal(null);
+    saveAndNavigate({ budgetMan });
+  }, [saveAndNavigate]);
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30 flex flex-col items-center justify-center px-4">
-      <div className="relative mb-8">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
-          <Store className="text-white" size={36} />
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-100/50">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Store className="text-white" size={18} />
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">SpotPick</h1>
+              <p className="text-[10px] text-gray-400 -mt-0.5">AI 창업 입지 분석</p>
+            </div>
+          </div>
+          <span className="text-[10px] px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">Beta</span>
         </div>
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full border-[3px] border-white" />
-      </div>
+      </header>
 
-      <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight text-center">
-        3가지만 알려주면<br className="sm:hidden" /> 맞춤 상권을 추천합니다
-      </h1>
-      <p className="text-gray-500 max-w-sm mx-auto text-center mb-2 text-sm leading-relaxed">
-        서울시 1,077개 상권 · 6년간 데이터를<br />AI가 분석해 즉시 결과를 보여드립니다.
-      </p>
-      <p className="text-xs text-gray-400 mb-10">업종, 지역, 예산 3단계면 바로 추천 결과를 확인하세요</p>
+      <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
+        {/* Step indicator */}
+        <StepIndicator current={1} />
 
-      <div className="flex flex-col items-center gap-3">
-        <button
-          onClick={onStart}
-          className={cn(
-            "px-10 py-4 rounded-2xl text-base font-semibold",
-            "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
-            "shadow-xl shadow-blue-500/30",
-            "hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-[1.02]",
-            "active:scale-[0.98]",
+        {/* Hero text */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 tracking-tight">
+            어떤 창업을 생각하고 계세요?
+          </h2>
+          <p className="text-sm text-gray-500 max-w-sm mx-auto">
+            서울시 1,077개 상권 데이터를 AI가 분석합니다
+          </p>
+        </div>
+
+        {/* Smart Search Bar */}
+        <div className="relative mb-8">
+          <div className={cn(
+            "relative bg-white rounded-2xl shadow-xl shadow-slate-200/50",
+            "border-2 border-slate-100",
+            "focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100",
             "transition-all duration-200"
-          )}
-        >
-          {hasSaved ? "새로 시작하기" : "시작하기"}
-        </button>
+          )}>
+            <div className="flex items-center px-4 py-1">
+              <Search size={18} className="text-slate-400 flex-shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSmartSearch();
+                  }
+                }}
+                placeholder='예: "강남에서 카페 8천만원"'
+                className="flex-1 px-3 py-3 text-sm bg-transparent focus:outline-none placeholder:text-slate-400"
+              />
+              <button
+                onClick={handleSmartSearch}
+                disabled={!searchInput.trim()}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                  searchInput.trim()
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg active:scale-[0.97]"
+                    : "bg-slate-100 text-slate-400"
+                )}
+              >
+                검색
+              </button>
+            </div>
+          </div>
+          <p className="text-center text-[11px] text-slate-400 mt-2">
+            업종, 지역, 예산을 자유롭게 입력하세요
+          </p>
+        </div>
 
+        {/* Scenario Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+          <button
+            onClick={() => setActiveModal("industry")}
+            className={cn(
+              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
+              "bg-white border border-slate-200",
+              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
+              "active:scale-[0.98] transition-all duration-200"
+            )}
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl">☕</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800">업종 정했어요</p>
+              <p className="text-xs text-slate-500">10개 업종 중 선택</p>
+            </div>
+            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
+          </button>
+
+          <button
+            onClick={() => setActiveModal("district")}
+            className={cn(
+              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
+              "bg-white border border-slate-200",
+              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
+              "active:scale-[0.98] transition-all duration-200"
+            )}
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 flex items-center justify-center flex-shrink-0">
+              <MapPin size={20} className="text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800">지역 정했어요</p>
+              <p className="text-xs text-slate-500">서울 25개 구 선택</p>
+            </div>
+            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
+          </button>
+
+          <button
+            onClick={() => setActiveModal("budget")}
+            className={cn(
+              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
+              "bg-white border border-slate-200",
+              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
+              "active:scale-[0.98] transition-all duration-200"
+            )}
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/50 flex items-center justify-center flex-shrink-0">
+              <DollarSign size={20} className="text-emerald-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800">예산 정했어요</p>
+              <p className="text-xs text-slate-500">총 창업 예산 입력</p>
+            </div>
+            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
+          </button>
+        </div>
+
+        {/* "잘 모르겠어요" link */}
+        <div className="text-center mb-8">
+          <button
+            onClick={onStartOnboarding}
+            className={cn(
+              "inline-flex items-center gap-2 px-5 py-2.5 rounded-full",
+              "text-sm font-medium text-slate-600",
+              "bg-slate-50 border border-slate-200",
+              "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200",
+              "transition-all duration-200"
+            )}
+          >
+            <Sparkles size={14} />
+            잘 모르겠어요, 추천해주세요
+          </button>
+        </div>
+
+        {/* Previous session */}
         {hasSaved && (
-          <div className="flex flex-col items-center gap-2 mt-2">
+          <div className="flex flex-col items-center gap-2 pt-4 border-t border-slate-100">
             <button
               onClick={onResume}
               className={cn(
-                "px-8 py-3 rounded-xl text-sm font-medium",
+                "inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium",
                 "bg-white border border-slate-200 text-slate-700",
                 "shadow-sm hover:shadow-md hover:border-blue-300 hover:text-blue-600",
                 "active:scale-[0.98] transition-all duration-200"
@@ -1455,7 +2017,7 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
             >
               이전 분석 결과 보기
               {savedLabel && (
-                <span className="ml-2 text-xs text-slate-400">{savedLabel}</span>
+                <span className="text-xs text-slate-400">{savedLabel}</span>
               )}
             </button>
             <button
@@ -1467,6 +2029,30 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
           </div>
         )}
       </div>
+
+      {/* Confirmation toast */}
+      {showConfirmation && parsedQuery && (
+        <ConfirmationToast
+          parsed={parsedQuery}
+          onConfirm={handleConfirm}
+          onEdit={() => {
+            setShowConfirmation(false);
+            searchRef.current?.focus();
+          }}
+          onDismiss={() => setShowConfirmation(false)}
+        />
+      )}
+
+      {/* Modals */}
+      {activeModal === "industry" && (
+        <IndustryModal onSelect={handleIndustrySelect} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "district" && (
+        <DistrictModal onSelect={handleDistrictSelect} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "budget" && (
+        <BudgetModal onSelect={handleBudgetSelect} onClose={() => setActiveModal(null)} />
+      )}
     </main>
   );
 }
@@ -1525,7 +2111,7 @@ export default function Page() {
   if (mode === "landing") {
     return (
       <LandingPage
-        onStart={() => setMode("onboarding")}
+        onStartOnboarding={() => setMode("onboarding")}
         hasSaved={hasSavedSession}
         onResume={() => {
           router.push("/results");
