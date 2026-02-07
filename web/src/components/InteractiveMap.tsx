@@ -433,6 +433,9 @@ export function InteractiveMap({
   const [showCompetition, setShowCompetition] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
 
+  // Track clicks originating from the map to skip redundant flyTo
+  const clickedFromMapRef = useRef<string | null>(null);
+
   // Center calculation
   const center = useMemo(() => {
     if (markers.length === 0) return { lat: 37.5665, lng: 126.978 };
@@ -442,9 +445,15 @@ export function InteractiveMap({
     };
   }, [markers]);
 
-  // Fly to highlighted marker
+  // Fly to highlighted marker (only for external highlights, e.g. card hover)
   useEffect(() => {
     if (!highlightedCode || !mapRef.current) return;
+    // Skip flyTo if this highlight was triggered by clicking on the map itself
+    if (clickedFromMapRef.current === highlightedCode) {
+      clickedFromMapRef.current = null;
+      return;
+    }
+    clickedFromMapRef.current = null;
     const m = markers.find((mk) => mk.district_code === highlightedCode);
     if (m) {
       mapRef.current.flyTo({
@@ -457,6 +466,8 @@ export function InteractiveMap({
 
   const handleMarkerClick = useCallback(
     (marker: InteractiveMarkerData) => {
+      // Mark that this highlight originated from the map
+      clickedFromMapRef.current = marker.district_code;
       setPopupMarker((prev) =>
         prev?.district_code === marker.district_code ? null : marker
       );
