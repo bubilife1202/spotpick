@@ -1,0 +1,826 @@
+{
+  "code": "CS100006",
+  "name": "패스트푸드",
+  "display_name": "패스트푸드",
+  "kakao_category": "FD6",
+  "icon": "🍔",
+  "color": "yellow",
+  "MENU_COSTS": {
+    "클래식버거": {
+      "selling_price": 7000,
+      "ingredients": {
+        "소고기패티(100g)": {
+          "amount": "1장",
+          "cost": 1500
+        },
+        "번스": {
+          "amount": "1set",
+          "cost": 400
+        },
+        "양상추/토마토/피클": {
+          "amount": "1set",
+          "cost": 300
+        },
+        "소스(케첩/머스타드)": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 2500,
+      "margin_rate": 0.643,
+      "category": "버거"
+    },
+    "치즈버거": {
+      "selling_price": 8000,
+      "ingredients": {
+        "소고기패티(100g)": {
+          "amount": "1장",
+          "cost": 1500
+        },
+        "번스": {
+          "amount": "1set",
+          "cost": 400
+        },
+        "체다치즈": {
+          "amount": "1장",
+          "cost": 400
+        },
+        "양상추/토마토/피클": {
+          "amount": "1set",
+          "cost": 300
+        },
+        "소스(케첩/머스타드)": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 3000,
+      "margin_rate": 0.625,
+      "category": "버거"
+    },
+    "감자튀김(M)": {
+      "selling_price": 3500,
+      "ingredients": {
+        "냉동 감자": {
+          "amount": "약 150g",
+          "cost": 500
+        },
+        "식용유/시즈닝": {
+          "amount": "소량",
+          "cost": 150
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 150
+        }
+      },
+      "total_cost": 800,
+      "margin_rate": 0.771,
+      "category": "사이드"
+    },
+    "너겟(6pc)": {
+      "selling_price": 4000,
+      "ingredients": {
+        "냉동 너겟": {
+          "amount": "6ea",
+          "cost": 800
+        },
+        "식용유": {
+          "amount": "소량(튀김)",
+          "cost": 150
+        },
+        "디핑소스": {
+          "amount": "1ea",
+          "cost": 100
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 150
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.7,
+      "category": "사이드"
+    },
+    "콜라(M)": {
+      "selling_price": 2000,
+      "ingredients": {
+        "탄산시럽+탄산수": {
+          "amount": "400ml",
+          "cost": 250
+        },
+        "컵/뚜껑/빨대": {
+          "amount": "1set",
+          "cost": 150
+        }
+      },
+      "total_cost": 400,
+      "margin_rate": 0.8,
+      "category": "음료"
+    },
+    "세트메뉴(버거+감튀+콜라)": {
+      "selling_price": 10000,
+      "ingredients": {
+        "소고기패티(100g)": {
+          "amount": "1장",
+          "cost": 1500
+        },
+        "번스": {
+          "amount": "1set",
+          "cost": 400
+        },
+        "양상추/토마토/피클": {
+          "amount": "1set",
+          "cost": 300
+        },
+        "냉동 감자": {
+          "amount": "약 150g",
+          "cost": 500
+        },
+        "탄산시럽+탄산수": {
+          "amount": "400ml",
+          "cost": 250
+        },
+        "소스/시즈닝": {
+          "amount": "소량",
+          "cost": 150
+        },
+        "포장재(세트)": {
+          "amount": "1set",
+          "cost": 400
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.65,
+      "category": "세트"
+    },
+    "샐러드": {
+      "selling_price": 6000,
+      "ingredients": {
+        "믹스채소": {
+          "amount": "약 150g",
+          "cost": 1000
+        },
+        "토핑(옥수수/크루통/치즈)": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "드레싱": {
+          "amount": "1ea",
+          "cost": 300
+        },
+        "용기": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.667,
+      "category": "사이드"
+    },
+    "아이스크림": {
+      "selling_price": 2000,
+      "ingredients": {
+        "소프트 아이스크림 원료": {
+          "amount": "1서빙",
+          "cost": 350
+        },
+        "콘/컵": {
+          "amount": "1ea",
+          "cost": 100
+        },
+        "토핑(선택)": {
+          "amount": "소량",
+          "cost": 50
+        }
+      },
+      "total_cost": 500,
+      "margin_rate": 0.75,
+      "category": "디저트"
+    },
+    "핫도그": {
+      "selling_price": 4000,
+      "ingredients": {
+        "소시지": {
+          "amount": "1ea",
+          "cost": 600
+        },
+        "핫도그번": {
+          "amount": "1ea",
+          "cost": 200
+        },
+        "케첩/머스타드": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 150
+        },
+        "식용유(튀김식)": {
+          "amount": "소량",
+          "cost": 150
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.7,
+      "category": "사이드"
+    },
+    "치킨텐더(3pc)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "냉동 치킨텐더": {
+          "amount": "3ea",
+          "cost": 1000
+        },
+        "식용유": {
+          "amount": "소량(튀김)",
+          "cost": 200
+        },
+        "튀김가루/배터": {
+          "amount": "약 50g",
+          "cost": 150
+        },
+        "디핑소스": {
+          "amount": "1ea",
+          "cost": 100
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 350
+        }
+      },
+      "total_cost": 1800,
+      "margin_rate": 0.64,
+      "category": "사이드"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "소고기패티 (kg)": {
+      "price": 15000,
+      "unit": "kg",
+      "note": "냉동 패티 기준, 100g당 약 1,500원"
+    },
+    "번스 (10개)": {
+      "price": 4000,
+      "unit": "10개",
+      "note": "참깨번/일반번 혼용"
+    },
+    "양상추 (kg)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "시즌/산지에 따라 변동"
+    },
+    "체다치즈 (kg)": {
+      "price": 12000,
+      "unit": "kg",
+      "note": "슬라이스 기준"
+    },
+    "식용유 (18L)": {
+      "price": 30000,
+      "unit": "18L",
+      "note": "튀김용, 교체주기에 따라 변동"
+    },
+    "냉동 감자 (kg)": {
+      "price": 3500,
+      "unit": "kg",
+      "note": "스트레이트컷/크링클 기준"
+    },
+    "냉동 치킨텐더 (kg)": {
+      "price": 8000,
+      "unit": "kg",
+      "note": "1kg당 약 10개"
+    },
+    "소스류 (kg)": {
+      "price": 5000,
+      "unit": "kg",
+      "note": "케첩/머스타드/디핑소스 평균"
+    },
+    "컵/용기 (100개)": {
+      "price": 8000,
+      "unit": "100개",
+      "note": "음료컵+뚜껑+빨대 세트 기준"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "grill": [
+      3000000,
+      7000000
+    ],
+    "fryer": [
+      3000000,
+      6000000
+    ],
+    "refrigeration": [
+      3000000,
+      6000000
+    ],
+    "counter": [
+      2000000,
+      4000000
+    ],
+    "beverage_machine": [
+      2000000,
+      5000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    2000000,
+    4000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.33,
+  "UTILITIES_RATIO": 0.04,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.08,
+    0.15
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2200000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1000000,
+      "labor_ratio": 0.21,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.24,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "프랜차이즈": [
+      "맥도날드",
+      "버거킹",
+      "롯데리아",
+      "KFC",
+      "맘스터치",
+      "쉐이크쉑",
+      "파이브가이즈",
+      "노브랜드버거"
+    ],
+    "배달전문": [
+      "배달",
+      "딜리버리"
+    ],
+    "테이크아웃": [
+      "포장",
+      "테이크아웃",
+      "드라이브스루"
+    ],
+    "홀매장": [
+      "홀",
+      "매장",
+      "다이닝"
+    ],
+    "수제버거": [
+      "수제",
+      "크래프트",
+      "프리미엄",
+      "스매쉬"
+    ],
+    "가성비": [
+      "가성비",
+      "학생",
+      "천원",
+      "세트"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "배달 특화": {
+      "desc": "아파트·상주인구 기반, 배달 인프라/리뷰 관리가 핵심",
+      "weights": {
+        "apt_ratio": 0.35,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "facility_score": 0.1,
+        "transit_raw": 0.2
+      }
+    },
+    "학생/가성비": {
+      "desc": "학생/청년 밀집, 가격 민감 상권(세트/할인/포장특화)",
+      "weights": {
+        "foot_traffic_age_10": 0.15,
+        "foot_traffic_age_20": 0.35,
+        "facility_university": 0.25,
+        "purchasing_power": 0.25
+      }
+    },
+    "프리미엄 수제버거": {
+      "desc": "30-40대 직장인/거주자 대상, 품질·분위기·객단가 중심",
+      "weights": {
+        "worker_total": 0.3,
+        "foot_traffic_age_30": 0.25,
+        "resident_age_30": 0.15,
+        "facility_score": 0.15,
+        "transit_raw": 0.15
+      }
+    },
+    "테이크아웃 전문": {
+      "desc": "유동인구·역세권 중심, 빠른 회전과 포장 편의가 핵심",
+      "weights": {
+        "foot_traffic_total": 0.35,
+        "transit_raw": 0.3,
+        "facility_subway": 0.2,
+        "worker_total": 0.15
+      }
+    },
+    "홀+배달 복합": {
+      "desc": "유동인구+거주인구 균형, 홀 좌석과 배달 동시 운영",
+      "weights": {
+        "foot_traffic_total": 0.25,
+        "resident_total": 0.2,
+        "worker_total": 0.2,
+        "apt_ratio": 0.15,
+        "transit_raw": 0.2
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "delivery",
+      "label": "배달전문",
+      "desc": "초기비용 절감"
+    },
+    {
+      "id": "hall_delivery",
+      "label": "홀+배달",
+      "desc": "안정적 매출"
+    },
+    {
+      "id": "takeout_focus",
+      "label": "테이크아웃특화",
+      "desc": "인건비 절감"
+    },
+    {
+      "id": "franchise",
+      "label": "프랜차이즈",
+      "desc": "검증된 모델"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "delivery": "배달전문",
+    "hall_delivery": "홀+배달",
+    "takeout_focus": "테이크아웃특화",
+    "franchise": "프랜차이즈"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "delivery": {
+      "short": "배달",
+      "full": "배달전문"
+    },
+    "hall_delivery": {
+      "short": "홀+배달",
+      "full": "홀+배달"
+    },
+    "takeout_focus": {
+      "short": "테이크아웃",
+      "full": "테이크아웃특화"
+    },
+    "franchise": {
+      "short": "프랜차이즈",
+      "full": "프랜차이즈"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 150,
+    "main_ratio": 0.65,
+    "main_category": "버거/세트",
+    "sub_categories": [
+      "사이드",
+      "음료"
+    ],
+    "unit": "개",
+    "unit_name": "일 150개"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "패스트푸드",
+      "버거",
+      "햄버거",
+      "감자튀김",
+      "너겟",
+      "세트메뉴",
+      "핫도그"
+    ],
+    "franchise_brands": [
+      "맥도날드",
+      "버거킹",
+      "롯데리아",
+      "KFC",
+      "맘스터치",
+      "쉐이크쉑",
+      "파이브가이즈",
+      "노브랜드버거"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃",
+      "드라이브스루"
+    ],
+    "differentiators": [
+      "수제",
+      "프리미엄",
+      "스매쉬",
+      "더블",
+      "세트",
+      "가성비",
+      "1인메뉴"
+    ],
+    "meal_terms": [
+      "점심",
+      "런치",
+      "간식",
+      "브런치"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 런치 세트(버거+감튀+음료) 빠른 회전이 핵심, 대기 3분 이내 목표로 동선 최적화",
+      "17-21": "저녁 피크 → 프리미엄 버거/사이드 업셀링으로 객단가 상승, 가족/그룹 세트 강화",
+      "21-24": "야식 피크 → 배달앱 상위 노출(리뷰/사진)과 야식 전용 세트(더블버거+너겟)를 강화하세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 점심 세트 공략(빠른 제공/포장), 주문 피크 12시 전후 인력 집중 배치",
+      "weekend": "주말 강세 → 가족 세트/키즈 메뉴 구성과 홀 좌석 회전을 동시에 잡으세요"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 배달앱 마케팅, SNS 프로모션(한정메뉴/쿠폰) 중심으로",
+      "30s": "30대 주요 고객 → 프리미엄 수제버거 포지셔닝, 품질+양의 균형을 명확히",
+      "40s_plus": "40대+ 주요 고객 → 건강 옵션(샐러드/그릴드), 원산지 표기를 강조해 신뢰를 만드세요"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 버거, 자체 소스 차별화로 리뷰 사유를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 수제/프리미엄 포지셔닝 또는 극가성비 전략으로 틈새를 공략하세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 배달+테이크아웃 중심, 단골 리뷰 확보와 세트 구성으로 객단가 관리",
+      "발달상권": "발달상권 → 홀 매출+테이크아웃 병행, 점심 피크 회전율과 동선 최적화가 핵심",
+      "전통시장": "전통시장 → 가성비 세트 메뉴 전면 배치, 가격/양 메시지를 간판에 명확히",
+      "관광특구": "관광특구 → 외국인 대응(영문메뉴/키오스크), 프리미엄 한정메뉴로 객단가 올리세요"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "버거",
+    "햄버거",
+    "패스트푸드",
+    "배달",
+    "포장",
+    "세트",
+    "감자튀김",
+    "너겟"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (테이크아웃 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "빠른 회전율이 핵심: 주문→제공 3분 이내 목표, 피크타임 동선/인력 설계가 손익을 좌우한다",
+      "세트 구성으로 객단가 전략: 단품 대비 세트 마진이 높고 주문 속도도 빠르다",
+      "배달/테이크아웃 비중이 높아 포장 품질(눅눅함 방지/보온)이 리뷰를 결정한다",
+      "COGS 33% 가정: 원재료 단가/폐기율/프로모션 손익을 상시 점검",
+      "점심 피크(11-14시) 매출 비중이 크므로 피크타임 인력 집중 배치가 필수"
+    ],
+    "checklist": [
+      "튀김유 교체 주기/온도 관리로 맛 편차 최소화",
+      "세트 업셀링(감튀+음료 추가) 스크립트/키오스크 UI 최적화",
+      "포장재 테스트(증기 배출/보온)로 클레임률 감소",
+      "배달권/배달시간 SLA 설정(지연 시 쿠폰)으로 평점 방어",
+      "재고 회전율 관리: 패티/번스 유통기한 짧으므로 발주 주기 최적화"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(배달/테이크아웃/홀 비중)",
+          "상권 후보 3곳 비교",
+          "메뉴 구성/객단가 설계"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "테이크아웃/배달 동선 점검",
+          "전기 용량/배기 가능 여부 확인"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          14,
+          28
+        ],
+        "key_tasks": [
+          "배기/환풍 공사",
+          "주방 동선 설계(그릴→조립→포장 라인)",
+          "홀 좌석/카운터 구성"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "그릴/튀김기/냉장냉동고 설치",
+          "음료기기 설치",
+          "POS/키오스크/배달 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육",
+          "메뉴 원가/레시피 표준화"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "배달앱 세팅/촬영",
+          "오픈 프로모션(세트 할인)",
+          "피크타임 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_11_14_sales",
+      "time_17_21_sales",
+      "time_21_24_sales",
+      "foot_traffic_11_14",
+      "foot_traffic_17_21",
+      "foot_traffic_age_10",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_20",
+      "resident_age_30"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 12,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 패스트푸드 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"패스트푸드 매출이 터지는 조건\"을 제시하세요. 패스트푸드 업종은 COGS 33%, 빠른 회전율이 핵심이며, 세트 구성을 통한 객단가 전략과 배달/테이크아웃 비중이 높은 것이 특징입니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "맥도날드",
+    "버거킹",
+    "롯데리아",
+    "KFC",
+    "맘스터치",
+    "쉐이크쉑",
+    "파이브가이즈",
+    "노브랜드버거",
+    "프랭크버거",
+    "슈퍼두퍼"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 패스트푸드점 창업 추천해줘",
+    "서울 신촌에서 10-20대 타겟 패스트푸드 상권 추천해줘",
+    "서울에서 점심 피크(11-14) 패스트푸드 상권 추천해줘",
+    "서울 강남 vs 홍대 패스트푸드 상권 비교해줘",
+    "서울에서 역세권 패스트푸드 발달상권 추천해줘"
+  ]
+}

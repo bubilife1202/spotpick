@@ -1,0 +1,906 @@
+{
+  "code": "CS100004",
+  "name": "양식음식점",
+  "display_name": "양식",
+  "kakao_category": "FD6",
+  "icon": "🍝",
+  "color": "emerald",
+  "MENU_COSTS": {
+    "파스타(토마토)": {
+      "selling_price": 13000,
+      "ingredients": {
+        "파스타면": {
+          "amount": "약 120g",
+          "cost": 800
+        },
+        "토마토소스": {
+          "amount": "약 150g",
+          "cost": 1200
+        },
+        "올리브오일": {
+          "amount": "약 20ml",
+          "cost": 400
+        },
+        "마늘/양파/채소": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "파르메산 치즈": {
+          "amount": "약 15g",
+          "cost": 500
+        },
+        "포장재/플레이팅": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 4500,
+      "margin_rate": 0.654,
+      "category": "파스타"
+    },
+    "파스타(크림)": {
+      "selling_price": 14000,
+      "ingredients": {
+        "파스타면": {
+          "amount": "약 120g",
+          "cost": 800
+        },
+        "생크림": {
+          "amount": "약 100ml",
+          "cost": 1000
+        },
+        "버터": {
+          "amount": "약 15g",
+          "cost": 300
+        },
+        "마늘/양파/채소": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "파르메산 치즈": {
+          "amount": "약 20g",
+          "cost": 700
+        },
+        "베이컨/햄": {
+          "amount": "약 30g",
+          "cost": 600
+        },
+        "포장재/플레이팅": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 5000,
+      "margin_rate": 0.643,
+      "category": "파스타"
+    },
+    "스테이크(150g)": {
+      "selling_price": 25000,
+      "ingredients": {
+        "소고기(부채살/등심)": {
+          "amount": "150g",
+          "cost": 8000
+        },
+        "버터/오일": {
+          "amount": "약 20g",
+          "cost": 500
+        },
+        "감자/채소 가니쉬": {
+          "amount": "약 100g",
+          "cost": 1200
+        },
+        "소스(머쉬룸/데미글라스)": {
+          "amount": "약 50ml",
+          "cost": 800
+        },
+        "시즈닝/허브": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "플레이팅/냅킨": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 12000,
+      "margin_rate": 0.52,
+      "category": "메인"
+    },
+    "리조또": {
+      "selling_price": 14000,
+      "ingredients": {
+        "쌀/아르보리오": {
+          "amount": "약 100g",
+          "cost": 600
+        },
+        "육수(치킨/야채)": {
+          "amount": "약 300ml",
+          "cost": 500
+        },
+        "버터": {
+          "amount": "약 20g",
+          "cost": 400
+        },
+        "파르메산 치즈": {
+          "amount": "약 30g",
+          "cost": 1000
+        },
+        "와인": {
+          "amount": "약 30ml",
+          "cost": 300
+        },
+        "마늘/양파/채소": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "해산물/버섯 토핑": {
+          "amount": "약 50g",
+          "cost": 900
+        },
+        "포장재/플레이팅": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 4800,
+      "margin_rate": 0.657,
+      "category": "메인"
+    },
+    "피자(마르게리타)": {
+      "selling_price": 16000,
+      "ingredients": {
+        "도우(밀가루/이스트)": {
+          "amount": "약 250g",
+          "cost": 800
+        },
+        "토마토소스": {
+          "amount": "약 100g",
+          "cost": 800
+        },
+        "모짜렐라 치즈": {
+          "amount": "약 150g",
+          "cost": 2000
+        },
+        "바질/올리브오일": {
+          "amount": "소량",
+          "cost": 400
+        },
+        "포장재/플레이팅": {
+          "amount": "1set",
+          "cost": 1500
+        }
+      },
+      "total_cost": 5500,
+      "margin_rate": 0.656,
+      "category": "피자"
+    },
+    "햄버거": {
+      "selling_price": 12000,
+      "ingredients": {
+        "패티(소고기)": {
+          "amount": "약 150g",
+          "cost": 2000
+        },
+        "번(빵)": {
+          "amount": "1ea",
+          "cost": 500
+        },
+        "치즈/소스": {
+          "amount": "약 30g",
+          "cost": 500
+        },
+        "채소(양상추/토마토/양파)": {
+          "amount": "약 60g",
+          "cost": 400
+        },
+        "감자튀김 사이드": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "포장재/플레이팅": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 4500,
+      "margin_rate": 0.625,
+      "category": "메인"
+    },
+    "샐러드": {
+      "selling_price": 10000,
+      "ingredients": {
+        "믹스 채소/루꼴라": {
+          "amount": "약 120g",
+          "cost": 1200
+        },
+        "닭가슴살/새우": {
+          "amount": "약 60g",
+          "cost": 800
+        },
+        "드레싱(발사믹/시저)": {
+          "amount": "약 30ml",
+          "cost": 400
+        },
+        "크루통/견과류": {
+          "amount": "약 20g",
+          "cost": 300
+        },
+        "치즈": {
+          "amount": "약 15g",
+          "cost": 400
+        },
+        "플레이팅/용기": {
+          "amount": "1set",
+          "cost": 400
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.65,
+      "category": "사이드"
+    },
+    "수프": {
+      "selling_price": 6000,
+      "ingredients": {
+        "크림/우유": {
+          "amount": "약 100ml",
+          "cost": 400
+        },
+        "버터": {
+          "amount": "약 10g",
+          "cost": 200
+        },
+        "채소(양파/감자/버섯 등)": {
+          "amount": "약 100g",
+          "cost": 400
+        },
+        "육수": {
+          "amount": "약 200ml",
+          "cost": 300
+        },
+        "빵(바게트)": {
+          "amount": "1조각",
+          "cost": 200
+        }
+      },
+      "total_cost": 1500,
+      "margin_rate": 0.75,
+      "category": "사이드"
+    },
+    "브런치 세트": {
+      "selling_price": 18000,
+      "ingredients": {
+        "달걀(수란/스크램블)": {
+          "amount": "2ea",
+          "cost": 600
+        },
+        "빵(사워도우/토스트)": {
+          "amount": "2조각",
+          "cost": 500
+        },
+        "베이컨/소시지": {
+          "amount": "약 60g",
+          "cost": 1200
+        },
+        "샐러드/채소": {
+          "amount": "약 80g",
+          "cost": 800
+        },
+        "감자/해쉬브라운": {
+          "amount": "약 60g",
+          "cost": 400
+        },
+        "잼/버터/소스": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "음료(주스/커피)": {
+          "amount": "1잔",
+          "cost": 1200
+        },
+        "플레이팅": {
+          "amount": "1set",
+          "cost": 2000
+        }
+      },
+      "total_cost": 7000,
+      "margin_rate": 0.611,
+      "category": "세트"
+    },
+    "에이드/음료": {
+      "selling_price": 5000,
+      "ingredients": {
+        "과일청/시럽": {
+          "amount": "약 30ml",
+          "cost": 500
+        },
+        "탄산수/얼음": {
+          "amount": "약 300ml",
+          "cost": 300
+        },
+        "과일 가니쉬": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "컵/스트로": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.76,
+      "category": "음료"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "파스타면 (kg)": {
+      "price": 6000,
+      "unit": "kg",
+      "note": "건면 기준, 생면은 8,000~12,000원/kg"
+    },
+    "올리브오일 (1L)": {
+      "price": 15000,
+      "unit": "1L",
+      "note": "엑스트라 버진 기준, 조리용은 8,000~10,000원"
+    },
+    "소고기 (kg)": {
+      "price": 45000,
+      "unit": "kg",
+      "note": "부채살/등심 기준, 부위·등급에 따라 변동"
+    },
+    "치즈 (kg)": {
+      "price": 18000,
+      "unit": "kg",
+      "note": "모짜렐라 기준, 파르메산 35,000~50,000원/kg"
+    },
+    "생크림 (1L)": {
+      "price": 6000,
+      "unit": "1L",
+      "note": "동물성 기준, 식물성은 4,000원대"
+    },
+    "토마토소스 (kg)": {
+      "price": 5000,
+      "unit": "kg",
+      "note": "산마르자노 기준, 업소용 대용량 할인"
+    },
+    "밀가루 (kg)": {
+      "price": 2000,
+      "unit": "kg",
+      "note": "강력분 기준, 도우/빵 제조용"
+    },
+    "버터 (kg)": {
+      "price": 15000,
+      "unit": "kg",
+      "note": "무염 기준, 브랜드에 따라 변동"
+    },
+    "채소류 (kg)": {
+      "price": 4000,
+      "unit": "kg",
+      "note": "양상추/토마토/양파 평균, 시세 변동"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "oven": [
+      5000000,
+      12000000
+    ],
+    "grill": [
+      3000000,
+      8000000
+    ],
+    "refrigeration": [
+      4000000,
+      8000000
+    ],
+    "pasta_maker": [
+      1000000,
+      3000000
+    ],
+    "tableware": [
+      5000000,
+      8000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    3000000,
+    5000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.35,
+  "UTILITIES_RATIO": 0.04,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.08,
+    0.15
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 2000000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2800000,
+      "labor_ratio": 0.27,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 3000000,
+      "labor_ratio": 0.26,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "캐주얼 다이닝": [
+      "파스타",
+      "피자",
+      "캐주얼",
+      "패밀리"
+    ],
+    "프리미엄 다이닝": [
+      "스테이크",
+      "프리미엄",
+      "다이닝",
+      "와인",
+      "코스"
+    ],
+    "브런치 카페형": [
+      "브런치",
+      "카페",
+      "에그",
+      "토스트",
+      "올데이"
+    ],
+    "배달/테이크아웃": [
+      "배달",
+      "딜리버리",
+      "포장",
+      "테이크아웃"
+    ],
+    "바/비스트로": [
+      "바",
+      "비스트로",
+      "펍",
+      "와인바",
+      "칵테일"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "캐주얼 다이닝": {
+      "desc": "파스타·피자 중심, 합리적 가격으로 홀+배달 병행, 회전율이 핵심",
+      "weights": {
+        "foot_traffic_total": 0.3,
+        "worker_total": 0.25,
+        "resident_total": 0.15,
+        "facility_score": 0.15,
+        "transit_raw": 0.15
+      }
+    },
+    "프리미엄 다이닝": {
+      "desc": "스테이크·와인 중심, 높은 객단가와 분위기로 승부, 30~40대 소비력 있는 상권",
+      "weights": {
+        "foot_traffic_total": 0.2,
+        "worker_total": 0.15,
+        "resident_age_30": 0.2,
+        "resident_age_40": 0.2,
+        "purchasing_power": 0.25
+      }
+    },
+    "브런치 카페형": {
+      "desc": "브런치·디저트 중심, 주말+주간 수요 공략, 인테리어/분위기가 핵심 경쟁력",
+      "weights": {
+        "foot_traffic_total": 0.25,
+        "foot_traffic_age_20": 0.2,
+        "foot_traffic_age_30": 0.2,
+        "weekend_ratio": 0.2,
+        "facility_score": 0.15
+      }
+    },
+    "배달/테이크아웃": {
+      "desc": "배달앱 기반, 파스타·햄버거 등 배달 적합 메뉴 집중, 초기비용 절감형",
+      "weights": {
+        "apt_ratio": 0.3,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "transit_raw": 0.15,
+        "facility_score": 0.2
+      }
+    },
+    "바/비스트로": {
+      "desc": "저녁~심야 와인/칵테일+안주형 양식, 20~30대 야간 유동인구 공략",
+      "weights": {
+        "foot_traffic_17_21": 0.25,
+        "foot_traffic_21_24": 0.3,
+        "foot_traffic_age_20": 0.2,
+        "foot_traffic_age_30": 0.15,
+        "facility_score": 0.1
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "casual_dining",
+      "label": "캐주얼 다이닝",
+      "desc": "파스타·피자 중심"
+    },
+    {
+      "id": "premium_dining",
+      "label": "프리미엄 다이닝",
+      "desc": "스테이크·와인"
+    },
+    {
+      "id": "brunch_cafe",
+      "label": "브런치 카페형",
+      "desc": "브런치·디저트"
+    },
+    {
+      "id": "delivery_focus",
+      "label": "배달/테이크아웃",
+      "desc": "초기비용 절감"
+    },
+    {
+      "id": "bar_bistro",
+      "label": "바/비스트로",
+      "desc": "저녁 와인바"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "casual_dining": "캐주얼 다이닝",
+    "premium_dining": "프리미엄 다이닝",
+    "brunch_cafe": "브런치 카페형",
+    "delivery_focus": "배달/테이크아웃",
+    "bar_bistro": "바/비스트로"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "casual_dining": {
+      "short": "캐주얼",
+      "full": "캐주얼 다이닝"
+    },
+    "premium_dining": {
+      "short": "프리미엄",
+      "full": "프리미엄 다이닝"
+    },
+    "brunch_cafe": {
+      "short": "브런치",
+      "full": "브런치 카페형"
+    },
+    "delivery_focus": {
+      "short": "배달",
+      "full": "배달/테이크아웃"
+    },
+    "bar_bistro": {
+      "short": "비스트로",
+      "full": "바/비스트로"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 65,
+    "main_ratio": 0.6,
+    "main_category": "파스타/스테이크",
+    "sub_categories": [
+      "피자",
+      "샐러드"
+    ],
+    "unit": "식",
+    "unit_name": "일 65식"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "양식",
+      "파스타",
+      "피자",
+      "스테이크",
+      "리조또",
+      "브런치",
+      "햄버거"
+    ],
+    "franchise_brands": [
+      "빕스",
+      "아웃백",
+      "애슐리",
+      "매드포갈릭",
+      "블랙스미스",
+      "TGI프라이데이스",
+      "더플레이스"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃",
+      "다이닝"
+    ],
+    "differentiators": [
+      "수제",
+      "화덕",
+      "에어프라이어",
+      "숙성",
+      "드라이에이징",
+      "트러플",
+      "오마카세"
+    ],
+    "atmosphere_terms": [
+      "분위기",
+      "인테리어",
+      "데이트",
+      "와인",
+      "칵테일",
+      "브런치"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 런치 세트(파스타+음료/샐러드)로 직장인 회전율을 올리세요",
+      "17-21": "저녁 피크 → 코스/와인 페어링으로 객단가를 끌어올리고, 예약 시스템을 활용하세요",
+      "21-24": "야간 수요 → 와인/맥주+안주형 메뉴(타파스/브루스게타)로 2차 수요를 흡수하세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 런치 세트(빠른 서빙 10분 이내)와 저녁 예약 관리가 핵심",
+      "weekend": "주말 강세 → 브런치/코스 메뉴 강화, 커플/가족 예약 수요를 공략하세요"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → SNS 플레이팅, 브런치/에이드 메뉴로 인스타 바이럴을 만드세요",
+      "30s": "30대 주요 고객 → 품질+분위기(와인 페어링, 데이트 코스)로 재방문을 유도하세요",
+      "40s_plus": "40대+ 주요 고객 → 프리미엄 스테이크/코스 구성, 원산지·숙성 정보로 신뢰를 쌓으세요"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 메뉴(수제파스타/숙성 스테이크)와 분위기 차별화로 리뷰를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 수제/로컬 재료/셰프 스토리로 '동네 맛집' 포지셔닝을 잡으세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 확보(와인 멤버십/쿠폰), 분위기 있는 숨은 맛집 포지셔닝",
+      "발달상권": "발달상권 → 런치+디너 이원화, 회전율과 객단가를 시간대별로 분리 관리",
+      "전통시장": "전통시장 → 가성비 파스타/피자로 진입, 테이크아웃 비중을 높이세요",
+      "관광특구": "관광특구 → 영문 메뉴/플레이팅 강화, 외국인 관광객 객단가 업셀링(코스/와인)"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "양식",
+    "파스타",
+    "피자",
+    "스테이크",
+    "리조또",
+    "브런치",
+    "햄버거",
+    "다이닝",
+    "레스토랑"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (유동인구 의존도 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "인테리어/분위기가 객단가와 재방문을 결정한다(사진 촬영 포인트 필수)",
+      "런치 세트(회전율)와 디너 코스(객단가)를 분리해 매출 구조를 안정화한다",
+      "COGS 35% 가정: 식재료 품질 유지와 원가 관리의 균형이 핵심",
+      "와인/음료 마진(60~76%)으로 전체 수익성을 보완한다",
+      "셰프/조리장 의존도가 높으므로 레시피 표준화와 인력 리스크 관리가 중요"
+    ],
+    "checklist": [
+      "주방 오븐/그릴 동선 설계로 피크타임 병목 최소화",
+      "식재료 신선도 관리(냉장 체인 확보, 일일 발주 시스템)",
+      "플레이팅 표준화(사진 메뉴 = 실물, SNS 확산 유도)",
+      "와인/음료 업셀링 교육(서버 추천 스크립트 준비)",
+      "예약 시스템 운영(노쇼 방지 정책, 피크타임 좌석 회전)"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(캐주얼/프리미엄/브런치)",
+          "타겟 고객·가격대 결정",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "가스/전기 용량 확인(오븐·그릴)",
+          "배기/환풍 가능 여부 확인"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          21,
+          42
+        ],
+        "key_tasks": [
+          "분위기 콘셉트 설계(조명/가구/소품)",
+          "주방 동선(오븐·그릴·냉장) 설계",
+          "홀 좌석·예약 동선 구성"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "오븐/그릴/냉장냉동고 설치",
+          "파스타메이커/식기류 세팅",
+          "POS/예약시스템 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육",
+          "메뉴 원가/레시피 표준화"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "메뉴 촬영/SNS 세팅",
+          "지인 시식·리뷰 이벤트",
+          "피크타임 서빙 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_11_14_sales",
+      "time_17_21_sales",
+      "time_21_24_sales",
+      "foot_traffic_11_14",
+      "foot_traffic_17_21",
+      "foot_traffic_21_24",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "foot_traffic_age_40",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 15,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 양식(Western Food) 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"양식 매출이 터지는 조건\"을 제시하세요. 양식 업종은 인테리어·분위기가 객단가와 직결되며, 평균 COGS 35%로 식재료 품질과 원가 관리의 균형이 중요합니다. 객단가가 높은 편(13,000~25,000원)이므로 런치 세트(회전율)와 디너 코스(객단가)를 분리 운영하고, 와인/음료 마진(60~76%)으로 수익성을 보완하는 전략이 핵심입니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "아웃백",
+    "빕스",
+    "애슐리",
+    "세븐스프링스",
+    "피자헛",
+    "파파존스",
+    "매드포갈릭",
+    "블랙앵거스",
+    "라그릴리아",
+    "오스테리아"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 양식 레스토랑 추천해줘",
+    "서울 이태원에서 파스타 전문점 상권 추천해줘",
+    "서울에서 20-30대 타겟 양식 상권 추천해줘",
+    "서울 홍대 vs 이태원 양식 상권 비교해줘",
+    "서울 성수에서 브런치 레스토랑 추천해줘"
+  ]
+}

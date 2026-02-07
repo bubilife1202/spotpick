@@ -1,0 +1,858 @@
+{
+  "code": "CS100005",
+  "name": "제과점",
+  "display_name": "베이커리",
+  "kakao_category": "FD6",
+  "icon": "🍞",
+  "color": "amber",
+  "MENU_COSTS": {
+    "식빵": {
+      "selling_price": 5000,
+      "ingredients": {
+        "밀가루(강력분)": {
+          "amount": "약 300g",
+          "cost": 400
+        },
+        "버터": {
+          "amount": "약 30g",
+          "cost": 300
+        },
+        "이스트": {
+          "amount": "약 5g",
+          "cost": 100
+        },
+        "설탕/소금/우유": {
+          "amount": "적정량",
+          "cost": 400
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 1500,
+      "margin_rate": 0.7,
+      "category": "식빵류"
+    },
+    "크로와상": {
+      "selling_price": 4000,
+      "ingredients": {
+        "밀가루(박력분+강력분)": {
+          "amount": "약 150g",
+          "cost": 200
+        },
+        "버터(시트)": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "이스트": {
+          "amount": "약 3g",
+          "cost": 60
+        },
+        "계란/우유/설탕": {
+          "amount": "적정량",
+          "cost": 240
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.7,
+      "category": "페이스트리"
+    },
+    "케이크(홀)": {
+      "selling_price": 35000,
+      "ingredients": {
+        "밀가루(박력분)": {
+          "amount": "약 200g",
+          "cost": 300
+        },
+        "계란": {
+          "amount": "6개",
+          "cost": 1800
+        },
+        "설탕/버터": {
+          "amount": "적정량",
+          "cost": 1500
+        },
+        "생크림": {
+          "amount": "약 500ml",
+          "cost": 3000
+        },
+        "과일/토핑": {
+          "amount": "적정량",
+          "cost": 3000
+        },
+        "케이크박스/받침": {
+          "amount": "1set",
+          "cost": 2400
+        }
+      },
+      "total_cost": 12000,
+      "margin_rate": 0.657,
+      "category": "케이크"
+    },
+    "마카롱(3개)": {
+      "selling_price": 6000,
+      "ingredients": {
+        "아몬드파우더": {
+          "amount": "약 60g",
+          "cost": 700
+        },
+        "설탕/머랭": {
+          "amount": "적정량",
+          "cost": 400
+        },
+        "버터크림/가나슈(필링)": {
+          "amount": "약 45g",
+          "cost": 800
+        },
+        "색소/향료": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 2400,
+      "margin_rate": 0.6,
+      "category": "디저트"
+    },
+    "소금빵": {
+      "selling_price": 3000,
+      "ingredients": {
+        "밀가루(강력분)": {
+          "amount": "약 100g",
+          "cost": 150
+        },
+        "버터(충전용)": {
+          "amount": "약 20g",
+          "cost": 200
+        },
+        "이스트": {
+          "amount": "약 3g",
+          "cost": 60
+        },
+        "소금/설탕/우유": {
+          "amount": "적정량",
+          "cost": 290
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 800,
+      "margin_rate": 0.733,
+      "category": "빵류"
+    },
+    "베이글": {
+      "selling_price": 3500,
+      "ingredients": {
+        "밀가루(강력분)": {
+          "amount": "약 120g",
+          "cost": 170
+        },
+        "이스트": {
+          "amount": "약 3g",
+          "cost": 60
+        },
+        "몰트시럽/꿀": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "설탕/소금": {
+          "amount": "적정량",
+          "cost": 170
+        },
+        "토핑(선택)": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 900,
+      "margin_rate": 0.743,
+      "category": "빵류"
+    },
+    "쿠키세트": {
+      "selling_price": 8000,
+      "ingredients": {
+        "밀가루(박력분)": {
+          "amount": "약 200g",
+          "cost": 300
+        },
+        "버터": {
+          "amount": "약 120g",
+          "cost": 900
+        },
+        "설탕/계란": {
+          "amount": "적정량",
+          "cost": 400
+        },
+        "초콜릿칩/견과류(토핑)": {
+          "amount": "적정량",
+          "cost": 600
+        },
+        "포장재(세트박스)": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 2500,
+      "margin_rate": 0.688,
+      "category": "쿠키"
+    },
+    "타르트": {
+      "selling_price": 5500,
+      "ingredients": {
+        "밀가루(박력분)": {
+          "amount": "약 100g",
+          "cost": 150
+        },
+        "버터": {
+          "amount": "약 60g",
+          "cost": 450
+        },
+        "계란/설탕": {
+          "amount": "적정량",
+          "cost": 400
+        },
+        "크림치즈/커스터드": {
+          "amount": "약 80g",
+          "cost": 600
+        },
+        "과일/토핑": {
+          "amount": "적정량",
+          "cost": 300
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.636,
+      "category": "디저트"
+    },
+    "샌드위치": {
+      "selling_price": 6000,
+      "ingredients": {
+        "식빵/치아바타": {
+          "amount": "2장/1개",
+          "cost": 500
+        },
+        "햄/치즈": {
+          "amount": "각 2장",
+          "cost": 800
+        },
+        "야채(양상추/토마토 등)": {
+          "amount": "적정량",
+          "cost": 500
+        },
+        "소스(마요/머스타드)": {
+          "amount": "적정량",
+          "cost": 200
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 2500,
+      "margin_rate": 0.583,
+      "category": "샌드위치"
+    },
+    "커피(아메리카노)": {
+      "selling_price": 4000,
+      "ingredients": {
+        "원두": {
+          "amount": "약 18g(2샷)",
+          "cost": 350
+        },
+        "종이컵/리드/슬리브": {
+          "amount": "1set",
+          "cost": 200
+        },
+        "정수/기타": {
+          "amount": "적정량",
+          "cost": 50
+        }
+      },
+      "total_cost": 600,
+      "margin_rate": 0.85,
+      "category": "음료"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "밀가루 (kg, 강력분)": {
+      "price": 2500,
+      "unit": "kg",
+      "note": "대용량(25kg) 도매 기준 변동"
+    },
+    "버터 (kg)": {
+      "price": 12000,
+      "unit": "kg",
+      "note": "무염 기준, 시트버터 별도"
+    },
+    "계란 (30구)": {
+      "price": 7000,
+      "unit": "30구",
+      "note": "시세 변동 큼"
+    },
+    "설탕 (kg)": {
+      "price": 1500,
+      "unit": "kg",
+      "note": "백설탕 기준"
+    },
+    "생크림 (1L)": {
+      "price": 6000,
+      "unit": "1L",
+      "note": "동물성 기준, 식물성은 30% 저렴"
+    },
+    "초콜릿 (kg, 커버처)": {
+      "price": 20000,
+      "unit": "kg",
+      "note": "벨기에산 커버처 기준, 코팅용은 별도"
+    },
+    "이스트 (500g)": {
+      "price": 5000,
+      "unit": "500g",
+      "note": "생이스트/드라이 가격 상이"
+    },
+    "과일 (제철 과일 kg)": {
+      "price": 8000,
+      "unit": "kg",
+      "note": "딸기/블루베리 등 제철에 따라 변동"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "oven": [
+      8000000,
+      20000000
+    ],
+    "mixer": [
+      3000000,
+      8000000
+    ],
+    "refrigeration": [
+      4000000,
+      8000000
+    ],
+    "display_case": [
+      3000000,
+      7000000
+    ],
+    "baking_tools": [
+      2000000,
+      4000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    3000000,
+    5000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.3,
+  "UTILITIES_RATIO": 0.05,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.1,
+    0.18
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 2000000,
+      "labor_ratio": 0.22,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2800000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.2,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 3000000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "동네빵집": [
+      "동네",
+      "마을",
+      "우리동네"
+    ],
+    "프리미엄": [
+      "프리미엄",
+      "아르티장",
+      "수제",
+      "장인"
+    ],
+    "카페형": [
+      "카페",
+      "베이커리카페",
+      "브런치"
+    ],
+    "케이크전문": [
+      "케이크",
+      "주문제작",
+      "맞춤",
+      "웨딩"
+    ],
+    "프랜차이즈": [
+      "파리바게뜨",
+      "뚜레쥬르",
+      "성심당",
+      "삼송빵집"
+    ],
+    "테이크아웃": [
+      "테이크아웃",
+      "포장",
+      "간편"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "동네 빵집": {
+      "desc": "주거지 기반 단골 고객, 매일 찾는 식빵/소금빵 등 데일리 빵 중심",
+      "weights": {
+        "resident_total": 0.35,
+        "total_households": 0.25,
+        "apt_ratio": 0.15,
+        "foot_traffic_total": 0.15,
+        "transit_raw": 0.1
+      }
+    },
+    "프리미엄 베이커리": {
+      "desc": "고품질 원재료·장시간 발효, 높은 객단가와 브랜드 가치 중심",
+      "weights": {
+        "purchasing_power": 0.3,
+        "foot_traffic_age_30": 0.25,
+        "foot_traffic_age_40": 0.2,
+        "facility_score": 0.15,
+        "transit_raw": 0.1
+      }
+    },
+    "카페형 베이커리": {
+      "desc": "빵+커피 병행, 좌석 회전과 체류 시간 극대화(브런치/디저트)",
+      "weights": {
+        "foot_traffic_total": 0.3,
+        "worker_total": 0.25,
+        "foot_traffic_age_20": 0.2,
+        "facility_score": 0.15,
+        "transit_raw": 0.1
+      }
+    },
+    "케이크/주문제작": {
+      "desc": "생일/기념일 케이크 주문 중심, SNS 마케팅과 예약 시스템이 핵심",
+      "weights": {
+        "resident_age_30": 0.25,
+        "resident_age_40": 0.25,
+        "total_households": 0.2,
+        "foot_traffic_age_20": 0.15,
+        "purchasing_power": 0.15
+      }
+    },
+    "테이크아웃 전문": {
+      "desc": "역세권/오피스 밀집지역, 출퇴근 시간대 빵+커피 세트 중심",
+      "weights": {
+        "transit_raw": 0.3,
+        "worker_total": 0.3,
+        "foot_traffic_total": 0.2,
+        "foot_traffic_06_11": 0.1,
+        "facility_subway": 0.1
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "neighborhood",
+      "label": "동네빵집",
+      "desc": "데일리 빵 중심"
+    },
+    {
+      "id": "premium",
+      "label": "프리미엄",
+      "desc": "고급 원재료·브랜딩"
+    },
+    {
+      "id": "cafe_bakery",
+      "label": "카페형 베이커리",
+      "desc": "빵+커피 병행"
+    },
+    {
+      "id": "custom_cake",
+      "label": "케이크 전문",
+      "desc": "주문제작 중심"
+    },
+    {
+      "id": "takeout",
+      "label": "테이크아웃",
+      "desc": "출퇴근 수요 공략"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "neighborhood": "동네빵집",
+    "premium": "프리미엄",
+    "cafe_bakery": "카페형 베이커리",
+    "custom_cake": "케이크 전문",
+    "takeout": "테이크아웃"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "neighborhood": {
+      "short": "동네빵집",
+      "full": "동네빵집"
+    },
+    "premium": {
+      "short": "프리미엄",
+      "full": "프리미엄 베이커리"
+    },
+    "cafe_bakery": {
+      "short": "카페형",
+      "full": "카페형 베이커리"
+    },
+    "custom_cake": {
+      "short": "케이크",
+      "full": "케이크/주문제작"
+    },
+    "takeout": {
+      "short": "테이크아웃",
+      "full": "테이크아웃 전문"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 120,
+    "main_ratio": 0.7,
+    "main_category": "빵류",
+    "sub_categories": [
+      "케이크",
+      "음료"
+    ],
+    "unit": "개",
+    "unit_name": "일 120개"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "빵",
+      "베이커리",
+      "제과",
+      "빵집",
+      "케이크",
+      "디저트",
+      "크로와상",
+      "소금빵"
+    ],
+    "franchise_brands": [
+      "파리바게뜨",
+      "뚜레쥬르",
+      "성심당",
+      "삼송빵집",
+      "나폴레옹",
+      "브레드톡"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "매장",
+      "포장",
+      "배달",
+      "테이크아웃",
+      "주문제작"
+    ],
+    "differentiators": [
+      "수제",
+      "천연발효",
+      "유기농",
+      "무첨가",
+      "장시간발효",
+      "르방",
+      "사워도우"
+    ],
+    "morning_terms": [
+      "모닝",
+      "아침",
+      "새벽",
+      "얼리오픈",
+      "오전"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "06-11": "아침 피크 → 출근길 빵+커피 세트(소금빵/크로와상+아메리카노)로 객단가를 올리세요",
+      "11-14": "점심 피크 → 샌드위치/브런치 세트를 강화해 식사 대용 수요를 잡으세요",
+      "14-17": "오후 티타임 → 디저트(마카롱/타르트/케이크 조각)와 음료 세트 구성이 효과적입니다"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 출퇴근 시간대 빵+커피 세트, 직장인 점심 샌드위치 수요를 공략하세요",
+      "weekend": "주말 강세 → 케이크 예약/선물세트 구성, 카페 체류 고객 유도가 핵심입니다"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → SNS 비주얼(마카롱/크로와상), 인스타그래머블한 포장과 매장 연출이 핵심",
+      "30s": "30대 주요 고객 → 건강빵(통밀/무설탕), 케이크 주문제작, 키즈 메뉴로 가족 수요를 잡으세요",
+      "40s_plus": "40대+ 주요 고객 → 식빵/모닝빵 등 데일리 품목 품질과 원재료 신뢰를 강조하세요"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 빵(소금빵/크로와상 등) 1~2개로 확실한 차별 포인트를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 수제/천연발효/소량생산 등 '장인 스토리'로 차별화하세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 중심 데일리 빵(식빵/소금빵), 동네 커뮤니티 마케팅이 효과적",
+      "발달상권": "발달상권 → 유동인구 기반 테이크아웃+카페 병행, 간판/진열 비주얼이 핵심",
+      "전통시장": "전통시장 → 가성비 빵(식빵/단팥빵), 저렴한 가격과 넉넉한 양으로 승부",
+      "관광특구": "관광특구 → 외국인 대응(영문 메뉴/비주얼 진열), 선물세트/포장 상품 강화"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "빵",
+    "베이커리",
+    "제과",
+    "빵집",
+    "케이크",
+    "디저트",
+    "크로와상",
+    "소금빵"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (도보 접근/주차 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "새벽 작업(발효/굽기)이 필수 — 오전 6시 이전 출근 체력/인력 설계가 기본이다",
+      "폐기율 관리가 수익의 핵심: 일일 생산량 예측 → 저녁 할인/다음날 가공(러스크 등)으로 폐기를 5% 이하로",
+      "COGS 30% 가정: 밀가루/버터/계란 시세 변동을 주 1회 체크하고 원가표를 갱신하라",
+      "시그니처 빵 1~2개가 매출의 30% 이상을 만든다 — 집중 품목 선정과 SNS 비주얼이 핵심",
+      "빵+커피 세트로 객단가를 30~40% 올릴 수 있다 — 음료 마진(85%)이 전체 수익을 보완"
+    ],
+    "checklist": [
+      "새벽 작업 스케줄 수립(발효 타이밍/오븐 예열/진열 시간)",
+      "일일 생산량 예측 시스템(요일별/계절별 판매 데이터 기반)",
+      "폐기 빵 활용 방안 마련(러스크/크루통/빵가루/저녁 할인)",
+      "원재료 발주 주기 및 보관 온도 관리(버터·생크림 콜드체인)",
+      "계절 메뉴 로테이션(딸기 시즌/가을 단호박 등) 계획 수립"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(동네빵집/프리미엄/카페형)",
+          "타겟 고객층 설정",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "전기 용량 확인(오븐 3상 전원)",
+          "환기/배기 가능 여부 점검"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          21,
+          42
+        ],
+        "key_tasks": [
+          "주방 동선 설계(발효실→오븐→냉각대→진열)",
+          "배기/환기 공사",
+          "매장 진열대·좌석 구성"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "오븐/반죽기/발효기 설치",
+          "냉장냉동고/진열 쇼케이스 배치",
+          "POS 세팅"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고(제과점업)",
+          "위생교육 이수",
+          "레시피 표준화/원가표 작성"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          5,
+          14
+        ],
+        "key_tasks": [
+          "시그니처 빵 시식 이벤트",
+          "SNS/블로그 오픈 홍보",
+          "새벽 작업 → 오픈 동선 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_06_11_sales",
+      "time_11_14_sales",
+      "time_14_17_sales",
+      "foot_traffic_06_11",
+      "foot_traffic_11_14",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "foot_traffic_age_40",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 15,
+      "competition_radius_m": 500,
+      "waste_ratio_range": [
+        0.03,
+        0.08
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 베이커리 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"베이커리 매출이 터지는 조건\"을 제시하세요. 베이커리 업종은 COGS 30% 수준이나, 새벽 작업이 필수(이르면 새벽 4시 출근, 6시 오픈)이고 폐기율 관리가 수익의 핵심입니다. 빵+커피 세트 객단가 전략, 시그니처 빵 집중, 계절 메뉴 로테이션이 중요합니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "파리바게뜨",
+    "뚜레쥬르",
+    "성심당",
+    "아티제",
+    "브레드톱",
+    "삼송빵집",
+    "나폴레옹",
+    "곰돌이빵",
+    "밀도",
+    "런던베이글"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 베이커리 창업 추천해줘",
+    "서울 홍대에서 디저트 전문점 상권 추천해줘",
+    "서울에서 20대 여성 타겟 베이커리 추천해줘",
+    "서울 성수 vs 연남 베이커리 상권 비교해줘",
+    "서울에서 월세 200~300만원 베이커리 골목상권 추천해줘"
+  ]
+}

@@ -1,0 +1,790 @@
+{
+  "code": "CS100009",
+  "name": "호프-주점",
+  "display_name": "호프/주점",
+  "kakao_category": "FD6",
+  "icon": "🍺",
+  "color": "slate",
+  "MENU_COSTS": {
+    "생맥주(500ml)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "생맥주(케그)": {
+          "amount": "500ml",
+          "cost": 1200
+        },
+        "일회용컵/잔": {
+          "amount": "1ea",
+          "cost": 200
+        },
+        "CO2가스": {
+          "amount": "소량",
+          "cost": 100
+        }
+      },
+      "total_cost": 1500,
+      "margin_rate": 0.7,
+      "category": "주류"
+    },
+    "소주(1병)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "소주": {
+          "amount": "1병(360ml)",
+          "cost": 1100
+        },
+        "소주잔": {
+          "amount": "소모품 배분",
+          "cost": 100
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.76,
+      "category": "주류"
+    },
+    "맥주(병)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "병맥주": {
+          "amount": "500ml",
+          "cost": 1800
+        },
+        "잔": {
+          "amount": "소모품 배분",
+          "cost": 200
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.6,
+      "category": "주류"
+    },
+    "하이볼": {
+      "selling_price": 8000,
+      "ingredients": {
+        "위스키": {
+          "amount": "30ml",
+          "cost": 1200
+        },
+        "탄산수/토닉": {
+          "amount": "200ml",
+          "cost": 400
+        },
+        "얼음": {
+          "amount": "적량",
+          "cost": 200
+        },
+        "잔/가니쉬": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.75,
+      "category": "주류"
+    },
+    "치킨(반마리)": {
+      "selling_price": 12000,
+      "ingredients": {
+        "닭(반마리)": {
+          "amount": "약 500g",
+          "cost": 2800
+        },
+        "튀김가루/양념": {
+          "amount": "적량",
+          "cost": 700
+        },
+        "식용유": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "접시/소스": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 4500,
+      "margin_rate": 0.625,
+      "category": "안주"
+    },
+    "감자튀김": {
+      "selling_price": 8000,
+      "ingredients": {
+        "냉동감자": {
+          "amount": "약 300g",
+          "cost": 1200
+        },
+        "식용유": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "시즈닝/소스": {
+          "amount": "적량",
+          "cost": 300
+        },
+        "접시": {
+          "amount": "1ea",
+          "cost": 200
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.75,
+      "category": "안주"
+    },
+    "소세지모둠": {
+      "selling_price": 15000,
+      "ingredients": {
+        "소세지(모둠)": {
+          "amount": "약 250g",
+          "cost": 3500
+        },
+        "채소/피클": {
+          "amount": "적량",
+          "cost": 800
+        },
+        "머스타드/소스": {
+          "amount": "적량",
+          "cost": 400
+        },
+        "접시": {
+          "amount": "1ea",
+          "cost": 300
+        }
+      },
+      "total_cost": 5000,
+      "margin_rate": 0.667,
+      "category": "안주"
+    },
+    "골뱅이소면": {
+      "selling_price": 15000,
+      "ingredients": {
+        "골뱅이(캔)": {
+          "amount": "1캔(약 400g)",
+          "cost": 2500
+        },
+        "소면": {
+          "amount": "약 200g",
+          "cost": 500
+        },
+        "양념/채소": {
+          "amount": "적량",
+          "cost": 1000
+        },
+        "접시/가위": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 4500,
+      "margin_rate": 0.7,
+      "category": "안주"
+    },
+    "오징어튀김": {
+      "selling_price": 12000,
+      "ingredients": {
+        "오징어": {
+          "amount": "약 200g",
+          "cost": 2000
+        },
+        "튀김가루": {
+          "amount": "적량",
+          "cost": 500
+        },
+        "식용유": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "소스/접시": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.708,
+      "category": "안주"
+    },
+    "과일안주": {
+      "selling_price": 20000,
+      "ingredients": {
+        "제철과일(모둠)": {
+          "amount": "약 500g",
+          "cost": 6500
+        },
+        "장식/접시": {
+          "amount": "1set",
+          "cost": 500
+        },
+        "아이스/냅킨": {
+          "amount": "적량",
+          "cost": 500
+        },
+        "포크/이쑤시개": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 8000,
+      "margin_rate": 0.6,
+      "category": "안주"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "생맥주(케그 20L)": {
+      "price": 45000,
+      "unit": "20L",
+      "note": "브랜드/수입 여부에 따라 변동"
+    },
+    "소주 (1박스 20병)": {
+      "price": 22000,
+      "unit": "20병",
+      "note": "도매 기준"
+    },
+    "병맥주 (1박스 20병)": {
+      "price": 36000,
+      "unit": "20병",
+      "note": "브랜드에 따라 변동"
+    },
+    "위스키 (700ml)": {
+      "price": 25000,
+      "unit": "700ml",
+      "note": "블렌디드 기준, 싱글몰트는 2~3배"
+    },
+    "닭 (마리, 10~11호)": {
+      "price": 5000,
+      "unit": "마리",
+      "note": "도매 기준 변동"
+    },
+    "냉동안주류 (kg)": {
+      "price": 8000,
+      "unit": "kg",
+      "note": "감자/소세지/오징어 등 평균"
+    },
+    "제철과일 (kg)": {
+      "price": 12000,
+      "unit": "kg",
+      "note": "계절/품목에 따라 변동 큼"
+    },
+    "얼음 (10kg)": {
+      "price": 5000,
+      "unit": "10kg",
+      "note": "제빙기 자체 생산 시 절감"
+    },
+    "잔/컵류 (1box)": {
+      "price": 15000,
+      "unit": "50ea",
+      "note": "유리잔/일회용 혼용 시 소모품비 증가"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "draft_beer_system": [
+      3000000,
+      8000000
+    ],
+    "refrigeration": [
+      3000000,
+      7000000
+    ],
+    "kitchen_equipment": [
+      3000000,
+      6000000
+    ],
+    "furniture": [
+      5000000,
+      12000000
+    ],
+    "lighting_sound": [
+      2000000,
+      5000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    3000000,
+    6000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.35,
+  "UTILITIES_RATIO": 0.04,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.08,
+    0.16
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1800000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.28,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1200000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2800000,
+      "labor_ratio": 0.27,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "직장인 회식": [
+      "회식",
+      "직장인",
+      "단체",
+      "뒤풀이"
+    ],
+    "2030 감성주점": [
+      "감성",
+      "와인바",
+      "칵테일",
+      "분위기",
+      "데이트"
+    ],
+    "스포츠바": [
+      "스포츠",
+      "축구",
+      "야구",
+      "스크린",
+      "프로젝터"
+    ],
+    "야식/포차": [
+      "포차",
+      "포장마차",
+      "야식",
+      "심야",
+      "새벽",
+      "노포"
+    ],
+    "프리미엄 바": [
+      "프리미엄",
+      "위스키",
+      "싱글몰트",
+      "칵테일바",
+      "바텐더"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "직장인 회식": {
+      "desc": "직장인 밀집 상권, 저녁 단체 수요 중심(회식/뒤풀이 코스 구성이 핵심)",
+      "weights": {
+        "worker_total": 0.35,
+        "foot_traffic_17_21": 0.25,
+        "facility_score": 0.15,
+        "transit_raw": 0.15,
+        "foot_traffic_age_30": 0.1
+      }
+    },
+    "2030 감성주점": {
+      "desc": "20-30대 유동인구 밀집, 인테리어/분위기/SNS 마케팅이 핵심",
+      "weights": {
+        "foot_traffic_age_20": 0.3,
+        "foot_traffic_age_30": 0.25,
+        "foot_traffic_total": 0.2,
+        "facility_score": 0.15,
+        "transit_raw": 0.1
+      }
+    },
+    "스포츠바": {
+      "desc": "대형 스크린/음향 장비 투자, 경기 일정에 따른 집객(맥주/안주 세트 회전)",
+      "weights": {
+        "foot_traffic_total": 0.3,
+        "foot_traffic_age_20": 0.2,
+        "foot_traffic_age_30": 0.2,
+        "worker_total": 0.15,
+        "transit_raw": 0.15
+      }
+    },
+    "야식/포차": {
+      "desc": "심야 유동인구+거주인구 기반, 가성비 안주와 회전율이 핵심",
+      "weights": {
+        "foot_traffic_21_24": 0.35,
+        "foot_traffic_17_21": 0.2,
+        "resident_total": 0.2,
+        "foot_traffic_age_20": 0.15,
+        "apt_ratio": 0.1
+      }
+    },
+    "프리미엄 바": {
+      "desc": "고객단가 극대화, 위스키/칵테일 전문(소수 고정 고객 확보가 핵심)",
+      "weights": {
+        "purchasing_power": 0.3,
+        "foot_traffic_age_30": 0.25,
+        "foot_traffic_age_40": 0.2,
+        "facility_score": 0.15,
+        "foot_traffic_total": 0.1
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "after_work",
+      "label": "직장인 회식",
+      "desc": "단체 코스 매출"
+    },
+    {
+      "id": "trendy_pub",
+      "label": "감성주점",
+      "desc": "2030 타겟"
+    },
+    {
+      "id": "sports_bar",
+      "label": "스포츠바",
+      "desc": "이벤트형 집객"
+    },
+    {
+      "id": "pojangmacha",
+      "label": "야식/포차",
+      "desc": "심야 가성비"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "after_work": "직장인 회식",
+    "trendy_pub": "감성주점",
+    "sports_bar": "스포츠바",
+    "pojangmacha": "야식/포차"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "after_work": {
+      "short": "회식",
+      "full": "직장인 회식"
+    },
+    "trendy_pub": {
+      "short": "감성",
+      "full": "감성주점"
+    },
+    "sports_bar": {
+      "short": "스포츠",
+      "full": "스포츠바"
+    },
+    "pojangmacha": {
+      "short": "포차",
+      "full": "야식/포차"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 60,
+    "main_ratio": 0.55,
+    "main_category": "주류",
+    "sub_categories": [
+      "안주",
+      "식사"
+    ],
+    "unit": "테이블",
+    "unit_name": "일 60테이블"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "호프",
+      "주점",
+      "맥주",
+      "술집",
+      "펍",
+      "바",
+      "하이볼",
+      "생맥주"
+    ],
+    "franchise_brands": [
+      "치어스",
+      "생활맥주",
+      "더탭하우스",
+      "홉하우스",
+      "카브루",
+      "압구정포차",
+      "청년다방"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "홀",
+      "2차",
+      "회식",
+      "단체",
+      "심야"
+    ],
+    "differentiators": [
+      "수제맥주",
+      "크래프트",
+      "하이볼",
+      "칵테일",
+      "안주맛집",
+      "분위기"
+    ],
+    "late_night_terms": [
+      "야식",
+      "심야",
+      "새벽",
+      "2차",
+      "3차"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "17-21": "저녁 피크 → 직장인 퇴근 수요 공략(회식 코스/2인 세트)으로 테이블 단가를 올리세요",
+      "21-24": "심야 피크 → 2차/3차 수요 극대화(하이볼/안주 세트), 심야수당 대비 매출 확보가 핵심",
+      "00-06": "새벽 영업 → 택시기사/야근직장인 타겟, 해장메뉴 병행 시 단가 상승 가능"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 회식/퇴근 수요가 핵심(단체석+코스 세트 구성)",
+      "weekend": "주말 강세 → 2030 커플/친구 모임 수요(분위기+SNS 마케팅) 중심으로"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 가성비 세트(생맥주+안주)와 SNS 이벤트(사진 스팟/해시태그)가 핵심",
+      "30s": "30대 주요 고객 → 프리미엄 주류(하이볼/크래프트)+안주 품질로 재방문 유도",
+      "40s_plus": "40대+ 주요 고객 → 안정적 안주 품질+넉넉한 좌석, 단골 프로그램(멤버십/스탬프)"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 안주/주류 차별화(수제맥주, 특색 하이볼)로 리뷰 이유를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 개인매장 강점(분위기/메뉴 유연성)으로 차별화하세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 중심 운영, 아늑한 분위기와 합리적 가격으로 재방문을 만드세요",
+      "발달상권": "발달상권 → 유동인구 기반 1차/2차 수요 모두 잡기(저녁 코스+심야 세트 병행)",
+      "전통시장": "전통시장 → 가성비 안주+저렴한 주류로 지역 주민 단골 확보가 핵심",
+      "관광특구": "관광특구 → 외국인 대응(영문 메뉴/카드 결제), 객단가 높은 프리미엄 주류 비중 확대"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "호프",
+    "주점",
+    "맥주",
+    "술집",
+    "펍",
+    "바",
+    "안주",
+    "생맥주",
+    "하이볼"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (심야 귀가 동선/택시 접근성 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "주류 마진(60~76%)은 높지만 안주 원가 관리가 전체 수익성을 좌우한다",
+      "저녁~심야 매출 집중 구조이므로 인건비/심야수당 설계가 핵심이다",
+      "객단가가 높고 체류시간이 길어 좌석 회전율이 낮으므로 테이블당 매출 극대화 전략 필요",
+      "COGS 35% 가정: 주류 비중 높을수록 원가율 유리, 안주 비중 증가 시 원가 관리 강화",
+      "시그니처 안주/주류 조합으로 경쟁 점포와 차별화, 리뷰/단골 확보가 생존 전략"
+    ],
+    "checklist": [
+      "주류 재고 관리(유통기한/온도)로 폐기율 최소화",
+      "심야 영업 시 인건비/안전(2인 이상)/소음 민원 대비",
+      "생맥주 라인 청소 주기 준수(맛 품질 유지)",
+      "안주 메뉴 원가 분석 후 고마진 메뉴 중심 추천(업셀링)",
+      "주류면허/영업시간 규제/청소년 출입 제한 등 법규 준수"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(회식/감성/스포츠/포차)",
+          "타겟 고객층 확정",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "소음/환기/심야 영업 가능 여부 확인",
+          "주류면허 취득 가능 확인"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          21,
+          35
+        ],
+        "key_tasks": [
+          "조명/음향 설비 공사",
+          "바(카운터) 및 좌석 배치",
+          "화장실/환기 시설 공사"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "생맥주 시스템(탭/케그/냉각) 설치",
+          "냉장냉동고/주방 장비 설치",
+          "POS/결제 시스템 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "식품접객업 영업신고",
+          "주류판매면허 취득",
+          "위생교육 이수/소방점검"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "소프트오픈(지인/근처 직장인 초대)",
+          "SNS/블로그 홍보",
+          "심야 운영 리허설(인력/동선 점검)"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_17_21_sales",
+      "time_21_24_sales",
+      "foot_traffic_17_21",
+      "foot_traffic_21_24",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 15,
+      "competition_radius_m": 500,
+      "late_night_surcharge_ratio": [
+        0.08,
+        0.12
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 호프/주점 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"주점 매출이 터지는 조건\"을 제시하세요. 호프/주점 업종은 COGS 35%이며, 주류 마진은 높지만 안주 원가에 주의해야 합니다. 저녁~심야 매출 집중 구조이므로 인건비/심야수당 관리가 핵심이며, 객단가는 높지만 좌석 체류시간이 길어 회전율은 낮습니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "굽네치킨",
+    "호식이두마리치킨",
+    "깐부치킨",
+    "포차어게인",
+    "이차돌",
+    "빨간포차",
+    "생활맥주",
+    "크래프트한스",
+    "대포집",
+    "청춘어람"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 호프집 창업 추천해줘",
+    "서울 이태원에서 20-30대 타겟 주점 상권 추천해줘",
+    "서울에서 야간(21-24) 매출 좋은 주점 상권 추천해줘",
+    "서울 강남 vs 홍대 호프 상권 비교해줘",
+    "서울에서 번화가 호프 발달상권 추천해줘"
+  ]
+}

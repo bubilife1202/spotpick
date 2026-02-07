@@ -1,0 +1,908 @@
+{
+  "code": "CS100002",
+  "name": "중식음식점",
+  "display_name": "중식",
+  "kakao_category": "FD6",
+  "icon": "🥟",
+  "color": "crimson",
+  "MENU_COSTS": {
+    "짜장면": {
+      "selling_price": 7000,
+      "ingredients": {
+        "중면(생면)": {
+          "amount": "약 200g",
+          "cost": 400
+        },
+        "춘장": {
+          "amount": "약 50g",
+          "cost": 300
+        },
+        "돼지고기(다짐)": {
+          "amount": "약 50g",
+          "cost": 500
+        },
+        "양파/양배추/감자": {
+          "amount": "약 150g",
+          "cost": 400
+        },
+        "식용유": {
+          "amount": "약 30ml",
+          "cost": 100
+        },
+        "전분/조미료": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 600
+        }
+      },
+      "total_cost": 2500,
+      "margin_rate": 0.643,
+      "category": "면류"
+    },
+    "짬뽕": {
+      "selling_price": 8000,
+      "ingredients": {
+        "중면(생면)": {
+          "amount": "약 200g",
+          "cost": 400
+        },
+        "돼지고기(슬라이스)": {
+          "amount": "약 60g",
+          "cost": 600
+        },
+        "해물(오징어/새우/홍합)": {
+          "amount": "약 80g",
+          "cost": 800
+        },
+        "양파/양배추/청경채": {
+          "amount": "약 120g",
+          "cost": 350
+        },
+        "고추기름/고춧가루": {
+          "amount": "약 30ml",
+          "cost": 300
+        },
+        "육수/조미료": {
+          "amount": "1인분",
+          "cost": 350
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 400
+        }
+      },
+      "total_cost": 3200,
+      "margin_rate": 0.6,
+      "category": "면류"
+    },
+    "탕수육(소)": {
+      "selling_price": 18000,
+      "ingredients": {
+        "돼지고기(안심/등심)": {
+          "amount": "약 300g",
+          "cost": 3000
+        },
+        "전분/튀김가루": {
+          "amount": "약 100g",
+          "cost": 400
+        },
+        "식용유(튀김)": {
+          "amount": "약 200ml",
+          "cost": 400
+        },
+        "탕수소스(식초/설탕/전분)": {
+          "amount": "약 150ml",
+          "cost": 500
+        },
+        "야채(파프리카/오이/양파)": {
+          "amount": "약 100g",
+          "cost": 300
+        },
+        "파인애플/건목이": {
+          "amount": "소량",
+          "cost": 400
+        },
+        "포장재(대형용기)": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 7000,
+      "margin_rate": 0.611,
+      "category": "요리"
+    },
+    "볶음밥": {
+      "selling_price": 8000,
+      "ingredients": {
+        "밥": {
+          "amount": "약 300g",
+          "cost": 400
+        },
+        "계란": {
+          "amount": "2개",
+          "cost": 400
+        },
+        "새우/돼지고기": {
+          "amount": "약 50g",
+          "cost": 600
+        },
+        "양파/대파/당근": {
+          "amount": "약 80g",
+          "cost": 300
+        },
+        "식용유/간장": {
+          "amount": "약 30ml",
+          "cost": 200
+        },
+        "조미료/소금": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 700
+        }
+      },
+      "total_cost": 2800,
+      "margin_rate": 0.65,
+      "category": "밥류"
+    },
+    "마파두부": {
+      "selling_price": 9000,
+      "ingredients": {
+        "두부": {
+          "amount": "1모(약 300g)",
+          "cost": 600
+        },
+        "돼지고기(다짐)": {
+          "amount": "약 80g",
+          "cost": 700
+        },
+        "두반장/고추기름": {
+          "amount": "약 40g",
+          "cost": 400
+        },
+        "대파/마늘/생강": {
+          "amount": "약 30g",
+          "cost": 200
+        },
+        "전분물/육수": {
+          "amount": "약 100ml",
+          "cost": 300
+        },
+        "화자오/조미료": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 600
+        }
+      },
+      "total_cost": 3000,
+      "margin_rate": 0.667,
+      "category": "요리"
+    },
+    "깐풍기": {
+      "selling_price": 22000,
+      "ingredients": {
+        "닭(정육/다리살)": {
+          "amount": "약 400g",
+          "cost": 3200
+        },
+        "전분/튀김가루": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "식용유(튀김)": {
+          "amount": "약 200ml",
+          "cost": 400
+        },
+        "깐풍소스(고추/마늘/식초/간장)": {
+          "amount": "약 100ml",
+          "cost": 800
+        },
+        "건고추/땅콩": {
+          "amount": "소량",
+          "cost": 600
+        },
+        "대파/피망": {
+          "amount": "약 60g",
+          "cost": 300
+        },
+        "포장재(대형용기)": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 9000,
+      "margin_rate": 0.591,
+      "category": "요리"
+    },
+    "울면": {
+      "selling_price": 9000,
+      "ingredients": {
+        "중면(생면)": {
+          "amount": "약 200g",
+          "cost": 400
+        },
+        "해물(새우/오징어/관자)": {
+          "amount": "약 100g",
+          "cost": 1200
+        },
+        "계란": {
+          "amount": "1개",
+          "cost": 200
+        },
+        "양파/양배추/당근": {
+          "amount": "약 100g",
+          "cost": 300
+        },
+        "전분물/육수": {
+          "amount": "약 200ml",
+          "cost": 500
+        },
+        "식용유/조미료": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 600
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.611,
+      "category": "면류"
+    },
+    "잡채밥": {
+      "selling_price": 8000,
+      "ingredients": {
+        "밥": {
+          "amount": "약 300g",
+          "cost": 400
+        },
+        "당면": {
+          "amount": "약 50g",
+          "cost": 200
+        },
+        "돼지고기(슬라이스)": {
+          "amount": "약 60g",
+          "cost": 600
+        },
+        "양파/피망/당근/목이버섯": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "간장/굴소스/식용유": {
+          "amount": "약 30ml",
+          "cost": 300
+        },
+        "전분물/조미료": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 600
+        }
+      },
+      "total_cost": 2800,
+      "margin_rate": 0.65,
+      "category": "밥류"
+    },
+    "군만두(6개)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "만두피": {
+          "amount": "6장",
+          "cost": 300
+        },
+        "돼지고기(다짐)/부추/양배추": {
+          "amount": "약 150g",
+          "cost": 600
+        },
+        "두부/당면": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "식용유(군용)": {
+          "amount": "약 30ml",
+          "cost": 100
+        },
+        "간장/조미료": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 500
+        }
+      },
+      "total_cost": 1800,
+      "margin_rate": 0.64,
+      "category": "사이드"
+    },
+    "고추잡채": {
+      "selling_price": 10000,
+      "ingredients": {
+        "돼지고기(채썰기)": {
+          "amount": "약 120g",
+          "cost": 1200
+        },
+        "청양고추/홍고추/피망": {
+          "amount": "약 100g",
+          "cost": 500
+        },
+        "죽순/양파/대파": {
+          "amount": "약 80g",
+          "cost": 400
+        },
+        "굴소스/간장/식용유": {
+          "amount": "약 30ml",
+          "cost": 400
+        },
+        "전분물/조미료": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "포장재(용기+비닐)": {
+          "amount": "1set",
+          "cost": 700
+        }
+      },
+      "total_cost": 4000,
+      "margin_rate": 0.6,
+      "category": "요리"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "밀가루 (kg)": {
+      "price": 1500,
+      "unit": "kg",
+      "note": "중면 제조 기본 재료"
+    },
+    "돼지고기 (kg)": {
+      "price": 12000,
+      "unit": "kg",
+      "note": "다짐/슬라이스 등 부위별 변동"
+    },
+    "채소류 (양파/양배추/대파 등)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "시즌별 가격 변동"
+    },
+    "식용유 (18L)": {
+      "price": 30000,
+      "unit": "18L",
+      "note": "웍 조리/튀김 겸용, 소모량 높음"
+    },
+    "춘장 (kg)": {
+      "price": 5000,
+      "unit": "kg",
+      "note": "짜장 베이스, 브랜드별 단가 상이"
+    },
+    "간장 (1.8L)": {
+      "price": 4000,
+      "unit": "1.8L",
+      "note": "일반/진간장 혼용"
+    },
+    "전분 (kg)": {
+      "price": 2500,
+      "unit": "kg",
+      "note": "감자전분/옥수수전분, 소스 농도용"
+    },
+    "새우 (kg)": {
+      "price": 18000,
+      "unit": "kg",
+      "note": "냉동 새우 기준, 시세 변동"
+    },
+    "두부 (모)": {
+      "price": 2000,
+      "unit": "모",
+      "note": "마파두부 등 주재료"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "wok_range": [
+      3000000,
+      8000000
+    ],
+    "refrigeration": [
+      3000000,
+      7000000
+    ],
+    "fryer": [
+      2000000,
+      5000000
+    ],
+    "ventilation": [
+      3000000,
+      7000000
+    ],
+    "tableware": [
+      3000000,
+      5000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    2000000,
+    4000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.35,
+  "UTILITIES_RATIO": 0.045,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.07,
+    0.13
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.24,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2200000,
+      "labor_ratio": 0.26,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1200000,
+      "labor_ratio": 0.22,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "프랜차이즈": [
+      "홍콩반점",
+      "미스터셰프",
+      "차이홍",
+      "짬뽕지존"
+    ],
+    "배달전문": [
+      "배달",
+      "딜리버리"
+    ],
+    "고급중식": [
+      "코스",
+      "특선",
+      "연회"
+    ],
+    "분식겸업": [
+      "분식",
+      "김밥",
+      "떡볶이"
+    ],
+    "포장전문": [
+      "포장",
+      "테이크아웃"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "배달 특화": {
+      "desc": "아파트·상주인구 기반, 배달 플랫폼 노출/리뷰 관리가 핵심",
+      "weights": {
+        "apt_ratio": 0.35,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "facility_score": 0.1,
+        "transit_raw": 0.2
+      }
+    },
+    "직장인 점심": {
+      "desc": "오피스 밀집 상권, 11-14시 회전율과 짜장/짬뽕 세트 구성이 핵심",
+      "weights": {
+        "worker_total": 0.35,
+        "foot_traffic_total": 0.25,
+        "facility_score": 0.15,
+        "transit_raw": 0.15,
+        "resident_total": 0.1
+      }
+    },
+    "가족/회식": {
+      "desc": "30-40대 가족·직장 회식 수요, 탕수육/코스 객단가 전략이 핵심",
+      "weights": {
+        "resident_age_30": 0.2,
+        "resident_age_40": 0.25,
+        "total_households": 0.25,
+        "weekend_ratio": 0.2,
+        "apt_ratio": 0.1
+      }
+    },
+    "고급 중식": {
+      "desc": "프리미엄 코스·특선 메뉴 중심, 높은 객단가와 브랜드 이미지가 핵심",
+      "weights": {
+        "foot_traffic_total": 0.2,
+        "worker_total": 0.2,
+        "purchasing_power": 0.3,
+        "facility_score": 0.15,
+        "transit_raw": 0.15
+      }
+    },
+    "포장/테이크아웃": {
+      "desc": "소형 매장·포장 특화, 인건비 절감과 빠른 조리 회전이 핵심",
+      "weights": {
+        "resident_total": 0.3,
+        "apt_ratio": 0.25,
+        "foot_traffic_total": 0.2,
+        "transit_raw": 0.15,
+        "facility_score": 0.1
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "delivery",
+      "label": "배달전문",
+      "desc": "초기비용 절감"
+    },
+    {
+      "id": "hall",
+      "label": "홀 매장",
+      "desc": "높은 객단가"
+    },
+    {
+      "id": "takeout",
+      "label": "포장특화",
+      "desc": "인건비 절감"
+    },
+    {
+      "id": "premium",
+      "label": "고급 중식",
+      "desc": "프리미엄"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "delivery": "배달전문",
+    "hall": "홀 매장",
+    "takeout": "포장특화",
+    "premium": "고급 중식"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "delivery": {
+      "short": "배달",
+      "full": "배달전문"
+    },
+    "hall": {
+      "short": "홀",
+      "full": "홀 매장"
+    },
+    "takeout": {
+      "short": "포장",
+      "full": "포장특화"
+    },
+    "premium": {
+      "short": "고급",
+      "full": "고급 중식"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 70,
+    "main_ratio": 0.6,
+    "main_category": "면류",
+    "sub_categories": [
+      "밥류",
+      "요리류"
+    ],
+    "unit": "식",
+    "unit_name": "일 70식"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "중식",
+      "중국집",
+      "짜장",
+      "짬뽕",
+      "탕수육",
+      "볶음밥",
+      "중화"
+    ],
+    "franchise_brands": [
+      "홍콩반점",
+      "미스터셰프",
+      "차이홍",
+      "짬뽕지존",
+      "화룡반점",
+      "홍짜장"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃"
+    ],
+    "differentiators": [
+      "수타",
+      "직화",
+      "웍",
+      "코스",
+      "특선",
+      "연회",
+      "세트",
+      "가성비"
+    ],
+    "lunch_terms": [
+      "점심",
+      "런치",
+      "직장인",
+      "백반"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 짜장/짬뽕 세트(+군만두/탕수육 소) 회전율 극대화, 빠른 조리 동선이 핵심",
+      "17-21": "저녁 피크 → 탕수육/깐풍기 등 요리류로 객단가를 올리고, 가족/회식 테이블 구성을 강화하세요",
+      "21-24": "야식 피크 → 배달앱 노출(짜장+탕수 세트)과 포장 할인 프로모션으로 심야 수요를 잡으세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 점심 세트(짜장/짬뽕+군만두)로 빠른 회전, 배달 병행",
+      "weekend": "주말 강세 → 가족 단위 코스/탕수육 세트 구성으로 객단가를 극대화하세요"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 배달앱 마케팅, 가성비 세트(짜장+군만두+음료) 중심으로",
+      "30s": "30대 주요 고객 → 품질/양/세트 구성을 명확히(가족 세트+탕수육 업그레이드)",
+      "40s_plus": "40대+ 주요 고객 → 정통 중식 맛/원산지/위생을 강조해 신뢰를 만드세요"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 수타면/독자 소스 등 시그니처 메뉴로 차별화 포인트를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 직접 조리/수타/화력 등 정통 중식 체감 품질로 이기세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 배달 고객 확보, 짜장/짬뽕 리뷰 관리로 재주문을 만드세요",
+      "발달상권": "발달상권 → 점심 홀 매출+저녁 배달 병행, 피크타임 웍 회전/인력 배치가 핵심",
+      "전통시장": "전통시장 → 포장/테이크아웃 수요 강점, 가격/양 메시지를 간판과 메뉴판에 명확히",
+      "관광특구": "관광특구 → 외부 유입 대응(영문 메뉴/위생/대기), 코스/탕수육으로 객단가 업셀링"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "중식",
+    "중국집",
+    "배달",
+    "포장",
+    "짜장면",
+    "짬뽕",
+    "탕수육",
+    "볶음밥"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (주차/배달 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "웍 화력과 배기시설이 중식의 맛과 운영 효율을 좌우한다",
+      "짜장/짬뽕 회전율 + 탕수육/코스 객단가의 투트랙 전략이 핵심",
+      "배달 비중이 높은 업종: 포장 품질(면 불음 방지, 소스 분리)이 리뷰를 결정",
+      "COGS 35% 가정: 원재료 단가/폐기율/프로모션 손익을 상시 점검",
+      "점심 회전 + 저녁 객단가 + 배달 야식의 3중 매출 구조를 설계해야 한다"
+    ],
+    "checklist": [
+      "웍 레인지 화력 점검 및 배기 용량 확보(중식 특성상 강화력 필수)",
+      "면류 조리 시간 표준화(짜장 3분/짬뽕 5분 이내)로 회전율 확보",
+      "배달 포장 테스트(면 불음 방지 용기, 소스 별도 포장)로 클레임 최소화",
+      "점심 세트(짜장+군만두), 저녁 코스(탕수육+깐풍기+볶음밥) 업셀링 설계",
+      "식용유 교체 주기 관리(웍/튀김 겸용 시 소모량 높음)"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(배달/홀/고급)",
+          "배달·홀 비중 결정",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "배기/환풍 가능 여부 확인",
+          "전기 용량(웍 레인지) 점검"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          21,
+          35
+        ],
+        "key_tasks": [
+          "배기/환풍 대형 공사",
+          "웍 레인지/주방 동선 설계",
+          "홀 좌석/테이블 구성"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "웍 레인지/튀김기/냉장고 설치",
+          "식기/그릇류 세팅",
+          "POS/배달 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육",
+          "메뉴 원가/레시피 표준화"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "배달앱 세팅/메뉴 촬영",
+          "오픈 이벤트(짜장면 할인 등)",
+          "피크타임(점심) 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_11_14_sales",
+      "time_17_21_sales",
+      "foot_traffic_11_14",
+      "foot_traffic_17_21",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 12,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 중식 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 중식 업종은 웍(wok) 화력과 배기시설이 핵심이며, 배달 비중이 높고 COGS 35%입니다. 짜장면/짬뽕 중심 회전율과 탕수육/코스 객단가 전략을 상권별로 해석하세요. 답변은 짧고 강렬하게 5-8문장. 절대 규칙: 제공된 데이터만 사용.",
+  "KNOWN_TRADEMARKS": [
+    "홍콩반점",
+    "미정국수",
+    "짬뽕지존",
+    "진짜루",
+    "크리스탈제이드",
+    "딘타이펑",
+    "중화반점",
+    "차이나팩토리",
+    "만다복",
+    "홍성방"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 중식당 창업 추천해줘",
+    "서울 건대에서 20-30대 타겟 중식 상권 추천해줘",
+    "서울에서 직장인 점심 피크 중식 상권 추천해줘",
+    "서울 홍대 vs 강남 중식 상권 비교해줘",
+    "서울에서 월세 200~300만원 중식 골목상권 추천해줘"
+  ]
+}

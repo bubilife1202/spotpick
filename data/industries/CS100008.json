@@ -1,0 +1,829 @@
+{
+  "code": "CS100008",
+  "name": "분식전문점",
+  "display_name": "분식",
+  "kakao_category": "FD6",
+  "icon": "🍢",
+  "color": "pink",
+  "MENU_COSTS": {
+    "떡볶이": {
+      "selling_price": 4000,
+      "ingredients": {
+        "떡(밀떡/쌀떡)": {
+          "amount": "약 200g",
+          "cost": 500
+        },
+        "어묵": {
+          "amount": "약 50g",
+          "cost": 200
+        },
+        "고추장/양념": {
+          "amount": "약 80g",
+          "cost": 300
+        },
+        "대파/채소": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "용기/포장재": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.7,
+      "category": "분식"
+    },
+    "순대": {
+      "selling_price": 4000,
+      "ingredients": {
+        "순대": {
+          "amount": "1인분(약 200g)",
+          "cost": 1000
+        },
+        "소금/간장 소스": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "채소(부추 등)": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "접시/포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 1500,
+      "margin_rate": 0.625,
+      "category": "분식"
+    },
+    "튀김(모둠)": {
+      "selling_price": 4000,
+      "ingredients": {
+        "야채/고구마/김말이 등": {
+          "amount": "모둠 1인분",
+          "cost": 600
+        },
+        "튀김가루/배터": {
+          "amount": "약 80g",
+          "cost": 200
+        },
+        "식용유": {
+          "amount": "1회전 소모 환산",
+          "cost": 300
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 1300,
+      "margin_rate": 0.675,
+      "category": "분식"
+    },
+    "김밥(1줄)": {
+      "selling_price": 3500,
+      "ingredients": {
+        "김": {
+          "amount": "1장",
+          "cost": 100
+        },
+        "밥": {
+          "amount": "약 200g",
+          "cost": 200
+        },
+        "단무지/시금치/당근/우엉 등": {
+          "amount": "소량",
+          "cost": 400
+        },
+        "달걀/햄": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "참기름/깨": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "포장재(호일/비닐)": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.657,
+      "category": "분식"
+    },
+    "라면": {
+      "selling_price": 3500,
+      "ingredients": {
+        "라면(봉지)": {
+          "amount": "1봉",
+          "cost": 400
+        },
+        "계란": {
+          "amount": "1개",
+          "cost": 150
+        },
+        "대파/채소": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "용기/가스비": {
+          "amount": "1set",
+          "cost": 150
+        }
+      },
+      "total_cost": 800,
+      "margin_rate": 0.771,
+      "category": "분식"
+    },
+    "우동": {
+      "selling_price": 4500,
+      "ingredients": {
+        "우동면": {
+          "amount": "1인분",
+          "cost": 400
+        },
+        "우동 국물(가쓰오/다시)": {
+          "amount": "1인분",
+          "cost": 300
+        },
+        "어묵/파/튀김부스러기": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "용기/포장재": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 1200,
+      "margin_rate": 0.733,
+      "category": "분식"
+    },
+    "떡볶이+순대 세트": {
+      "selling_price": 7000,
+      "ingredients": {
+        "떡/어묵/양념": {
+          "amount": "떡볶이 1인분",
+          "cost": 1100
+        },
+        "순대": {
+          "amount": "약 200g",
+          "cost": 1000
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 2400,
+      "margin_rate": 0.657,
+      "category": "세트"
+    },
+    "돈까스": {
+      "selling_price": 7000,
+      "ingredients": {
+        "돈까스(냉동/반조리)": {
+          "amount": "1장",
+          "cost": 1500
+        },
+        "빵가루/달걀/밀가루": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "식용유": {
+          "amount": "1회전 소모 환산",
+          "cost": 300
+        },
+        "소스/샐러드/밥": {
+          "amount": "1set",
+          "cost": 500
+        },
+        "용기/포장재": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 2800,
+      "margin_rate": 0.6,
+      "category": "식사"
+    },
+    "비빔밥": {
+      "selling_price": 6000,
+      "ingredients": {
+        "밥": {
+          "amount": "약 250g",
+          "cost": 300
+        },
+        "나물/채소(시금치/콩나물/당근 등)": {
+          "amount": "소량",
+          "cost": 600
+        },
+        "달걀": {
+          "amount": "1개",
+          "cost": 150
+        },
+        "고추장": {
+          "amount": "약 30g",
+          "cost": 150
+        },
+        "고기(선택)": {
+          "amount": "소량",
+          "cost": 800
+        },
+        "용기/포장재": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 2200,
+      "margin_rate": 0.633,
+      "category": "식사"
+    },
+    "어묵탕": {
+      "selling_price": 3000,
+      "ingredients": {
+        "어묵": {
+          "amount": "약 100g",
+          "cost": 400
+        },
+        "국물(다시/멸치)": {
+          "amount": "1인분",
+          "cost": 200
+        },
+        "대파/채소": {
+          "amount": "소량",
+          "cost": 100
+        },
+        "용기": {
+          "amount": "1set",
+          "cost": 100
+        }
+      },
+      "total_cost": 800,
+      "margin_rate": 0.733,
+      "category": "분식"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "떡 (kg, 밀떡/쌀떡)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "밀떡/쌀떡에 따라 단가 변동"
+    },
+    "어묵 (kg)": {
+      "price": 5000,
+      "unit": "kg",
+      "note": "냉동/냉장 브랜드에 따라 변동"
+    },
+    "순대 (개)": {
+      "price": 1000,
+      "unit": "개",
+      "note": "도매 기준, 사이즈에 따라 변동"
+    },
+    "튀김재료 (종합)": {
+      "price": 4000,
+      "unit": "kg",
+      "note": "고구마/야채/김말이 등 혼합 기준"
+    },
+    "김 (장)": {
+      "price": 100,
+      "unit": "장",
+      "note": "전장 기준, 도매가"
+    },
+    "쌀 (kg)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "일반 백미 기준"
+    },
+    "채소류 (종합)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "시금치/당근/파/콩나물 등 평균"
+    },
+    "고추장 (kg)": {
+      "price": 4000,
+      "unit": "kg",
+      "note": "업소용 대용량 기준"
+    },
+    "면류 (라면/우동)": {
+      "price": 400,
+      "unit": "인분",
+      "note": "봉지라면/냉동우동 평균"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "gas_range": [
+      2000000,
+      5000000
+    ],
+    "fryer": [
+      2000000,
+      5000000
+    ],
+    "refrigeration": [
+      2000000,
+      5000000
+    ],
+    "counter": [
+      1000000,
+      3000000
+    ],
+    "tableware": [
+      1000000,
+      3000000
+    ],
+    "pos": [
+      1000000,
+      2000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    1500000,
+    3000000
+  ],
+  "PERMITS_AND_MISC": [
+    3000000,
+    7000000
+  ],
+  "COGS_RATIO": 0.3,
+  "UTILITIES_RATIO": 0.035,
+  "OTHER_RATIO": 0.07,
+  "OPERATING_MARGIN_RANGE": [
+    0.1,
+    0.18
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1000000,
+      "labor_ratio": 0.22,
+      "deposit_mult": 8
+    },
+    "발달상권": {
+      "interior_per_pyeong": 1800000,
+      "labor_ratio": 0.24,
+      "deposit_mult": 12
+    },
+    "전통시장": {
+      "interior_per_pyeong": 800000,
+      "labor_ratio": 0.2,
+      "deposit_mult": 6
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2000000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 12
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "프랜차이즈": [
+      "신전떡볶이",
+      "죠스떡볶이",
+      "동대문엽기떡볶이",
+      "국대떡볶이",
+      "청년다방",
+      "김밥천국",
+      "김가네"
+    ],
+    "배달전문": [
+      "배달",
+      "딜리버리"
+    ],
+    "포장전문": [
+      "포장",
+      "테이크아웃"
+    ],
+    "홀매장": [
+      "홀",
+      "매장"
+    ],
+    "분식카페": [
+      "카페",
+      "분식카페",
+      "셀프"
+    ],
+    "전통분식": [
+      "전통",
+      "할머니",
+      "옛날",
+      "원조"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "학생 가성비": {
+      "desc": "학교/학원가 밀집 상권, 가격 민감 학생 고객 중심(세트/할인/포장)",
+      "weights": {
+        "foot_traffic_age_10": 0.3,
+        "foot_traffic_age_20": 0.25,
+        "facility_university": 0.2,
+        "purchasing_power": 0.15,
+        "resident_total": 0.1
+      }
+    },
+    "직장인 간편식": {
+      "desc": "직장인 점심 수요 기반, 빠른 회전과 세트 구성이 핵심",
+      "weights": {
+        "worker_total": 0.35,
+        "foot_traffic_total": 0.25,
+        "transit_raw": 0.15,
+        "facility_score": 0.15,
+        "resident_total": 0.1
+      }
+    },
+    "배달 전문": {
+      "desc": "아파트/상주인구 기반, 배달 인프라와 리뷰 관리가 핵심",
+      "weights": {
+        "apt_ratio": 0.35,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "facility_score": 0.1,
+        "transit_raw": 0.2
+      }
+    },
+    "프리미엄 분식": {
+      "desc": "고급 재료/인테리어로 차별화, 객단가 상승 전략(직장인/30-40대 타겟)",
+      "weights": {
+        "worker_total": 0.25,
+        "foot_traffic_age_30": 0.25,
+        "foot_traffic_age_40": 0.2,
+        "facility_score": 0.15,
+        "purchasing_power": 0.15
+      }
+    },
+    "포장/테이크아웃": {
+      "desc": "역세권/유동인구 기반, 빠른 포장과 테이크아웃 동선 최적화",
+      "weights": {
+        "foot_traffic_total": 0.35,
+        "transit_raw": 0.25,
+        "facility_subway": 0.2,
+        "resident_total": 0.1,
+        "worker_total": 0.1
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "hall_takeout",
+      "label": "홀+포장",
+      "desc": "안정적 매출"
+    },
+    {
+      "id": "delivery",
+      "label": "배달전문",
+      "desc": "초기비용 절감"
+    },
+    {
+      "id": "takeout_focus",
+      "label": "포장특화",
+      "desc": "인건비 절감"
+    },
+    {
+      "id": "franchise",
+      "label": "프랜차이즈",
+      "desc": "검증된 모델"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "hall_takeout": "홀+포장",
+    "delivery": "배달전문",
+    "takeout_focus": "포장특화",
+    "franchise": "프랜차이즈"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "hall_takeout": {
+      "short": "홀+포장",
+      "full": "홀+포장"
+    },
+    "delivery": {
+      "short": "배달",
+      "full": "배달전문"
+    },
+    "takeout_focus": {
+      "short": "포장",
+      "full": "포장특화"
+    },
+    "franchise": {
+      "short": "프랜차이즈",
+      "full": "프랜차이즈"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 100,
+    "main_ratio": 0.7,
+    "main_category": "분식",
+    "sub_categories": [
+      "밥류",
+      "음료"
+    ],
+    "unit": "식",
+    "unit_name": "일 100식"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "분식",
+      "떡볶이",
+      "순대",
+      "튀김",
+      "김밥",
+      "라면",
+      "우동",
+      "어묵"
+    ],
+    "franchise_brands": [
+      "신전떡볶이",
+      "죠스떡볶이",
+      "동대문엽기떡볶이",
+      "국대떡볶이",
+      "청년다방",
+      "김밥천국",
+      "김가네"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃"
+    ],
+    "differentiators": [
+      "수제",
+      "즉석",
+      "매운맛",
+      "치즈",
+      "로제",
+      "세트",
+      "가성비",
+      "옛날"
+    ],
+    "school_terms": [
+      "학교",
+      "학원",
+      "학생",
+      "대학"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 직장인/학생 대상 세트 메뉴(떡볶이+순대+튀김)로 객단가와 회전율을 동시에 올리세요",
+      "17-21": "저녁 피크 → 하교/퇴근 수요 공략(포장 세트 구성, 배달앱 노출 강화)",
+      "21-24": "야식 피크 → 배달 중심 야식 세트(떡볶이+라면 콤보)로 객단가를 올리세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 점심/학생 간식 수요 공략(빠른 조리, 세트 할인)",
+      "weekend": "주말 강세 → 가족/친구 단위 방문 수요, 세트 메뉴와 사이드 업셀링"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 매운맛/치즈/로제 등 트렌디한 변형 메뉴와 SNS 마케팅",
+      "30s": "30대 주요 고객 → 간편식+품질 강조, 세트 구성으로 가성비 어필",
+      "40s_plus": "40대+ 주요 고객 → 전통 분식 정통성, 위생/재료 신뢰감 강조"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 소스(로제/마라), 사이드 차별화(치즈추가/토핑)로 재방문 이유를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 수제/즉석 조리 강점과 가격 경쟁력으로 차별화하세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 확보와 포장/배달 비중 확대, 학생·주민 재방문 유도",
+      "발달상권": "발달상권 → 빠른 회전+점심 세트 메뉴, 직장인 간편식 포지셔닝이 핵심",
+      "전통시장": "전통시장 → 저렴한 임대료 활용, 원가 절감으로 가격 경쟁력 극대화",
+      "관광특구": "관광특구 → 외국인 대응(영문 메뉴/사진), K-분식 콘셉트로 객단가 업셀링"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "분식",
+    "떡볶이",
+    "순대",
+    "튀김",
+    "김밥",
+    "라면",
+    "우동",
+    "어묵",
+    "배달",
+    "포장"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (주차/배달 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "회전율이 곧 수익: 객단가가 낮으므로 점심/간식/저녁 3회 피크를 모두 잡아야 한다",
+      "세트/사이드 구성이 객단가를 결정한다(떡볶이+순대+튀김 세트, 음료 추가 등)",
+      "COGS 30%로 마진율은 좋지만 절대 이익이 작으므로 일 판매량 관리가 핵심",
+      "배달/포장 비중 확대 시 포장 품질(국물 분리/눅눅함 방지)이 리뷰를 좌우한다",
+      "트렌드 메뉴(로제떡볶이/마라떡볶이/치즈 토핑) 추가로 젊은 고객층 유입"
+    ],
+    "checklist": [
+      "떡·어묵 등 주재료 당일 소진/선입선출로 신선도 유지",
+      "세트 메뉴 3종 이상 구성으로 객단가 5,000원 이상 확보",
+      "포장 용기 테스트(국물 분리/보온)로 배달 클레임 최소화",
+      "피크타임(점심/하교 시간) 인력 배치와 조리 동선 최적화",
+      "SNS/배달앱 사진 품질 관리(토핑/비주얼)로 신규 유입 확대"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택",
+          "메뉴 구성/객단가 설계",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "배달 동선 점검",
+          "가스/전기 용량 확인"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          10,
+          21
+        ],
+        "key_tasks": [
+          "주방 동선 설계",
+          "카운터/홀 구성",
+          "환풍/배기 공사"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          5,
+          10
+        ],
+        "key_tasks": [
+          "가스레인지/튀김기 설치",
+          "냉장냉동고 배치",
+          "POS/배달 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육",
+          "메뉴 레시피 표준화/원가 확정"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          7
+        ],
+        "key_tasks": [
+          "배달앱 세팅/사진 촬영",
+          "오픈 이벤트/시식",
+          "피크타임 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_11_14_sales",
+      "time_17_21_sales",
+      "foot_traffic_11_14",
+      "foot_traffic_17_21",
+      "foot_traffic_age_10",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_20",
+      "resident_age_30"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 8,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 분식 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"분식 매출이 터지는 조건\"을 제시하세요. 분식 업종은 COGS 30%로 마진율은 좋지만 객단가가 낮아 회전율과 세트/사이드 구성이 핵심입니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "김밥천국",
+    "봉구스밥버거",
+    "스쿨푸드",
+    "죠스떡볶이",
+    "국대떡볶이",
+    "청년다방",
+    "엽기떡볶이",
+    "두끼",
+    "신전떡볶이",
+    "응급실떡볶이"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 분식점 창업 추천해줘",
+    "서울 신촌에서 학생 타겟 분식 상권 추천해줘",
+    "서울에서 점심 피크(11-14) 분식 골목상권 추천해줘",
+    "서울 홍대 vs 건대 분식 상권 비교해줘",
+    "서울에서 월세 100~200만원 분식 상권 추천해줘"
+  ]
+}

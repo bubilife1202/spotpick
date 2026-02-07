@@ -1,0 +1,828 @@
+{
+  "code": "CS100010",
+  "name": "커피-음료",
+  "display_name": "카페",
+  "icon": "☕",
+  "color": "blue",
+  "kakao_category": "CE7",
+  "MENU_COSTS": {
+    "아메리카노": {
+      "selling_price": 4500,
+      "ingredients": {
+        "원두": {
+          "amount": "15g",
+          "cost": 450
+        },
+        "물": {
+          "amount": "240ml",
+          "cost": 5
+        },
+        "종이컵+뚜껑+슬리브": {
+          "amount": "1set",
+          "cost": 180
+        }
+      },
+      "total_cost": 635,
+      "margin_rate": 0.859,
+      "category": "커피"
+    },
+    "카페라떼": {
+      "selling_price": 5000,
+      "ingredients": {
+        "원두": {
+          "amount": "15g",
+          "cost": 450
+        },
+        "우유": {
+          "amount": "200ml",
+          "cost": 400
+        },
+        "종이컵+뚜껑": {
+          "amount": "1set",
+          "cost": 180
+        }
+      },
+      "total_cost": 1030,
+      "margin_rate": 0.794,
+      "category": "커피"
+    },
+    "바닐라라떼": {
+      "selling_price": 5500,
+      "ingredients": {
+        "원두": {
+          "amount": "15g",
+          "cost": 450
+        },
+        "우유": {
+          "amount": "200ml",
+          "cost": 400
+        },
+        "바닐라시럽": {
+          "amount": "20ml",
+          "cost": 150
+        },
+        "종이컵+뚜껑": {
+          "amount": "1set",
+          "cost": 180
+        }
+      },
+      "total_cost": 1180,
+      "margin_rate": 0.785,
+      "category": "커피"
+    },
+    "카페모카": {
+      "selling_price": 5500,
+      "ingredients": {
+        "원두": {
+          "amount": "15g",
+          "cost": 450
+        },
+        "우유": {
+          "amount": "200ml",
+          "cost": 400
+        },
+        "초코시럽": {
+          "amount": "20ml",
+          "cost": 200
+        },
+        "휘핑크림": {
+          "amount": "30g",
+          "cost": 150
+        },
+        "종이컵+뚜껑": {
+          "amount": "1set",
+          "cost": 180
+        }
+      },
+      "total_cost": 1380,
+      "margin_rate": 0.749,
+      "category": "커피"
+    },
+    "콜드브루": {
+      "selling_price": 5000,
+      "ingredients": {
+        "콜드브루원액": {
+          "amount": "100ml",
+          "cost": 600
+        },
+        "물/얼음": {
+          "amount": "300ml",
+          "cost": 30
+        },
+        "플라스틱컵+뚜껑": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 830,
+      "margin_rate": 0.834,
+      "category": "커피"
+    },
+    "녹차라떼": {
+      "selling_price": 5500,
+      "ingredients": {
+        "말차파우더": {
+          "amount": "10g",
+          "cost": 500
+        },
+        "우유": {
+          "amount": "250ml",
+          "cost": 500
+        },
+        "종이컵+뚜껑": {
+          "amount": "1set",
+          "cost": 180
+        }
+      },
+      "total_cost": 1180,
+      "margin_rate": 0.785,
+      "category": "논커피"
+    },
+    "딸기스무디": {
+      "selling_price": 6000,
+      "ingredients": {
+        "냉동딸기": {
+          "amount": "100g",
+          "cost": 800
+        },
+        "우유": {
+          "amount": "150ml",
+          "cost": 300
+        },
+        "요거트": {
+          "amount": "50g",
+          "cost": 200
+        },
+        "얼음": {
+          "amount": "200g",
+          "cost": 20
+        },
+        "플라스틱컵+뚜껑": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 1520,
+      "margin_rate": 0.747,
+      "category": "논커피"
+    },
+    "크로와상": {
+      "selling_price": 4000,
+      "ingredients": {
+        "냉동크로와상": {
+          "amount": "1ea",
+          "cost": 1200
+        },
+        "포장지": {
+          "amount": "1set",
+          "cost": 50
+        }
+      },
+      "total_cost": 1250,
+      "margin_rate": 0.688,
+      "category": "디저트"
+    },
+    "티라미수": {
+      "selling_price": 7000,
+      "ingredients": {
+        "마스카포네": {
+          "amount": "80g",
+          "cost": 1600
+        },
+        "에스프레소": {
+          "amount": "30ml",
+          "cost": 150
+        },
+        "레이디핑거": {
+          "amount": "3ea",
+          "cost": 300
+        },
+        "코코아파우더": {
+          "amount": "5g",
+          "cost": 50
+        },
+        "용기": {
+          "amount": "1ea",
+          "cost": 300
+        }
+      },
+      "total_cost": 2400,
+      "margin_rate": 0.657,
+      "category": "디저트"
+    },
+    "아이스티": {
+      "selling_price": 4500,
+      "ingredients": {
+        "티백/찻잎": {
+          "amount": "5g",
+          "cost": 200
+        },
+        "설탕시럽": {
+          "amount": "15ml",
+          "cost": 30
+        },
+        "얼음+물": {
+          "amount": "400ml",
+          "cost": 30
+        },
+        "플라스틱컵+뚜껑": {
+          "amount": "1set",
+          "cost": 200
+        }
+      },
+      "total_cost": 460,
+      "margin_rate": 0.898,
+      "category": "논커피"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "원두 (kg)": {
+      "price": 30000,
+      "unit": "kg",
+      "note": "스페셜티 기준, 상업용 15,000~20,000"
+    },
+    "우유 (L)": {
+      "price": 2000,
+      "unit": "L",
+      "note": "서울우유 기준"
+    },
+    "종이컵 (개)": {
+      "price": 100,
+      "unit": "개",
+      "note": "12oz 기준, 뚜껑 별도 50원"
+    },
+    "플라스틱컵 (개)": {
+      "price": 120,
+      "unit": "개",
+      "note": "16oz ICE용"
+    },
+    "바닐라시럽 (750ml)": {
+      "price": 8500,
+      "unit": "병",
+      "note": "모닌 기준 ~40잔 분량"
+    },
+    "초코시럽 (750ml)": {
+      "price": 9000,
+      "unit": "병",
+      "note": "~37잔 분량"
+    },
+    "휘핑크림 (L)": {
+      "price": 5000,
+      "unit": "L",
+      "note": "~33잔 분량"
+    },
+    "냉동딸기 (kg)": {
+      "price": 8000,
+      "unit": "kg",
+      "note": "~10잔 분량"
+    },
+    "말차파우더 (100g)": {
+      "price": 5000,
+      "unit": "100g",
+      "note": "~10잔 분량"
+    }
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "프랜차이즈": [
+      "스타벅스",
+      "투썸",
+      "이디야",
+      "메가",
+      "컴포즈",
+      "빽다방",
+      "할리스",
+      "폴바셋",
+      "파스쿠찌",
+      "엔제리너스",
+      "커피빈",
+      "탐앤탐스",
+      "더벤티",
+      "매머드",
+      "감성커피",
+      "커피에반하다",
+      "요거프레소"
+    ],
+    "디저트카페": [
+      "디저트",
+      "케이크",
+      "베이커리",
+      "빵",
+      "마카롱",
+      "와플"
+    ],
+    "브런치카페": [
+      "브런치",
+      "샌드위치",
+      "베이글",
+      "토스트"
+    ],
+    "테마카페": [
+      "테마",
+      "보드게임",
+      "방탈출",
+      "북카페",
+      "스터디",
+      "고양이",
+      "강아지"
+    ],
+    "로스터리/스페셜티": [
+      "로스터리",
+      "로스팅",
+      "스페셜티",
+      "핸드드립",
+      "싱글오리진"
+    ],
+    "테이크아웃": [
+      "테이크아웃",
+      "저가"
+    ]
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 100,
+    "main_ratio": 0.7,
+    "main_category": "커피",
+    "sub_categories": [
+      "논커피",
+      "디저트"
+    ],
+    "unit": "잔",
+    "unit_name": "일 100잔"
+  },
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1800000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.27,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.24,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2800000,
+      "labor_ratio": 0.26,
+      "deposit_mult": 15
+    }
+  },
+  "EQUIPMENT_COST": {
+    "espresso_machine": [
+      8000000,
+      15000000
+    ],
+    "grinder": [
+      2000000,
+      5000000
+    ],
+    "refrigeration": [
+      5000000,
+      8000000
+    ],
+    "furniture": [
+      10000000,
+      15000000
+    ],
+    "pos": [
+      2000000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    3000000,
+    5000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.32,
+  "UTILITIES_RATIO": 0.035,
+  "OTHER_RATIO": 0.075,
+  "OPERATING_MARGIN_RANGE": [
+    0.08,
+    0.15
+  ],
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "프리미엄/감성": {
+      "weights": {
+        "purchasing_power": 40,
+        "avg_ticket": 35,
+        "ratio_30_40": 25
+      },
+      "normalization": {
+        "purchasing_power": "(1.0 if purchasing_power > 60 else purchasing_power / 60)",
+        "avg_ticket": "(1.0 if avg_ticket > 6000 else avg_ticket / 6000)",
+        "ratio_30_40": "ratio_30_40"
+      }
+    },
+    "직장인 효율": {
+      "weights": {
+        "worker_total": 45,
+        "peak_time_match": 30,
+        "ratio_30_40": 25
+      },
+      "normalization": {
+        "worker_total": "min(1.0, worker_total / 8000)",
+        "peak_time_match": "(1.0 if peak_time in (\"11-14\", \"06-11\") else 0.3)",
+        "ratio_30_40": "ratio_30_40"
+      }
+    },
+    "테이크아웃/저가": {
+      "weights": {
+        "foot_traffic_total": 40,
+        "purchasing_power_low": 35,
+        "facility_subway": 25
+      },
+      "normalization": {
+        "foot_traffic_total": "min(1.0, ft_total / 800000)",
+        "purchasing_power_low": "(1.0 if purchasing_power < 40 else max(0, (70 - purchasing_power) / 30))",
+        "facility_subway": "(1.0 if facility_subway >= 1 else 0.3)"
+      }
+    },
+    "동네 커뮤니티": {
+      "weights": {
+        "resident_total": 35,
+        "total_households": 30,
+        "ratio_30_40": 20,
+        "district_type_golmok": 15
+      },
+      "normalization": {
+        "resident_total": "min(1.0, resident_total / 1500)",
+        "total_households": "min(1.0, total_households / 800)",
+        "ratio_30_40": "ratio_30_40",
+        "district_type_golmok": "(0.3 if district_type == \"골목상권\" else 0.0)"
+      }
+    },
+    "학생/스터디": {
+      "weights": {
+        "ratio_20": 40,
+        "facility_university": 35,
+        "purchasing_power_low": 25
+      },
+      "normalization": {
+        "ratio_20": "ratio_20",
+        "facility_university": "min(1.0, facility_university)",
+        "purchasing_power_low": "(1.0 if purchasing_power < 50 else max(0, (70 - purchasing_power) / 20))"
+      }
+    }
+  },
+  "RECOMMENDATION_TEXT": {
+    "by_peak_time": {
+      "11-14": "점심 피크 상권 → 오전 10시 오픈, 빠른 회전율 전략",
+      "14-17": "오후 피크 상권 → 디저트/음료 세트 메뉴 강화",
+      "17-21": "저녁 피크 상권 → 저녁 시간대 특화 (와인/맥주 등)"
+    },
+    "by_sales_ratio": {
+      "weekday_ratio_gt_0.75": "주중 매출 집중 → 평일 런치 세트, 직장인 타겟",
+      "weekend_ratio_gt_0.35": "주말 매출 비중 높음 → 브런치 메뉴, 가족 고객 공략"
+    },
+    "by_main_age_group": {
+      "contains_20": "20대 주요 고객 → SNS 마케팅, 트렌디한 인테리어",
+      "contains_30": "30대 주요 고객 → 프리미엄 원두, 작업 공간 제공",
+      "contains_40_or_50": "40-50대 주요 고객 → 편안한 분위기, 품질 중심"
+    },
+    "by_competition": {
+      "store_count_gt_15": "경쟁 과다 → 시그니처 메뉴, 차별화 필수"
+    },
+    "by_district_type": {
+      "골목상권": "골목상권 특성 → 단골 확보, 지역 커뮤니티 연계"
+    }
+  },
+  "RISK_TEXT_TEMPLATES": {
+    "data_service": {
+      "store_count_gt_20": "높은 경쟁 밀도 (카페 {store_count}개)",
+      "survival_rate_lt_0.7": "평균 이하 생존율 ({survival_rate_pct}%)",
+      "closed_stores_gt_new_stores": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+      "franchise_ratio_gt_0.6": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+      "weekend_ratio_lt_0.2": "주말 매출 부진 (주말 비중 20% 미만)",
+      "change_code_LL": "쇠퇴 상권 (매출↓ 점포↓)",
+      "change_code_LH": "과포화 위험 상권 (매출↓ 점포↑)",
+      "foot_traffic_lt_avg_x_0.3": "유동인구 매우 적음",
+      "transit_pctile_lt_0.2": "대중교통 접근성 낮음 (주차 확보 필요)"
+    },
+    "simulation_service": {
+      "store_count_gt_20": "높은 경쟁 밀도 (카페 {store_count}개)",
+      "survival_rate_lt_0.7": "낮은 생존율 ({survival_rate_pct}%)",
+      "closed_stores_gt_new_stores": "폐업이 개업보다 많은 상권",
+      "break_even_months_max_gt_36": "투자 회수 3년 이상 소요 예상"
+    }
+  },
+  "SUCCESS_FACTORS": {
+    "limit": 6,
+    "templates": {
+      "survival_rate_gt_0.9": "높은 생존율 ({survival_rate_pct}%)",
+      "monthly_sales_gt_avg": "평균 이상 매출",
+      "store_count_lt_10": "적정 경쟁 수준",
+      "new_stores_gt_closed_stores": "성장 중인 상권",
+      "district_type_발달상권": "핵심 상업지구",
+      "district_type_골목상권": "감성 골목상권",
+      "female_ratio_gt_0.55": "여성 고객 다수",
+      "change_code_HH": "성장 상권 (매출↑ 점포↑)",
+      "change_code_HL": "안정 상권 (매출↑ 점포↓)",
+      "foot_traffic_gt_avg_x_1.5": "유동인구 풍부",
+      "facility_subway_ge_2": "지하철역 {subway}개 인접",
+      "facility_subway_eq_1": "지하철역 인접",
+      "worker_total_gt_5000": "직장인구 밀집",
+      "transit_pctile_gt_0.8": "교통 우수 (지하철 {subway}개역, 버스 {bus}개)",
+      "positioning": "포지셔닝: {positioning}"
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 카페 창업 전문 AI 컨설턴트 \"빌더\"입니다.\n\n## 역할\n- 예비 창업자의 질문에 친절하고 전문적으로 답변\n- 실제 서울시 상권 데이터를 기반으로 구체적인 추천 제공\n- 복잡한 상권 분석을 쉽게 설명\n\n## 보유 데이터 (64개 필드, 6년 트렌드 분석)\n- 서울시 {total_districts}개 상권 분석 완료\n- 카페 {total_stores}개 점포 데이터\n- 평균 월 매출: {avg_monthly_sales}원\n- 평균 2년 생존율: {avg_survival_rate}%\n- 상권 유형: 골목상권, 발달상권, 전통시장, 관광특구\n\n### 분석 가능한 인사이트\n- ⏰ **시간대별 매출**: 새벽(00-06), 오전(06-11), 점심(11-14), 오후(14-17), 저녁(17-21), 심야(21-24)\n- 📅 **요일별 매출**: 월~일 각각의 매출 패턴\n- 👥 **연령대별 고객**: 10대, 20대, 30대, 40대, 50대, 60대+ 각 연령대 매출 비중\n- 🚻 **성별 매출**: 남성/여성 고객 비율\n- 📊 **경쟁 현황**: 점포수, 신규 개업, 폐업, 프랜차이즈 비율\n- 📈 **6년 트렌드**: 2019~2025년 분기별 매출 추이\n\n## 응답 스타일 — 짧고 강렬하게\n당신은 데이터를 나열하는 도구가 아니라, 데이터를 **해석하고 맞춤형 결론을 내려주는 코파일럿**입니다.\n\n**절대 규칙: 응답은 최대 5~8문장. 매출/투자비/BEP 숫자는 카드와 차트가 보여주므로 텍스트에서 반복하지 마세요.**\n\n1. **한 줄 결론**: \"이 상권은 ___에 적합합니다\" (1문장)\n2. **핵심 이유**: 왜 추천/비추인지 2~3문장\n3. **리스크 + 대안**: 1~2문장\n4. **차별화 한 줄**: \"___로 승부하세요\"\n\n숫자 나열 금지. 해석만. 매출/투자비/원가/BEP는 이미 구조화된 카드로 사용자에게 보여지므로 텍스트에서 중복하지 마세요.\n\n## 💰 시뮬레이션 기능 (매출·투자비·손익분기점)\n\"여기서 열면 얼마 벌어?\", \"초기 투자비는?\", \"몇 개월이면 본전?\" 같은 질문에는 시뮬레이션 데이터를 활용해 답변합니다.\n\n### 매출 시뮬레이션\n- 점포당 예상 월매출 = 상권 전체 매출 ÷ 점포 수\n- 낙관/비관 시나리오 = 같은 상권 유형 25%/75% 분위수\n- 평균 객단가 = 월매출 ÷ 월 거래수\n\n### 초기 투자비 (10평/약 33㎡/8~12석 기준, 상권유형별 차등)\n- 보증금: 월세 × 8~15배 (전통시장 ×8, 골목 ×10, 발달·관광특구 ×15)\n- 인테리어: 평당 150~280만원 (전통시장 150 < 골목 180 < 발달 250 < 관광특구 280)\n- 장비/설비: 2,700~4,600만원\n- 초기 재료비: 300~500만원\n- 기타(허가/간판): 500~1,000만원\n\n### 운영비 (상권유형별 차등)\n- 원가율: 32% (전 상권 동일 — 원두·우유 단가 차이 없음)\n- 인건비: 24~27% (전통시장 24% < 골목 25% < 관광특구 26% < 발달 27%)\n- 공과금: 3.5%\n- 기타 운영비: 7.5%\n- ⚠️ 업종 평균 추정치이며, 실제는 ±20% 차이 가능\n\n### 손익분기점\n- 월 순이익 = 월매출 - 운영비(임대료+원가+인건비+공과금+기타)\n- 투자 회수 기간 = 초기 투자비 ÷ 월 순이익\n- 일 손익분기 매출 = 월 운영비 ÷ 30\n\n## 🧭 경쟁/차별화 · 원가/마진 · 주차 (카카오 로컬 + 벤치마크)\n\"이 동네 카페 몇 개야?\", \"프랜차이즈가 많아?\", \"뭘로 차별화해야 해?\", \"주차는 편해?\", \"메뉴 원가/마진은?\" 같은 질문에는 아래 데이터를 활용합니다.\n\n### 경쟁 분석 (카카오 로컬)\n- 주변 카페 검색(최대 45개 샘플) 기반으로 카페 유형 분포(프랜차이즈/디저트/브런치/로스터리/테이크아웃 등) 추정\n- 시장 공백(gap)과 차별화 전략(우선순위 포함) 제안\n\n### 주차 (카카오 로컬 PK6)\n- 추천 상권 좌표 기준 반경 500m 주차장 개수/거리 요약 (좌표가 없으면 생략)\n\n### 메뉴 원가/마진 벤치마크\n- 대표 메뉴별 재료비(원가)와 마진율 벤치마크 제공\n- 일 100잔 시나리오(매출/원가/매출총이익)로 감각적인 규모 추정\n\n## 시간대 질문 예시 응답\n\"오전에 손님이 많은 곳\" → 오전(06-11) 매출 비중 높은 상권 추천\n\"직장인 점심 타겟\" → 점심(11-14) 매출 비중 높은 상권 추천\n\"야간 영업\" → 저녁(17-21), 심야(21-24) 매출 비중 높은 상권 추천\n\n## 고객층 질문 예시 응답\n\"20대 타겟\" → 20대 매출 비중 높은 상권 추천\n\"직장인 타겟\" → 30-40대 매출 비중 높은 상권 추천\n\"여성 고객 위주\" → 여성 매출 비중 높은 상권 추천\n\n## ⛔ 절대 규칙 (가장 중요)\n- **아래 \"추천 상권 데이터\" 섹션에 나온 상권명·매출·생존율·수치만 사용하세요.**\n- 데이터에 없는 상권명을 절대 생성하지 마세요 (예: 여의도 국제금융로, 을지로 카페거리 등 지어내기 금지).\n- 데이터에 없는 매출액·생존율·점포수를 절대 생성하지 마세요.\n- 추천 상권 데이터가 제공되지 않았다면, \"현재 조건에 맞는 상권 데이터를 찾지 못했습니다\"라고 솔직하게 답변하세요.\n- 일반적인 창업 팁이나 카페 운영 조언은 데이터 없이도 답변 가능하지만, **구체적 상권명·수치는 반드시 제공된 데이터에서만** 인용하세요.\n\n## 주의사항\n- 투자 결정은 본인 책임임을 언급\n- 현장 답사 권유",
+  "KEYWORD_DETECTION": [
+    "경쟁",
+    "차별",
+    "프랜차이즈",
+    "주변 카페",
+    "카페 몇",
+    "카페가 몇",
+    "원가",
+    "마진",
+    "메뉴",
+    "주차",
+    "주차장"
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "테이크아웃": "takeout",
+    "브런치": "brunch",
+    "디저트": "dessert",
+    "베이커리": "bakery",
+    "작업": "work",
+    "스터디": "study",
+    "로스터리": "roastery",
+    "스페셜티": "specialty"
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "takeout",
+      "label": "테이크아웃",
+      "desc": "빠른 회전율"
+    },
+    {
+      "id": "brunch",
+      "label": "브런치 카페",
+      "desc": "높은 객단가"
+    },
+    {
+      "id": "aesthetic",
+      "label": "감성 카페",
+      "desc": "SNS 바이럴"
+    },
+    {
+      "id": "study",
+      "label": "스터디 카페",
+      "desc": "장시간 체류"
+    }
+  ],
+  "BUSINESS_TYPE_LABELS": {
+    "takeout": "테이크아웃",
+    "brunch": "브런치 카페",
+    "aesthetic": "감성 카페",
+    "study": "스터디 카페"
+  },
+  "TIMELINE_CONFIG": {
+    "WEEKS_PER_MONTH": 4.3,
+    "defaults": {
+      "cafe_type": "일반",
+      "budget_range": "3천~1억",
+      "area_pyeong": 15,
+      "is_franchise": false,
+      "district_type": "골목상권"
+    },
+    "property": {
+      "base_duration_weeks": 4,
+      "district_type_adjustments": {
+        "발달상권": 2
+      },
+      "clamp_weeks": [
+        3,
+        6
+      ]
+    },
+    "admin": {
+      "base_duration_weeks": 2,
+      "cafe_type_overrides": {
+        "테이크아웃": 1
+      },
+      "clamp_weeks": [
+        1,
+        2
+      ],
+      "start_offset_from_property_end_weeks": -1
+    },
+    "interior": {
+      "base_weeks_formula": "ceil(area_pyeong * 0.25)",
+      "base_clamp_weeks": [
+        3,
+        10
+      ],
+      "adjustments": {
+        "cafe_type": {
+          "테이크아웃": -1,
+          "브런치": 1
+        },
+        "budget_range": {
+          "3천만원 이하": -1,
+          "1억+": 2
+        },
+        "is_franchise": -1
+      },
+      "duration_clamp_weeks": [
+        3,
+        10
+      ]
+    },
+    "equipment": {
+      "base_duration_weeks": 2,
+      "conditions_set_to_3_weeks": {
+        "cafe_type": [
+          "브런치"
+        ],
+        "budget_range": [
+          "1억+"
+        ]
+      },
+      "clamp_weeks": [
+        2,
+        3
+      ],
+      "start_offset_from_interior_start": "ceil(interior_duration * 0.7)"
+    },
+    "staffing": {
+      "base_duration_weeks": 2,
+      "adjustments": {
+        "is_franchise": -1,
+        "cafe_type": {
+          "브런치": 1
+        }
+      },
+      "min_weeks": 1
+    },
+    "open": {
+      "base_duration_weeks": 1,
+      "cafe_type_overrides": {
+        "브런치": 2
+      },
+      "clamp_weeks": [
+        1,
+        2
+      ]
+    },
+    "stages": [
+      {
+        "name": "물건 탐색·계약",
+        "can_overlap": false,
+        "description": "상권 조사, 후보지 방문, 임대차 조건 협의"
+      },
+      {
+        "name": "행정 절차",
+        "can_overlap": true,
+        "description": "사업자등록·위생교육·건강검진·영업신고를 병행 처리"
+      },
+      {
+        "name": "인테리어",
+        "can_overlap": false,
+        "description": "평수와 공사 범위에 따른 설계·시공"
+      },
+      {
+        "name": "장비·원재료",
+        "can_overlap": true,
+        "description": "장비 발주와 초기 원재료 확보"
+      },
+      {
+        "name": "인력·교육",
+        "can_overlap": false,
+        "description": "채용, 메뉴·서비스 교육 및 운영 매뉴얼 정비"
+      },
+      {
+        "name": "시운전·오픈",
+        "can_overlap": false,
+        "description": "동선 점검, 시운전, 그랜드오픈 준비"
+      }
+    ],
+    "estimates": {
+      "fast_multiplier": 0.7,
+      "slow_multiplier": 1.4,
+      "total_months_round_digits": 1
+    },
+    "budget_label_map": {
+      "3천만원 이하": "셀프 인테리어",
+      "3천~1억": "일반 인테리어",
+      "1억+": "풀 인테리어"
+    },
+    "summary_parts": {
+      "include_cafe_type_if_not": "일반",
+      "is_franchise_label": "프랜차이즈",
+      "independent_label": "개인카페",
+      "area_suffix": "평 기준"
+    },
+    "disclaimer": "추정 일정이며 인허가 지연, 공사 범위에 따라 실제 일정은 달라질 수 있습니다."
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "monthly_sales": 50000000,
+    "monthly_transactions": 5000,
+    "store_count": 5,
+    "franchise_stores": 2,
+    "new_stores": 1,
+    "closed_stores": 1,
+    "weekday_ratio": 0.7,
+    "weekend_ratio": 0.3,
+    "male_ratio": 0.4,
+    "female_ratio": 0.6,
+    "age_10_ratio": 0.02,
+    "age_20_ratio": 0.2,
+    "age_30_ratio": 0.25,
+    "age_40_ratio": 0.2,
+    "age_50_ratio": 0.18,
+    "age_60_ratio": 0.15,
+    "time_06_11_ratio": 0.15,
+    "time_11_14_ratio": 0.35,
+    "time_14_17_ratio": 0.3,
+    "time_17_21_ratio": 0.2
+  },
+  "STOPWORDS": [
+    "추천",
+    "추천해줘",
+    "추천좀",
+    "카페",
+    "창업",
+    "예산",
+    "월세",
+    "타겟",
+    "직장인",
+    "여성",
+    "남성",
+    "점심",
+    "오전",
+    "오후",
+    "저녁",
+    "심야",
+    "골목",
+    "발달",
+    "전통",
+    "시장",
+    "관광",
+    "비교",
+    "분석",
+    "알려줘",
+    "자세히"
+  ],
+  "KNOWN_TRADEMARKS": [
+    "스타벅스",
+    "투썸플레이스",
+    "이디야",
+    "메가커피",
+    "컴포즈커피",
+    "빽다방",
+    "할리스",
+    "폴바셋",
+    "파스쿠찌",
+    "엔제리너스",
+    "커피빈",
+    "탐앤탐스",
+    "더벤티",
+    "매머드커피",
+    "감성커피"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 월세 300~400만원으로 카페 창업 추천해줘",
+    "서울 홍대에서 20대 여성 타겟 카페 상권 추천해줘",
+    "서울에서 직장인 점심(11-14) 피크 상권 추천해줘",
+    "서울 홍대 vs 성수 상권 비교해줘",
+    "서울 성수에서 골목상권 + 월세 200~300만원 추천해줘"
+  ]
+}

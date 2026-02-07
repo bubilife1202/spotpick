@@ -1,0 +1,871 @@
+{
+  "code": "CS100003",
+  "name": "일식음식점",
+  "display_name": "일식",
+  "kakao_category": "FD6",
+  "icon": "🍣",
+  "color": "indigo",
+  "MENU_COSTS": {
+    "초밥세트(12p)": {
+      "selling_price": 18000,
+      "ingredients": {
+        "초밥용 생선(연어/참치/새우 등)": {
+          "amount": "12p 기준",
+          "cost": 4500
+        },
+        "초밥용 밥(샤리)": {
+          "amount": "약 360g",
+          "cost": 800
+        },
+        "와사비/간장/가리": {
+          "amount": "1set",
+          "cost": 400
+        },
+        "초밥 도마/포장재": {
+          "amount": "1set",
+          "cost": 800
+        },
+        "김/장식채소": {
+          "amount": "소량",
+          "cost": 1000
+        }
+      },
+      "total_cost": 7500,
+      "margin_rate": 0.583,
+      "category": "초밥"
+    },
+    "우동": {
+      "selling_price": 8000,
+      "ingredients": {
+        "우동면": {
+          "amount": "1인분(200g)",
+          "cost": 600
+        },
+        "다시(가쓰오부시/다시마)": {
+          "amount": "400ml",
+          "cost": 500
+        },
+        "간장/미림/맛술": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "어묵/파/유부": {
+          "amount": "1set",
+          "cost": 700
+        },
+        "그릇/소모품": {
+          "amount": "1set",
+          "cost": 400
+        }
+      },
+      "total_cost": 2500,
+      "margin_rate": 0.688,
+      "category": "면류"
+    },
+    "돈카츠": {
+      "selling_price": 12000,
+      "ingredients": {
+        "돼지 등심/안심": {
+          "amount": "약 180g",
+          "cost": 2200
+        },
+        "빵가루(판코)/밀가루/계란": {
+          "amount": "1set",
+          "cost": 500
+        },
+        "식용유(튀김)": {
+          "amount": "1회전 소모량",
+          "cost": 600
+        },
+        "돈카츠소스/겨자": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "밥/된장국/샐러드": {
+          "amount": "1set",
+          "cost": 900
+        }
+      },
+      "total_cost": 4500,
+      "margin_rate": 0.625,
+      "category": "튀김"
+    },
+    "라멘": {
+      "selling_price": 10000,
+      "ingredients": {
+        "라멘면(생면)": {
+          "amount": "1인분(150g)",
+          "cost": 500
+        },
+        "돈코츠/쇼유 육수": {
+          "amount": "450ml",
+          "cost": 1200
+        },
+        "차슈/반숙란/멘마": {
+          "amount": "1set",
+          "cost": 1200
+        },
+        "파/김/나루토": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "그릇/소모품": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.65,
+      "category": "면류"
+    },
+    "사시미(1인)": {
+      "selling_price": 25000,
+      "ingredients": {
+        "모듬 생선(연어/참치/광어/도미 등)": {
+          "amount": "약 200g",
+          "cost": 8500
+        },
+        "와사비/간장": {
+          "amount": "1set",
+          "cost": 300
+        },
+        "깻잎/무채/장식채소": {
+          "amount": "1set",
+          "cost": 700
+        },
+        "얼음/도마/접시": {
+          "amount": "1set",
+          "cost": 500
+        },
+        "초장/레몬": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재/소모품": {
+          "amount": "1set",
+          "cost": 1800
+        }
+      },
+      "total_cost": 12000,
+      "margin_rate": 0.52,
+      "category": "사시미"
+    },
+    "연어덮밥": {
+      "selling_price": 13000,
+      "ingredients": {
+        "연어(슬라이스)": {
+          "amount": "약 120g",
+          "cost": 3000
+        },
+        "밥(덮밥용)": {
+          "amount": "약 250g",
+          "cost": 500
+        },
+        "간장소스/와사비": {
+          "amount": "소량",
+          "cost": 400
+        },
+        "아보카도/양파/무순": {
+          "amount": "1set",
+          "cost": 800
+        },
+        "된장국/소모품": {
+          "amount": "1set",
+          "cost": 800
+        }
+      },
+      "total_cost": 5500,
+      "margin_rate": 0.577,
+      "category": "덮밥"
+    },
+    "가츠동": {
+      "selling_price": 10000,
+      "ingredients": {
+        "돼지 등심(커틀릿)": {
+          "amount": "약 150g",
+          "cost": 1500
+        },
+        "빵가루/밀가루/계란": {
+          "amount": "1set",
+          "cost": 400
+        },
+        "식용유(튀김)": {
+          "amount": "1회전 소모량",
+          "cost": 500
+        },
+        "밥/양파/달걀(토핑)": {
+          "amount": "1set",
+          "cost": 600
+        },
+        "가츠동소스/미츠바": {
+          "amount": "소량",
+          "cost": 500
+        }
+      },
+      "total_cost": 3500,
+      "margin_rate": 0.65,
+      "category": "덮밥"
+    },
+    "에비텐동": {
+      "selling_price": 12000,
+      "ingredients": {
+        "새우(대하, 3~4미)": {
+          "amount": "약 120g",
+          "cost": 2500
+        },
+        "야채(고구마/연근/가지 등)": {
+          "amount": "1set",
+          "cost": 600
+        },
+        "빵가루(텐푸라)/밀가루": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "식용유(튀김)": {
+          "amount": "1회전 소모량",
+          "cost": 500
+        },
+        "밥/텐츠유/무즙": {
+          "amount": "1set",
+          "cost": 900
+        }
+      },
+      "total_cost": 4800,
+      "margin_rate": 0.6,
+      "category": "덮밥"
+    },
+    "소바": {
+      "selling_price": 9000,
+      "ingredients": {
+        "소바면(메밀면)": {
+          "amount": "1인분(180g)",
+          "cost": 800
+        },
+        "다시(가쓰오/다시마)": {
+          "amount": "300ml",
+          "cost": 500
+        },
+        "간장/미림": {
+          "amount": "소량",
+          "cost": 300
+        },
+        "파/와사비/김": {
+          "amount": "소량",
+          "cost": 400
+        },
+        "그릇/소모품": {
+          "amount": "1set",
+          "cost": 1000
+        }
+      },
+      "total_cost": 3000,
+      "margin_rate": 0.667,
+      "category": "면류"
+    },
+    "야끼토리(5본)": {
+      "selling_price": 12000,
+      "ingredients": {
+        "닭(다리/가슴/껍질/연골 등)": {
+          "amount": "5꼬치분",
+          "cost": 2000
+        },
+        "야끼토리소스(타레)/소금": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "숯/꼬치": {
+          "amount": "5본",
+          "cost": 500
+        },
+        "파/시시토 등 채소": {
+          "amount": "소량",
+          "cost": 500
+        },
+        "소모품/접시": {
+          "amount": "1set",
+          "cost": 1500
+        }
+      },
+      "total_cost": 5000,
+      "margin_rate": 0.583,
+      "category": "구이"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "연어 (kg)": {
+      "price": 25000,
+      "unit": "kg",
+      "note": "노르웨이/칠레산 도매 기준 변동"
+    },
+    "참치 (kg)": {
+      "price": 35000,
+      "unit": "kg",
+      "note": "부위/등급에 따라 대폭 변동"
+    },
+    "새우 (kg)": {
+      "price": 18000,
+      "unit": "kg",
+      "note": "대하 기준, 크기에 따라 변동"
+    },
+    "쌀 (kg)": {
+      "price": 3500,
+      "unit": "kg",
+      "note": "초밥용 단립종 기준"
+    },
+    "면류 (kg)": {
+      "price": 4000,
+      "unit": "kg",
+      "note": "우동/소바/라멘면 평균"
+    },
+    "다시(가쓰오부시/다시마)": {
+      "price": 15000,
+      "unit": "kg",
+      "note": "가쓰오부시 기준, 다시마 별도"
+    },
+    "간장 (L)": {
+      "price": 5000,
+      "unit": "L",
+      "note": "일식용 진간장 기준"
+    },
+    "와사비 (100g)": {
+      "price": 3000,
+      "unit": "100g",
+      "note": "생와사비 기준, 튜브 별도"
+    },
+    "김(노리) (100매)": {
+      "price": 8000,
+      "unit": "100매",
+      "note": "초밥용 반절김 기준"
+    },
+    "빵가루(판코) (kg)": {
+      "price": 4000,
+      "unit": "kg",
+      "note": "일식 전용 판코 기준"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "sushi_counter": [
+      5000000,
+      15000000
+    ],
+    "refrigeration": [
+      5000000,
+      10000000
+    ],
+    "fryer": [
+      2000000,
+      5000000
+    ],
+    "ventilation": [
+      2000000,
+      5000000
+    ],
+    "tableware": [
+      5000000,
+      8000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    3000000,
+    6000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.38,
+  "UTILITIES_RATIO": 0.04,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.07,
+    0.14
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1800000,
+      "labor_ratio": 0.25,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.27,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1300000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2800000,
+      "labor_ratio": 0.26,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "초밥전문": [
+      "초밥",
+      "스시",
+      "sushi",
+      "회전초밥"
+    ],
+    "라멘전문": [
+      "라멘",
+      "라면",
+      "ramen",
+      "돈코츠"
+    ],
+    "돈카츠전문": [
+      "돈카츠",
+      "tonkatsu",
+      "커틀릿",
+      "가츠"
+    ],
+    "이자카야": [
+      "이자카야",
+      "izakaya",
+      "야끼토리",
+      "사케"
+    ],
+    "오마카세": [
+      "오마카세",
+      "omakase",
+      "코스",
+      "프리미엄"
+    ],
+    "덮밥전문": [
+      "덮밥",
+      "동",
+      "규동",
+      "가츠동",
+      "텐동"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "초밥/사시미 전문": {
+      "desc": "신선도가 핵심, 프리미엄 식재료와 숙련 기술로 객단가를 높이는 전략",
+      "weights": {
+        "foot_traffic_total": 0.2,
+        "worker_total": 0.3,
+        "facility_score": 0.15,
+        "transit_raw": 0.15,
+        "resident_age_30": 0.1,
+        "resident_age_40": 0.1
+      }
+    },
+    "돈카츠/라멘 캐주얼": {
+      "desc": "빠른 회전율과 합리적 가격으로 점심 직장인·학생 수요를 공략",
+      "weights": {
+        "foot_traffic_total": 0.35,
+        "worker_total": 0.3,
+        "facility_score": 0.1,
+        "transit_raw": 0.15,
+        "foot_traffic_age_20": 0.1
+      }
+    },
+    "이자카야": {
+      "desc": "저녁~심야 주류 매출 비중이 높으며, 안주/야끼토리로 객단가 극대화",
+      "weights": {
+        "foot_traffic_17_21": 0.25,
+        "foot_traffic_21_24": 0.3,
+        "foot_traffic_age_20": 0.15,
+        "foot_traffic_age_30": 0.2,
+        "worker_total": 0.1
+      }
+    },
+    "프리미엄 오마카세": {
+      "desc": "소수 좌석·예약제로 고단가 운영, 40대+ 고소득 상권에 최적",
+      "weights": {
+        "resident_age_40": 0.25,
+        "purchasing_power": 0.3,
+        "facility_score": 0.15,
+        "transit_raw": 0.15,
+        "foot_traffic_total": 0.15
+      }
+    },
+    "배달/테이크아웃": {
+      "desc": "덮밥·돈카츠 위주 배달/포장 특화, 초기비용 절감·아파트 밀집지 유리",
+      "weights": {
+        "apt_ratio": 0.3,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "facility_score": 0.1,
+        "transit_raw": 0.25
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "sushi_sashimi",
+      "label": "초밥/사시미 전문",
+      "desc": "프리미엄 식재료"
+    },
+    {
+      "id": "casual_japanese",
+      "label": "돈카츠/라멘 캐주얼",
+      "desc": "빠른 회전율"
+    },
+    {
+      "id": "izakaya",
+      "label": "이자카야",
+      "desc": "저녁/주류 특화"
+    },
+    {
+      "id": "omakase",
+      "label": "프리미엄 오마카세",
+      "desc": "고단가 예약제"
+    },
+    {
+      "id": "delivery_takeout",
+      "label": "배달/테이크아웃",
+      "desc": "초기비용 절감"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "sushi_sashimi": "초밥/사시미 전문",
+    "casual_japanese": "돈카츠/라멘 캐주얼",
+    "izakaya": "이자카야",
+    "omakase": "프리미엄 오마카세",
+    "delivery_takeout": "배달/테이크아웃"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "sushi_sashimi": {
+      "short": "초밥",
+      "full": "초밥/사시미 전문"
+    },
+    "casual_japanese": {
+      "short": "캐주얼",
+      "full": "돈카츠/라멘 캐주얼"
+    },
+    "izakaya": {
+      "short": "이자카야",
+      "full": "이자카야"
+    },
+    "omakase": {
+      "short": "오마카세",
+      "full": "프리미엄 오마카세"
+    },
+    "delivery_takeout": {
+      "short": "배달",
+      "full": "배달/테이크아웃"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 60,
+    "main_ratio": 0.55,
+    "main_category": "초밥/회",
+    "sub_categories": [
+      "면류",
+      "튀김류"
+    ],
+    "unit": "식",
+    "unit_name": "일 60식"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "일식",
+      "초밥",
+      "스시",
+      "사시미",
+      "라멘",
+      "돈카츠",
+      "우동",
+      "소바",
+      "오마카세"
+    ],
+    "cuisine_styles": [
+      "이자카야",
+      "야끼토리",
+      "텐동",
+      "가츠동",
+      "연어덮밥",
+      "규동"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃",
+      "예약제"
+    ],
+    "differentiators": [
+      "오마카세",
+      "프리미엄",
+      "수제",
+      "직수입",
+      "숙성",
+      "신선",
+      "활어"
+    ],
+    "premium_terms": [
+      "사케",
+      "생맥주",
+      "하이볼",
+      "코스",
+      "카운터석"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 돈카츠/라멘/덮밥 런치 세트(밥+국+샐러드)로 회전율과 객단가를 동시에 올리세요",
+      "17-21": "저녁 피크 → 초밥/사시미 코스와 사케/하이볼 페어링으로 객단가 극대화(이자카야 모드)",
+      "21-24": "야식 피크 → 이자카야 콘셉트(야끼토리+하이볼 세트)와 배달앱 심야 노출을 강화하세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 런치 수요 공략(돈카츠/라멘 세트, 빠른 서빙 12분 이내)",
+      "weekend": "주말 강세 → 가족/커플 오마카세/초밥 세트 구성과 예약 관리를 강화하세요"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 연어덮밥/라멘 등 가성비 메뉴 강조, SNS 비주얼 플레이팅 중요",
+      "30s": "30대 주요 고객 → 품질/분위기/코스 구성을 명확히(점심 캐주얼→저녁 프리미엄 전환)",
+      "40s_plus": "40대+ 주요 고객 → 오마카세/프리미엄 사시미 포지셔닝, 원산지/신선도 강조로 신뢰 구축"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 특화 메뉴(숙성 스시, 자가제면 라멘, 시그니처 소스)로 차별화 포인트를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 수제/직수입 식재료 품질로 체감 차이를 만들고, 리뷰에서 증명하세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 기반 런치 세트 + 저녁 이자카야 전환으로 시간대별 매출 극대화",
+      "발달상권": "발달상권 → 직장인 점심(돈카츠/라멘) + 저녁 회식(초밥/사케) 이원 전략이 핵심",
+      "전통시장": "전통시장 → 가성비 덮밥/우동 특화, 포장 수요 강화로 시장 유입 고객 흡수",
+      "관광특구": "관광특구 → 외국인 대응(영문메뉴/사진메뉴), 프리미엄 오마카세로 관광객 객단가 극대화"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "일식",
+    "일본",
+    "스시",
+    "초밥",
+    "라멘",
+    "돈카츠",
+    "우동"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (식재료 신선도 물류 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "식재료 신선도 관리(콜드체인/당일 소진)가 일식의 생명이다",
+      "COGS 38% 가정: 생선 시세 변동·폐기율·로스 관리를 상시 점검",
+      "점심(캐주얼 세트) → 저녁(프리미엄 코스) 시간대별 메뉴 전환이 수익을 좌우",
+      "초밥/사시미는 숙련 인력 확보가 필수, 인건비 비중(25~27%) 관리 중요",
+      "프리미엄 포지셔닝일수록 인테리어·분위기·서비스에 대한 기대치가 높으므로 초기 투자 설계가 핵심"
+    ],
+    "checklist": [
+      "생선 입고/보관 온도 관리(냉장 0~5℃, 냉동 -18℃ 이하) 매뉴얼화",
+      "초밥 샤리(밥) 온도·식초 배합 표준화로 맛 편차 최소화",
+      "튀김유 교체 주기/온도 관리(돈카츠/텐동 품질 유지)",
+      "주류(사케/하이볼) 마진 활용한 객단가 업셀링 전략",
+      "식재료 로스율 3% 이내 관리(발주량 최적화/메뉴 구성 연동)"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택(초밥/캐주얼/이자카야/오마카세)",
+          "타겟 상권 3곳 비교",
+          "메뉴 구성·원가 설계"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "수도/전기/가스 용량 확인",
+          "식재료 물류 동선 점검"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          21,
+          35
+        ],
+        "key_tasks": [
+          "카운터석/홀 설계",
+          "주방 동선(냉장→조리대→서빙) 최적화",
+          "배기/환풍 공사"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "초밥 카운터/냉장 쇼케이스 설치",
+          "튀김기/제면기 설치",
+          "POS/예약 시스템 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육(생선 취급 특별관리)",
+          "레시피 표준화/원가표 완성"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "식재료 입고 테스트/메뉴 시연",
+          "SNS/리뷰 이벤트",
+          "피크타임 오퍼레이션 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_17_21_sales",
+      "time_21_24_sales",
+      "foot_traffic_17_21",
+      "foot_traffic_21_24",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 12,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 일식 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"일식 매출이 터지는 조건\"을 제시하세요. 일식 업종은 식재료 신선도(콜드체인)·숙련 인력 의존도가 높고, 평균 COGS 38%이며 생선 시세 변동·폐기 리스크가 큽니다. 프리미엄 포지셔닝(초밥/오마카세)과 캐주얼 포지셔닝(돈카츠/라멘/덮밥)의 원가 구조와 타겟 고객이 다르므로, 상권 특성에 맞는 포지셔닝 제안이 핵심입니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "스시로",
+    "하나조스시",
+    "미소야",
+    "삼선스시",
+    "은어",
+    "스시히로바",
+    "쿠우쿠우",
+    "토다이",
+    "오마카세진",
+    "텐동요시"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 강남에서 일식당 창업 추천해줘",
+    "서울 이태원에서 오마카세 상권 추천해줘",
+    "서울에서 저녁 피크(17-21) 일식 상권 추천해줘",
+    "서울 강남 vs 청담 일식 상권 비교해줘",
+    "서울에서 월세 400만원대 일식 발달상권 추천해줘"
+  ]
+}

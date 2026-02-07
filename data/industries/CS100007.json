@@ -1,0 +1,781 @@
+{
+  "code": "CS100007",
+  "name": "치킨전문점",
+  "display_name": "치킨",
+  "kakao_category": "FD6",
+  "icon": "🍗",
+  "color": "orange",
+  "MENU_COSTS": {
+    "후라이드치킨(1마리)": {
+      "selling_price": 18000,
+      "ingredients": {
+        "닭(10~11호)": {
+          "amount": "1마리",
+          "cost": 5000
+        },
+        "식용유": {
+          "amount": "1회전(약 0.5L 소모 환산)",
+          "cost": 800
+        },
+        "튀김가루/배터": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "포장재(용기+비닐+보온팩)": {
+          "amount": "1set",
+          "cost": 1200
+        }
+      },
+      "total_cost": 7500,
+      "margin_rate": 0.583,
+      "category": "치킨"
+    },
+    "양념치킨(1마리)": {
+      "selling_price": 19000,
+      "ingredients": {
+        "닭(10~11호)": {
+          "amount": "1마리",
+          "cost": 5000
+        },
+        "식용유": {
+          "amount": "1회전(약 0.5L 소모 환산)",
+          "cost": 800
+        },
+        "튀김가루/배터": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "양념소스": {
+          "amount": "약 120g",
+          "cost": 1000
+        },
+        "포장재(용기+비닐+보온팩)": {
+          "amount": "1set",
+          "cost": 1200
+        }
+      },
+      "total_cost": 8500,
+      "margin_rate": 0.553,
+      "category": "치킨"
+    },
+    "간장치킨(1마리)": {
+      "selling_price": 19000,
+      "ingredients": {
+        "닭(10~11호)": {
+          "amount": "1마리",
+          "cost": 5000
+        },
+        "식용유": {
+          "amount": "1회전(약 0.5L 소모 환산)",
+          "cost": 800
+        },
+        "튀김가루/배터": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "간장소스": {
+          "amount": "약 120g",
+          "cost": 800
+        },
+        "포장재(용기+비닐+보온팩)": {
+          "amount": "1set",
+          "cost": 1200
+        }
+      },
+      "total_cost": 8300,
+      "margin_rate": 0.563,
+      "category": "치킨"
+    },
+    "마늘치킨(1마리)": {
+      "selling_price": 19000,
+      "ingredients": {
+        "닭(10~11호)": {
+          "amount": "1마리",
+          "cost": 5000
+        },
+        "식용유": {
+          "amount": "1회전(약 0.5L 소모 환산)",
+          "cost": 800
+        },
+        "튀김가루/배터": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "마늘소스/후레이크": {
+          "amount": "약 120g",
+          "cost": 1000
+        },
+        "포장재(용기+비닐+보온팩)": {
+          "amount": "1set",
+          "cost": 1200
+        }
+      },
+      "total_cost": 8500,
+      "margin_rate": 0.553,
+      "category": "치킨"
+    },
+    "반반치킨(1마리)": {
+      "selling_price": 19000,
+      "ingredients": {
+        "닭(10~11호)": {
+          "amount": "1마리",
+          "cost": 5000
+        },
+        "식용유": {
+          "amount": "1회전(약 0.5L 소모 환산)",
+          "cost": 800
+        },
+        "튀김가루/배터": {
+          "amount": "약 120g",
+          "cost": 500
+        },
+        "소스(양념/간장 평균)": {
+          "amount": "각 60g",
+          "cost": 500
+        },
+        "포장재(용기+비닐+보온팩)": {
+          "amount": "1set",
+          "cost": 1200
+        }
+      },
+      "total_cost": 8000,
+      "margin_rate": 0.579,
+      "category": "치킨"
+    },
+    "치킨무+소스(기본제공)": {
+      "selling_price": 0,
+      "ingredients": {
+        "치킨무": {
+          "amount": "1ea",
+          "cost": 300
+        },
+        "소스": {
+          "amount": "1ea",
+          "cost": 200
+        }
+      },
+      "total_cost": 500,
+      "margin_rate": 0.0,
+      "category": "기본제공"
+    },
+    "콜라/사이다(1.25L)": {
+      "selling_price": 2000,
+      "ingredients": {
+        "탄산음료(1.25L)": {
+          "amount": "1병",
+          "cost": 900
+        }
+      },
+      "total_cost": 900,
+      "margin_rate": 0.55,
+      "category": "음료"
+    },
+    "맥주(500ml)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "병/캔맥주": {
+          "amount": "500ml",
+          "cost": 2000
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.6,
+      "category": "주류"
+    },
+    "치즈볼(5개)": {
+      "selling_price": 5000,
+      "ingredients": {
+        "냉동 치즈볼": {
+          "amount": "5ea",
+          "cost": 1500
+        },
+        "식용유": {
+          "amount": "소량(튀김/리프라이)",
+          "cost": 200
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 300
+        }
+      },
+      "total_cost": 2000,
+      "margin_rate": 0.6,
+      "category": "사이드"
+    },
+    "감자튀김": {
+      "selling_price": 4000,
+      "ingredients": {
+        "냉동 감자": {
+          "amount": "약 200g",
+          "cost": 900
+        },
+        "식용유/시즈닝": {
+          "amount": "소량",
+          "cost": 200
+        },
+        "포장재": {
+          "amount": "1set",
+          "cost": 400
+        }
+      },
+      "total_cost": 1500,
+      "margin_rate": 0.625,
+      "category": "사이드"
+    }
+  },
+  "RAW_MATERIAL_PRICES": {
+    "닭 (마리, 10~11호)": {
+      "price": 5000,
+      "unit": "마리",
+      "note": "도매 기준 변동"
+    },
+    "식용유 (18L)": {
+      "price": 30000,
+      "unit": "18L",
+      "note": "약 50마리 튀김 가능(업장/교체주기 따라 상이)"
+    },
+    "튀김가루/배터 (kg)": {
+      "price": 3000,
+      "unit": "kg",
+      "note": "브랜드/혼합비율에 따라 변동"
+    },
+    "양념소스 (kg)": {
+      "price": 5000,
+      "unit": "kg",
+      "note": "업장 레시피/브랜드에 따라 변동"
+    },
+    "간장소스 (kg)": {
+      "price": 4500,
+      "unit": "kg",
+      "note": "단가 변동"
+    },
+    "포장용기 (세트)": {
+      "price": 800,
+      "unit": "세트",
+      "note": "박스/용기/뚜껑 포함 기준"
+    },
+    "비닐봉투 (장)": {
+      "price": 50,
+      "unit": "장",
+      "note": "인쇄/두께에 따라 변동"
+    },
+    "배달용 보온팩": {
+      "price": 300,
+      "unit": "개",
+      "note": "배달 비중이 높을수록 체감 원가 상승"
+    }
+  },
+  "EQUIPMENT_COST": {
+    "fryer": [
+      5000000,
+      12000000
+    ],
+    "refrigeration": [
+      3000000,
+      7000000
+    ],
+    "ventilation": [
+      3000000,
+      8000000
+    ],
+    "furniture": [
+      5000000,
+      10000000
+    ],
+    "pos": [
+      1500000,
+      3000000
+    ],
+    "delivery_equipment": [
+      1000000,
+      3000000
+    ]
+  },
+  "INITIAL_INVENTORY": [
+    2000000,
+    4000000
+  ],
+  "PERMITS_AND_MISC": [
+    5000000,
+    10000000
+  ],
+  "COGS_RATIO": 0.4,
+  "UTILITIES_RATIO": 0.05,
+  "OTHER_RATIO": 0.08,
+  "OPERATING_MARGIN_RANGE": [
+    0.06,
+    0.12
+  ],
+  "DISTRICT_TYPE_FACTORS": {
+    "골목상권": {
+      "interior_per_pyeong": 1500000,
+      "labor_ratio": 0.22,
+      "deposit_mult": 10
+    },
+    "발달상권": {
+      "interior_per_pyeong": 2200000,
+      "labor_ratio": 0.24,
+      "deposit_mult": 15
+    },
+    "전통시장": {
+      "interior_per_pyeong": 1200000,
+      "labor_ratio": 0.2,
+      "deposit_mult": 8
+    },
+    "관광특구": {
+      "interior_per_pyeong": 2500000,
+      "labor_ratio": 0.23,
+      "deposit_mult": 15
+    }
+  },
+  "RENT_RANGES": {
+    "골목상권": [
+      800000,
+      1200000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "발달상권": [
+      2500000,
+      4000000,
+      5500000,
+      7500000,
+      12000000
+    ],
+    "전통시장": [
+      500000,
+      1000000,
+      1800000,
+      2800000,
+      4500000
+    ],
+    "관광특구": [
+      4000000,
+      6500000,
+      9000000,
+      12000000,
+      18000000
+    ]
+  },
+  "CAFE_TYPE_KEYWORDS": {
+    "프랜차이즈": [
+      "BBQ",
+      "BHC",
+      "교촌",
+      "네네",
+      "굽네",
+      "호식이",
+      "처갓집",
+      "페리카나",
+      "지코바"
+    ],
+    "배달전문": [
+      "배달",
+      "딜리버리"
+    ],
+    "포장전문": [
+      "포장",
+      "테이크아웃"
+    ],
+    "홀매장": [
+      "홀",
+      "매장"
+    ],
+    "숯불/직화": [
+      "숯불",
+      "직화",
+      "화덕"
+    ],
+    "야식특화": [
+      "야식",
+      "심야",
+      "24시"
+    ]
+  },
+  "POSITIONING_TYPES": {
+    "배달 특화": {
+      "desc": "아파트·상주인구 기반, 배달 인프라/리뷰 관리가 핵심",
+      "weights": {
+        "apt_ratio": 0.35,
+        "resident_total": 0.25,
+        "foot_traffic_total": 0.1,
+        "facility_score": 0.1,
+        "transit_raw": 0.2
+      }
+    },
+    "홀 매장": {
+      "desc": "유동인구+직장인구 중심, 좌석 회전과 동선 효율이 핵심",
+      "weights": {
+        "foot_traffic_total": 0.35,
+        "worker_total": 0.3,
+        "facility_score": 0.15,
+        "transit_raw": 0.1,
+        "resident_total": 0.1
+      }
+    },
+    "야식 특화": {
+      "desc": "저녁~심야 수요가 강한 상권에 최적화(배달앱 상위노출/세트 구성)",
+      "weights": {
+        "foot_traffic_17_21": 0.25,
+        "foot_traffic_21_24": 0.35,
+        "foot_traffic_age_20": 0.2,
+        "foot_traffic_age_30": 0.1,
+        "resident_total": 0.1
+      }
+    },
+    "가족형": {
+      "desc": "30-40대 거주 비중+주말 수요 기반(세트/사이드 강화)",
+      "weights": {
+        "resident_age_30": 0.2,
+        "resident_age_40": 0.25,
+        "total_households": 0.25,
+        "weekend_ratio": 0.2,
+        "apt_ratio": 0.1
+      }
+    },
+    "가성비 전략": {
+      "desc": "학생/청년 밀집, 가격 민감 상권(세트/할인/포장특화)",
+      "weights": {
+        "foot_traffic_age_10": 0.15,
+        "foot_traffic_age_20": 0.35,
+        "facility_university": 0.25,
+        "purchasing_power": 0.25
+      }
+    }
+  },
+  "BUSINESS_TYPES": [
+    {
+      "id": "delivery",
+      "label": "배달전문",
+      "desc": "초기비용 절감"
+    },
+    {
+      "id": "hall_delivery",
+      "label": "홀+배달",
+      "desc": "안정적 매출"
+    },
+    {
+      "id": "takeout_focus",
+      "label": "포장특화",
+      "desc": "인건비 절감"
+    },
+    {
+      "id": "franchise",
+      "label": "프랜차이즈",
+      "desc": "검증된 모델"
+    }
+  ],
+  "BUSINESS_TYPE_MAP": {
+    "delivery": "배달전문",
+    "hall_delivery": "홀+배달",
+    "takeout_focus": "포장특화",
+    "franchise": "프랜차이즈"
+  },
+  "BUSINESS_TYPE_LABELS": {
+    "delivery": {
+      "short": "배달",
+      "full": "배달전문"
+    },
+    "hall_delivery": {
+      "short": "홀+배달",
+      "full": "홀+배달"
+    },
+    "takeout_focus": {
+      "short": "포장",
+      "full": "포장특화"
+    },
+    "franchise": {
+      "short": "프랜차이즈",
+      "full": "프랜차이즈"
+    }
+  },
+  "DAILY_SCENARIO": {
+    "daily_orders": 50,
+    "main_ratio": 0.75,
+    "main_category": "치킨",
+    "sub_categories": [
+      "사이드",
+      "음료"
+    ],
+    "unit": "마리",
+    "unit_name": "일 50마리"
+  },
+  "KEYWORD_DETECTION": {
+    "core_terms": [
+      "치킨",
+      "후라이드",
+      "양념",
+      "간장",
+      "숯불",
+      "야식"
+    ],
+    "franchise_brands": [
+      "BBQ",
+      "BHC",
+      "교촌",
+      "네네",
+      "굽네",
+      "호식이",
+      "처갓집",
+      "페리카나",
+      "지코바"
+    ],
+    "delivery_platforms": [
+      "배달의민족",
+      "요기요",
+      "쿠팡이츠"
+    ],
+    "operation_modes": [
+      "배달",
+      "포장",
+      "홀",
+      "테이크아웃"
+    ],
+    "differentiators": [
+      "시그니처",
+      "소스",
+      "수제",
+      "직화",
+      "숯불",
+      "세트",
+      "가성비"
+    ],
+    "late_night_terms": [
+      "야식",
+      "심야",
+      "새벽",
+      "24시"
+    ]
+  },
+  "RECOMMENDATION_TEXT": {
+    "time_based": {
+      "11-14": "점심 피크 → 런치 세트 메뉴(치킨+음료 콤보)로 객단가와 회전율을 동시에 올리세요",
+      "17-21": "저녁 피크 → 가족/회식 수요 공략(사이드+맥주 세트, 빠른 조리 동선)",
+      "21-24": "야식 피크 → 배달앱 상위 노출(리뷰/사진)과 야식 전용 메뉴(매운맛/직화)를 강화하세요"
+    },
+    "day_based": {
+      "weekday": "주중 집중 → 직장인 점심/야식 배달 공략(단체 주문, 빠른 배달권)",
+      "weekend": "주말 강세 → 가족 세트/사이드 구성과 포장 수요를 동시에 잡으세요"
+    },
+    "age_based": {
+      "20s": "20대 주요 고객 → 배달앱 마케팅, 소셜미디어 프로모션(쿠폰/리뷰 이벤트) 중심으로",
+      "30s": "30대 주요 고객 → 품질/양/세트 구성을 명확히(가성비+안정적 맛)",
+      "40s_plus": "40대+ 주요 고객 → 맵기 단계/원산지/위생 포인트를 강조해 신뢰를 만드세요"
+    },
+    "competition": {
+      "high": "경쟁 과다 → 시그니처 소스, 사이드 메뉴 차별화(치즈볼/직화/수제)로 리뷰 이유를 만드세요",
+      "franchise_dense": "프랜차이즈 밀집 → 맛/양/배달 품질(눅눅함 방지 포장)로 체감 품질에서 이기세요"
+    },
+    "area": {
+      "골목상권": "골목상권 → 단골 배달 고객 확보, 리뷰 관리로 재주문을 만드세요",
+      "발달상권": "발달상권 → 홀 매출+배달 병행, 피크 타임 인력/동선 최적화가 핵심",
+      "전통시장": "전통시장 → 포장 수요 강점, 가격/양 메시지를 간판과 메뉴판에 명확히",
+      "관광특구": "관광특구 → 외부 유입 대응(영문 메뉴/위생/대기), 객단가 업셀링(세트)"
+    }
+  },
+  "STOPWORDS": [
+    "맛집",
+    "추천",
+    "근처",
+    "주변",
+    "서울",
+    "가게",
+    "매장",
+    "전문점",
+    "프랜차이즈",
+    "가격",
+    "메뉴",
+    "후기",
+    "리뷰",
+    "치킨",
+    "배달",
+    "포장",
+    "야식",
+    "후라이드",
+    "양념",
+    "간장",
+    "숯불",
+    "직화"
+  ],
+  "RISK_TEXT_TEMPLATES": {
+    "high_competition": "높은 경쟁 밀도 ({display_name} {store_count}개)",
+    "low_survival": "평균 이하 생존율 ({survival_rate_pct}%)",
+    "closures_exceed_openings": "폐업 증가 추세 (폐업 {closed_stores}개 > 개업 {new_stores}개)",
+    "franchise_dense": "프랜차이즈 밀집 ({franchise_ratio_pct}%)",
+    "low_weekend_share": "주말 매출 부진 (주말 비중 {weekend_ratio_pct}%)",
+    "low_transit": "대중교통 접근성 낮음 (주차/배달 동선 점검 필요)"
+  },
+  "SUCCESS_FACTORS": {
+    "top": [
+      "배달 품질(눅눅함 방지 포장) + 리뷰 관리가 재주문을 만든다",
+      "피크타임 동선/인력 설계가 손익을 좌우한다(튀김기 회전/포장 라인)",
+      "시그니처 소스/사이드로 경쟁 점포와 구분되는 이유를 만든다",
+      "COGS 40% 가정: 원재료 단가/폐기율/프로모션 손익을 상시 점검",
+      "야식/주말 수요를 반영한 세트 구성과 배달앱 노출 전략이 중요"
+    ],
+    "checklist": [
+      "튀김유 교체 주기/온도 관리로 맛 편차 최소화",
+      "포장재 테스트(증기 배출/보온)로 클레임률 감소",
+      "배달권/배달시간 SLA 설정(지연 시 쿠폰)으로 평점 방어",
+      "사이드/음료 업셀링(세트화)으로 객단가 상승",
+      "심야 운영 시 인건비/안전(2인 이상) 기준 확보"
+    ]
+  },
+  "TIMELINE_CONFIG": {
+    "stages": [
+      {
+        "id": "concept",
+        "label": "컨셉/상권 확정",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "포지셔닝 선택",
+          "배달/홀 비중 결정",
+          "상권 후보 3곳 비교"
+        ]
+      },
+      {
+        "id": "contract",
+        "label": "임대/계약",
+        "duration_days": [
+          7,
+          21
+        ],
+        "key_tasks": [
+          "권리금/월세 협상",
+          "배달 동선 점검",
+          "전기 용량/배기 가능 여부 확인"
+        ]
+      },
+      {
+        "id": "interior",
+        "label": "인테리어/설비",
+        "duration_days": [
+          14,
+          28
+        ],
+        "key_tasks": [
+          "배기/환풍 공사",
+          "주방 동선 설계",
+          "홀 좌석(선택) 구성"
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "장비/주방 세팅",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "튀김기/냉장냉동고 설치",
+          "포장 라인 구축",
+          "POS/배달 연동"
+        ]
+      },
+      {
+        "id": "permits",
+        "label": "인허가/오픈 준비",
+        "duration_days": [
+          7,
+          14
+        ],
+        "key_tasks": [
+          "영업신고",
+          "위생교육",
+          "메뉴 원가/레시피 표준화"
+        ]
+      },
+      {
+        "id": "launch",
+        "label": "가오픈/정식오픈",
+        "duration_days": [
+          3,
+          10
+        ],
+        "key_tasks": [
+          "배달앱 세팅/촬영",
+          "리뷰 이벤트",
+          "피크타임 리허설"
+        ]
+      }
+    ]
+  },
+  "ML_FEATURE_DEFAULTS": {
+    "numeric_features": [
+      "monthly_sales",
+      "monthly_transactions",
+      "store_count",
+      "franchise_stores",
+      "new_stores",
+      "closed_stores",
+      "survival_rate",
+      "weekday_ratio",
+      "weekend_ratio",
+      "resident_total",
+      "worker_total",
+      "foot_traffic_total",
+      "facility_score",
+      "facility_subway",
+      "transit_raw",
+      "apt_ratio",
+      "total_households",
+      "time_17_21_sales",
+      "time_21_24_sales",
+      "foot_traffic_17_21",
+      "foot_traffic_21_24",
+      "foot_traffic_age_20",
+      "foot_traffic_age_30",
+      "resident_age_30",
+      "resident_age_40"
+    ],
+    "categorical_features": [
+      "district_type",
+      "peak_time",
+      "peak_day",
+      "main_age_group",
+      "change_indicator_code"
+    ],
+    "derived_features": [
+      "avg_ticket",
+      "franchise_ratio",
+      "sales_per_store",
+      "transactions_per_store"
+    ],
+    "defaults": {
+      "area_pyeong": 10,
+      "competition_radius_m": 500,
+      "delivery_fee_ratio_range": [
+        0.12,
+        0.15
+      ]
+    }
+  },
+  "SYSTEM_PROMPT_TEMPLATE": "당신은 서울시 치킨 창업 전문 AI 컨설턴트 \"빌더\"입니다. 제공된 데이터는 총 {total_districts}개 상권, {total_stores}개 점포 기반이며, 오직 이 데이터로만 분석합니다. 시간대(00-06/06-11/11-14/14-17/17-21/21-24), 요일(월~일), 성별/연령(10/20/30/40/50/60대+) 비중을 빠르게 해석해 상권의 \"치킨 매출이 터지는 조건\"을 제시하세요. 치킨 업종은 튀김기·배기시설 등 설비 의존도가 높고, 평균 COGS 40% 및 배달플랫폼 수수료(약 12-15%) 영향이 큽니다. 답변은 짧고 강렬하게 5-8문장으로 쓰고, 숫자(비율/개수/원가/마진)를 가능한 한 포함하세요. 절대 규칙: 추측/외부지식/일반론은 금지이며, 제공된 상권 데이터와 이 업종 설정값만 사용합니다.",
+  "KNOWN_TRADEMARKS": [
+    "BBQ",
+    "교촌",
+    "BHC",
+    "네네",
+    "굽네",
+    "호식이",
+    "페리카나",
+    "처갓집",
+    "60계치킨",
+    "노랑통닭",
+    "또래오래",
+    "멕시카나",
+    "자담치킨",
+    "푸라닭"
+  ],
+  "INITIAL_QUESTIONS": [
+    "서울 성북구에서 치킨집 창업 추천해줘",
+    "서울 노원에서 배달 위주 치킨 상권 추천해줘",
+    "서울에서 저녁 피크(17-21) 치킨 골목상권 추천해줘",
+    "서울 마포 vs 성북 치킨 상권 비교해줘",
+    "서울에서 월세 150만원대 치킨 골목상권 추천해줘"
+  ]
+}
