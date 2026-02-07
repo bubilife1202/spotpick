@@ -181,7 +181,7 @@ async def dashboard_recommendations(
             "monthly_sales": d.get("monthly_sales", 0),
             "sales_per_store": sales_per_store,
             "store_count": d.get("store_count", 0),
-            "survival_rate": d.get("survival_rate", 0),
+            "survival_rate": min(d.get("survival_rate", 0), 1.0),
             "peak_time": d.get("peak_time", ""),
             "peak_day": d.get("peak_day", ""),
             "main_age_group": d.get("main_age_group", ""),

@@ -214,7 +214,7 @@ function DetailPopupCard({
 }) {
   const score = Math.round(marker.success_probability * 100);
   const sc = scoreColor(score);
-  const survivalPct = Math.round(marker.survival_rate * 100);
+  const survivalPct = Math.min(100, Math.round(marker.survival_rate * 100));
 
   return (
     <Popup

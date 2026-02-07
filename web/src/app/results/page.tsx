@@ -329,7 +329,7 @@ function ResultCard({
   const v = verdictStyle(result.verdict);
   const badge = TYPE_BADGE[result.district_type] || TYPE_BADGE["골목상권"];
   const prob = Math.round(result.success_probability * 100);
-  const survivalPct = Math.round(result.survival_rate * 100);
+  const survivalPct = Math.min(100, Math.round(result.survival_rate * 100));
 
   return (
     <div
@@ -531,7 +531,7 @@ function CompareModal({
     {
       label: "생존율",
       icon: <Shield size={14} className="text-indigo-500" />,
-      getValue: (r) => `${Math.round(r.survival_rate * 100)}%`,
+      getValue: (r) => `${Math.min(100, Math.round(r.survival_rate * 100))}%`,
       highlight: "max",
     },
     {
