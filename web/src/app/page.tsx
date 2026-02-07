@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays, Search, X, ChevronRight, Sparkles } from "lucide-react";
+import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays, Search, X, ChevronRight, Sparkles, Map, MessageCircle } from "lucide-react";
 import { ChatMessage, StructuredChatResponse, RecommendationCardData } from "@/types/chat";
 import { SuggestedQuestions } from "@/components/SuggestedQuestions";
 import { ChatChartSection } from "@/components/ChatChart";
@@ -1881,6 +1881,74 @@ function LandingPage({ onStartOnboarding, hasSaved, onResume, onClear }: {
           <p className="text-sm text-gray-500 max-w-sm mx-auto">
             서울시 1,077개 상권 데이터를 AI가 분석합니다
           </p>
+        </div>
+
+        {/* 3 Entry Points */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          {/* 지도에서 찾기 */}
+          <button
+            onClick={() => router.push("/explore")}
+            className={cn(
+              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
+              "bg-gradient-to-br from-blue-50 to-indigo-50",
+              "border border-blue-100",
+              "hover:shadow-xl hover:shadow-blue-100/60 hover:border-blue-300 hover:-translate-y-1",
+              "active:scale-[0.98] transition-all duration-300"
+            )}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+              <Map size={26} className="text-white" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">지도에서 찾기</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              지도를 탭해서<br />관심 상권을<br />직접 골라보세요
+            </p>
+          </button>
+
+          {/* 조건으로 찾기 */}
+          <button
+            onClick={onStartOnboarding}
+            className={cn(
+              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
+              "bg-gradient-to-br from-violet-50 to-purple-50",
+              "border border-violet-100",
+              "hover:shadow-xl hover:shadow-violet-100/60 hover:border-violet-300 hover:-translate-y-1",
+              "active:scale-[0.98] transition-all duration-300"
+            )}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-3 shadow-lg shadow-violet-500/25 group-hover:scale-110 transition-transform">
+              <Search size={26} className="text-white" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">조건으로 찾기</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              업종·예산·지역 조건<br />설정해서 AI가<br />추천해드려요
+            </p>
+          </button>
+
+          {/* AI에게 물어보기 */}
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("builder_curation_onboarding_done", "true");
+              }
+              saveAndNavigate({ industryCode: "CS100010" });
+            }}
+            className={cn(
+              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
+              "bg-gradient-to-br from-emerald-50 to-teal-50",
+              "border border-emerald-100",
+              "hover:shadow-xl hover:shadow-emerald-100/60 hover:border-emerald-300 hover:-translate-y-1",
+              "active:scale-[0.98] transition-all duration-300"
+            )}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
+              <MessageCircle size={26} className="text-white" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">AI에게 물어보기</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              &ldquo;강남에서 카페<br />할만한 곳?&rdquo;<br />자유롭게 물어보세요
+            </p>
+          </button>
         </div>
 
         {/* Smart Search Bar */}
