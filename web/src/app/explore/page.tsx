@@ -138,22 +138,27 @@ interface IndustryRank {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function scoreColor(score: number) {
-  if (score >= 80)
+/** Color by percentile rank (0~100), not absolute score */
+function scoreColor(rank: number) {
+  if (rank >= 67)
     return {
       bg: "bg-emerald-500",
       text: "text-emerald-700",
       border: "border-emerald-400",
       light: "bg-emerald-50",
       gradient: "from-emerald-500 to-emerald-600",
+      label: "추천",
+      emoji: "🟢",
     };
-  if (score >= 60)
+  if (rank >= 33)
     return {
       bg: "bg-amber-500",
       text: "text-amber-700",
       border: "border-amber-400",
       light: "bg-amber-50",
       gradient: "from-amber-500 to-amber-600",
+      label: "보통",
+      emoji: "🟡",
     };
   return {
     bg: "bg-rose-500",
@@ -161,7 +166,19 @@ function scoreColor(score: number) {
     border: "border-rose-400",
     light: "bg-rose-50",
     gradient: "from-rose-500 to-rose-600",
+    label: "주의",
+    emoji: "🔴",
   };
+}
+
+/** Convert raw scores array to percentile ranks (0~100) */
+function toPercentileRanks(values: number[]): number[] {
+  if (values.length === 0) return [];
+  const sorted = [...values].sort((a, b) => a - b);
+  return values.map((v) => {
+    const idx = sorted.indexOf(v);
+    return Math.round((idx / Math.max(1, sorted.length - 1)) * 100);
+  });
 }
 
 function formatMan(value: number): string {
@@ -197,15 +214,6 @@ function guMetricValue(gu: GuSummary, layer: DataLayer): number {
   }
 }
 
-/** Map metric to a 0-100 color scale based on layer */
-function metricToColorScore(value: number, layer: DataLayer, allValues: number[]): number {
-  if (allValues.length === 0) return 50;
-  const min = Math.min(...allValues);
-  const max = Math.max(...allValues);
-  if (max === min) return 70;
-  const normalized = ((value - min) / (max - min)) * 100;
-  return normalized;
-}
 
 function districtScore(d: DistrictGeo, layer: DataLayer): number {
   switch (layer) {
@@ -285,13 +293,16 @@ function GuMarker({
           {gu.gu_name.replace("구", "")}
         </span>
         <span className="text-white/90 text-[10px] font-semibold">
-          {Math.round(colorScore)}
+          {Math.round(gu.avg_score)}점
         </span>
       </button>
 
-      {/* District count badge */}
-      <div className="absolute -top-1 -right-1 bg-white rounded-full shadow-md border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 z-30">
-        {gu.district_count}
+      {/* Rank label badge */}
+      <div className={cn(
+        "absolute -top-2 -right-2 rounded-full shadow-md border-2 border-white px-1.5 py-0.5 text-[9px] font-bold z-30",
+        colorScore >= 67 ? "bg-emerald-500 text-white" : colorScore >= 33 ? "bg-amber-500 text-white" : "bg-rose-500 text-white"
+      )}>
+        {sc.label}
       </div>
 
       {/* Hover tooltip */}
@@ -889,10 +900,12 @@ function BottomSheet({
 // ---------------------------------------------------------------------------
 
 function ScoreLegend({ layer }: { layer: DataLayer }) {
-  const labels =
-    layer === "score"
-      ? ["80+ 추천", "60~79 보통", "60 미만 주의"]
-      : ["상위", "중간", "하위"];
+  const layerName = DATA_LAYERS.find((l) => l.key === layer)?.label ?? "점수";
+  const labels = [
+    `${layerName} 상위 추천`,
+    `${layerName} 보통`,
+    `${layerName} 하위 주의`,
+  ];
 
   return (
     <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-slate-100 flex items-center gap-3">
@@ -1041,20 +1054,12 @@ function ExploreContent() {
     return sizes;
   }, [guData]);
 
-  // ── Color scores for gu markers ──
+  // ── Color scores for gu markers (percentile rank: 0~100) ──
   const guColorScores = useMemo(() => {
-    if (dataLayer === "score") {
-      // Direct score
-      return Object.fromEntries(
-        guData.map((g) => [g.gu_name, g.avg_score])
-      );
-    }
     const values = guData.map((g) => guMetricValue(g, dataLayer));
+    const ranks = toPercentileRanks(values);
     return Object.fromEntries(
-      guData.map((g, i) => [
-        g.gu_name,
-        metricToColorScore(values[i], dataLayer, values),
-      ])
+      guData.map((g, i) => [g.gu_name, ranks[i]])
     );
   }, [guData, dataLayer]);
 
@@ -1177,20 +1182,13 @@ function ExploreContent() {
   // ── Decide which markers to show ──
   const showDistrictMarkers = zoom >= 13 && districts.length > 0 && selectedGu;
 
-  // Color scores for district markers
+  // Color scores for district markers (percentile rank)
   const districtColorScores = useMemo(() => {
     if (districts.length === 0) return {};
-    if (dataLayer === "score") {
-      return Object.fromEntries(
-        districts.map((d) => [d.district_code, districtScore(d, "score")])
-      );
-    }
     const values = districts.map((d) => districtScore(d, dataLayer));
+    const ranks = toPercentileRanks(values);
     return Object.fromEntries(
-      districts.map((d, i) => [
-        d.district_code,
-        metricToColorScore(values[i], dataLayer, values),
-      ])
+      districts.map((d, i) => [d.district_code, ranks[i]])
     );
   }, [districts, dataLayer]);
 
