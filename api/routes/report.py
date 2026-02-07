@@ -230,7 +230,7 @@ def get_district_detail_for_report(
         "resident_total": d.get("resident_total", 0),
         "facility_subway": d.get("facility_subway", 0),
         "change_indicator": d.get("change_indicator", ""),
-        "survival_rate": d.get("survival_rate", 0),
+        "survival_rate": min(d.get("survival_rate", 0), 1.0),
         "store_count": d.get("store_count", 0),
         "new_stores": d.get("new_stores", 0),
         "closed_stores": d.get("closed_stores", 0),
@@ -313,7 +313,11 @@ async def get_district_analysis(
     district_code: str,
     industry_code: str = Query("CS100010", description="업종 코드"),
 ):
-    """Rule-based AI analysis commentary for a district report."""
+    """AI-enhanced analysis commentary for a district report (Gemini + rule-based fallback)."""
+    import asyncio
+    import os
+    from pathlib import Path
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
     from ..services.data_service import get_data_service, estimate_rent
     from ..services.simulation_service import get_simulation_service
 
@@ -324,6 +328,7 @@ async def get_district_analysis(
 
     display_name = svc.display_name
     district_name = d.get("district_name", "")
+    district_type = d.get("district_type", "")
     store_count = max(1, d.get("store_count", 1))
     sales_per_store = int(d["monthly_sales"] / store_count)
     survival_rate = d.get("survival_rate", 0)
@@ -366,7 +371,7 @@ async def get_district_analysis(
 
     peak_pct = time_pcts.get(peak_time, 0)
 
-    # --- Verdict summary ---
+    # --- Rule-based fallback values ---
     verdict_word = "추천합니다" if success_prob >= 0.65 else (
         "주의가 필요합니다" if success_prob >= 0.45 else "신중히 검토해야 합니다")
 
@@ -381,12 +386,12 @@ async def get_district_analysis(
 
     competition_desc = f". 다만 {display_name} {d.get('store_count', 0)}개가 경쟁하고 있어 차별화가 필요합니다." if d.get("store_count", 0) > 10 else "."
 
-    verdict_summary = (
+    fallback_verdict = (
         f"{district_name} 상권은 {display_name} 창업에 {verdict_word}. "
         f"{survival_desc}{peak_desc}{competition_desc}"
     )
 
-    # --- Profitability comment ---
+    # --- Profitability fallback ---
     sps_man = round(sales_per_store / 10_000)
     avg_sps_man = round(avgs["avg_sales_per_store"] / 10_000)
     sales_vs_avg = "양호합니다" if sps_man >= avg_sps_man else "다소 낮습니다"
@@ -395,6 +400,9 @@ async def get_district_analysis(
         f"점포당 월매출 {sps_man:,}만원으로 서울 {display_name} 평균(약 {avg_sps_man:,}만원) 대비 {sales_vs_avg}."
     ]
 
+    net_man = 0
+    be_min = 0
+    be_max = 0
     if sim:
         net_profit = sim["break_even"]["monthly_net_profit"]
         be_min = sim["break_even"]["break_even_months_min"]
@@ -404,9 +412,9 @@ async def get_district_analysis(
             f" 예상 월 순이익은 약 {net_man:,}만원이며, 투자 회수까지 약 {be_min}~{be_max}개월 소요됩니다."
         )
 
-    profitability_comment = "".join(prof_parts)
+    fallback_profitability = "".join(prof_parts)
 
-    # --- Customer comment ---
+    # --- Customer fallback ---
     cust_parts = []
     if peak_time:
         cust_parts.append(f"{_peak_time_label(peak_time)} 매출이 {peak_pct:.0f}%로 압도적입니다.")
@@ -415,10 +423,9 @@ async def get_district_analysis(
     if peak_day:
         cust_parts.append(f" {_peak_day_label(peak_day)}이 매출 피크입니다.")
 
-    # Suggest improvements for weak time slots
     weak_times = []
     for label, pct in time_pcts.items():
-        if pct < 10 and label != "00-06":  # ignore early morning
+        if pct < 10 and label != "00-06":
             weak_times.append(_peak_time_label(label))
     if weak_times:
         cust_parts.append(
@@ -426,11 +433,11 @@ async def get_district_analysis(
             "해당 시간대 프로모션으로 보완할 수 있습니다."
         )
 
-    customer_comment = "".join(cust_parts) if cust_parts else (
+    fallback_customer = "".join(cust_parts) if cust_parts else (
         f"{district_name}의 고객 데이터를 확인해주세요."
     )
 
-    # --- Competition comment ---
+    # --- Competition fallback ---
     total_stores = d.get("store_count", 0)
     franchise_stores = d.get("franchise_stores", 0)
     franchise_ratio = round(franchise_stores / max(1, total_stores) * 100)
@@ -460,29 +467,132 @@ async def get_district_analysis(
             f" 신규({new_stores}개)가 폐업({closed_stores}개)보다 많아 성장 중인 상권입니다."
         )
 
-    competition_comment = "".join(comp_parts)
+    fallback_competition = "".join(comp_parts)
 
-    # --- Risk comment ---
+    # --- Risk fallback ---
     risks = svc._identify_risks(d)
     if risks:
-        risk_comment = f"주요 리스크는 {risks[0].split('(')[0].strip()}입니다."
+        fallback_risk = f"주요 리스크는 {risks[0].split('(')[0].strip()}입니다."
         if survival_rate >= 0.8:
-            risk_comment += f" 생존율은 {_fmt_pct(survival_rate)}로 {'매우 ' if survival_rate >= 0.9 else ''}안정적이나,"
+            fallback_risk += f" 생존율은 {_fmt_pct(survival_rate)}로 {'매우 ' if survival_rate >= 0.9 else ''}안정적이나,"
         else:
-            risk_comment += f" 생존율이 {_fmt_pct(survival_rate)}로 주의가 필요하며,"
-        risk_comment += " 신규 진입 시 기존 단골 확보가 과제입니다."
+            fallback_risk += f" 생존율이 {_fmt_pct(survival_rate)}로 주의가 필요하며,"
+        fallback_risk += " 신규 진입 시 기존 단골 확보가 과제입니다."
         if len(risks) > 1:
-            risk_comment += f" 추가로 {', '.join(r.split('(')[0].strip() for r in risks[1:3])}에 유의하세요."
+            fallback_risk += f" 추가로 {', '.join(r.split('(')[0].strip() for r in risks[1:3])}에 유의하세요."
     else:
-        risk_comment = (
+        fallback_risk = (
             f"특별한 리스크 요인이 감지되지 않았습니다. "
             f"생존율 {_fmt_pct(survival_rate)}로 안정적인 상권입니다."
         )
 
+    # -----------------------------------------------------------------------
+    # Gemini enhancement — generate richer commentary in parallel
+    # -----------------------------------------------------------------------
+    _ = load_dotenv(Path(__file__).parent.parent.parent / ".env")
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+    gemini_client = None
+    try:
+        from google import genai  # type: ignore[import-not-found]
+        if gemini_api_key:
+            gemini_client = genai.Client(api_key=gemini_api_key)
+    except Exception:
+        pass
+
+    if gemini_client is None:
+        return {
+            "verdict_summary": fallback_verdict,
+            "profitability_comment": fallback_profitability,
+            "customer_comment": fallback_customer,
+            "competition_comment": fallback_competition,
+            "risk_comment": fallback_risk,
+        }
+
+    # Build data context for Gemini
+    time_str = ", ".join(f"{_peak_time_label(k)} {v}%" for k, v in time_pcts.items())
+    risk_str = ", ".join(r.split("(")[0].strip() for r in risks[:5]) if risks else "특이사항 없음"
+
+    data_context = f"""업종: {display_name}
+상권: {district_name} ({district_type})
+점포당 월매출: {sps_man:,}만원 (서울 평균: {avg_sps_man:,}만원)
+예상 월 순이익: {net_man:,}만원
+투자 회수: {be_min}~{be_max}개월
+유동인구: {d.get('foot_traffic_total', 0):,}명/분기
+거주인구: {d.get('resident_total', 0):,}명, 직장인구: {d.get('worker_total', 0):,}명
+2년 생존율: {_fmt_pct(survival_rate)}
+동종 점포수: {total_stores}개 (프랜차이즈 {franchise_ratio}%, 신규 {new_stores}, 폐업 {closed_stores})
+주요 고객: {main_age}
+피크 시간대: {_peak_time_label(peak_time)} ({peak_pct:.0f}%)
+피크 요일: {_peak_day_label(peak_day)}
+시간대별 매출: {time_str}
+감지된 리스크: {risk_str}
+성공 확률: {success_prob:.0%}"""
+
+    gemini_model = "gemini-2.5-flash-preview-05-20"
+    loop = asyncio.get_event_loop()
+
+    async def _gen(prompt: str) -> str | None:
+        try:
+            resp = await loop.run_in_executor(
+                None,
+                lambda: gemini_client.models.generate_content(  # type: ignore[union-attr]
+                    model=gemini_model,
+                    contents=prompt,
+                ),
+            )
+            return resp.text or None  # type: ignore[union-attr]
+        except Exception:
+            return None
+
+    verdict_prompt = f"""당신은 맥킨지 수준의 창업 컨설턴트입니다. 아래 데이터로 이 상권의 창업 적합성을 3~5문장으로 종합 판정하세요.
+데이터 수치를 구체적으로 인용하며, 강점·약점·핵심 성공 요건을 명확히 제시하세요.
+
+{data_context}
+
+3~5문장의 종합 판정문만 출력하세요. 마크다운 없이 일반 텍스트로."""
+
+    profit_prompt = f"""당신은 맥킨지 수준의 재무 분석가입니다. 아래 데이터로 이 상권의 수익성을 3~4문장으로 분석하세요.
+매출 수준, 순이익, 투자 회수 기간을 평가하고 수익성 개선을 위한 구체적 제언 1가지를 포함하세요.
+
+{data_context}
+
+3~4문장의 수익성 분석만 출력하세요. 마크다운 없이 일반 텍스트로."""
+
+    customer_prompt = f"""당신은 맥킨지 수준의 소비자 분석 전문가입니다. 아래 데이터로 고객 특성을 3~4문장으로 분석하세요.
+핵심 고객층, 시간대별 패턴, 약한 시간대 보강 전략을 포함하세요.
+
+{data_context}
+
+3~4문장의 고객 분석만 출력하세요. 마크다운 없이 일반 텍스트로."""
+
+    comp_prompt = f"""당신은 맥킨지 수준의 경쟁 분석 전문가입니다. 아래 데이터로 경쟁 환경을 3~4문장으로 분석하세요.
+경쟁 강도, 프랜차이즈 비율, 신규/폐업 추세를 평가하고 구체적 차별화 방향 1~2가지를 제안하세요.
+
+{data_context}
+
+3~4문장의 경쟁 분석만 출력하세요. 마크다운 없이 일반 텍스트로."""
+
+    risk_prompt = f"""당신은 맥킨지 수준의 리스크 분석 전문가입니다. 아래 데이터로 핵심 리스크를 3~4문장으로 분석하세요.
+가장 큰 리스크와 구체적 대응 전략(수치 근거 포함)을 제시하세요.
+
+{data_context}
+
+3~4문장의 리스크 분석만 출력하세요. 마크다운 없이 일반 텍스트로."""
+
+    # Run all 5 Gemini calls in parallel
+    results = await asyncio.gather(
+        _gen(verdict_prompt),
+        _gen(profit_prompt),
+        _gen(customer_prompt),
+        _gen(comp_prompt),
+        _gen(risk_prompt),
+    )
+
     return {
-        "verdict_summary": verdict_summary,
-        "profitability_comment": profitability_comment,
-        "customer_comment": customer_comment,
-        "competition_comment": competition_comment,
-        "risk_comment": risk_comment,
+        "verdict_summary": results[0] or fallback_verdict,
+        "profitability_comment": results[1] or fallback_profitability,
+        "customer_comment": results[2] or fallback_customer,
+        "competition_comment": results[3] or fallback_competition,
+        "risk_comment": results[4] or fallback_risk,
     }

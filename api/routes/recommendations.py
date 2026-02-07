@@ -247,7 +247,7 @@ async def get_recommendations(body: RecommendationRequestBody):
         lng = coords.lng if coords is not None else 126.9780
 
         store_count = int((r.get("competition") or {}).get("store_count") or 0)
-        survival_2y = float(r.get("survival_rate_2y") or 0.0)
+        survival_2y = min(float(r.get("survival_rate_2y") or 0.0), 1.0)
         area_stats = {
             "floating_population": 0,
             "competitor_count": store_count,

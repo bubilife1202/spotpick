@@ -643,7 +643,7 @@ class SimulationService:
                     * 100,
                     1,
                 ),
-                "survival_rate": district.get("survival_rate", 0),
+                "survival_rate": min(district.get("survival_rate", 0), 1.0),
             },
             risk_summary=risks,
             cost_data_source=self._cost_data_source,

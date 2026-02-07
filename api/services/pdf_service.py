@@ -1117,7 +1117,7 @@ svg {{ display:block; }}
             total_invest = sc.get("total_min", 0)
             competition = sim.get("competition", {})
             store_count = competition.get("store_count", 0)
-            survival = competition.get("survival_rate", 0)
+            survival = min(competition.get("survival_rate", 0), 1.0)
             op = sim.get("operating_cost", {})
             rent = op.get("rent", 0)
 
@@ -1299,7 +1299,7 @@ svg {{ display:block; }}
             prob = rec.get("success_probability", 0)
             sales = rec.get("monthly_sales", 0)
             stores = rec.get("store_count", 0)
-            survival = rec.get("survival_rate", 1.0)
+            survival = min(rec.get("survival_rate", 1.0), 1.0)
             if isinstance(survival, float) and survival <= 1.0:
                 survival_pct = survival * 100
             else:
