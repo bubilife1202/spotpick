@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Bot, User, Loader2, Sparkles, X, MessageCircle, ChevronRight } from "lucide-react";
+import DOMPurify from "dompurify";
 import { 
   ChatMessage, 
   hasRecommendations, 
@@ -207,7 +208,7 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
     return (
       <div
         className="prose prose-sm max-w-none"
-        dangerouslySetInnerHTML={{ __html: processedContent }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(processedContent, { ALLOWED_TAGS: ['strong', 'br', 'span', 'em', 'b', 'i', 'p', 'ul', 'ol', 'li', 'a', 'h3', 'h4'], ALLOWED_ATTR: ['class', 'title', 'href', 'target', 'rel', 'style'] }) }}
       />
     );
   };

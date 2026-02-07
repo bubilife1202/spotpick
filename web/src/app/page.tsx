@@ -8,6 +8,7 @@ import { ChatChartSection } from "@/components/ChatChart";
 import type { ChartData } from "@/types/chat";
 
 import { sendStructuredChatMessage, GLOSSARY } from "@/lib/chat-api";
+import DOMPurify from "dompurify";
 
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
@@ -417,7 +418,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
             "prose prose-sm max-w-none text-gray-700 leading-relaxed",
             isLong && !isExpanded && "line-clamp-6"
           )}
-          dangerouslySetInnerHTML={{ __html: processedContent }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(processedContent, { ALLOWED_TAGS: ['strong', 'br', 'span', 'em', 'b', 'i', 'p', 'ul', 'ol', 'li', 'a', 'h3', 'h4'], ALLOWED_ATTR: ['class', 'title', 'href', 'target', 'rel', 'style'] }) }}
         />
         {isLong && !isExpanded && (
           <button
