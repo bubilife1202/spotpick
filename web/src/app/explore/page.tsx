@@ -243,28 +243,76 @@ function GuMarker({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const sc = scoreColor(colorScore);
 
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "relative flex flex-col items-center justify-center rounded-full",
-        "bg-gradient-to-br shadow-lg transition-all duration-200",
-        "border-2 border-white/80",
-        sc.gradient,
-        isSelected && "ring-4 ring-blue-400 scale-110 z-20",
-        !isSelected && "hover:scale-105 hover:z-10"
-      )}
-      style={{ width: size, height: size }}
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <span className="text-white font-bold text-[11px] leading-tight truncate px-1">
-        {gu.gu_name.replace("구", "")}
-      </span>
-      <span className="text-white/90 text-[10px] font-semibold">
-        {Math.round(colorScore)}
-      </span>
-    </button>
+      {/* Glow radius */}
+      <div
+        className={cn(
+          "absolute rounded-full transition-all duration-300",
+          isSelected ? "opacity-30" : hovered ? "opacity-20" : "opacity-10",
+          sc.bg
+        )}
+        style={{
+          width: size * 2.2,
+          height: size * 2.2,
+          left: -(size * 0.6),
+          top: -(size * 0.6),
+          filter: "blur(8px)",
+        }}
+      />
+
+      {/* Main circle */}
+      <button
+        onClick={onClick}
+        className={cn(
+          "relative flex flex-col items-center justify-center rounded-full",
+          "bg-gradient-to-br shadow-lg transition-all duration-200",
+          "border-2 border-white/80",
+          sc.gradient,
+          isSelected && "ring-4 ring-blue-400 scale-110 z-20",
+          !isSelected && hovered && "scale-110 z-10",
+        )}
+        style={{ width: size, height: size }}
+      >
+        <span className="text-white font-bold text-[11px] leading-tight truncate px-1">
+          {gu.gu_name.replace("구", "")}
+        </span>
+        <span className="text-white/90 text-[10px] font-semibold">
+          {Math.round(colorScore)}
+        </span>
+      </button>
+
+      {/* District count badge */}
+      <div className="absolute -top-1 -right-1 bg-white rounded-full shadow-md border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 z-30">
+        {gu.district_count}
+      </div>
+
+      {/* Hover tooltip */}
+      {hovered && !isSelected && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 pointer-events-none">
+          <div className="bg-slate-800/95 backdrop-blur-sm text-white rounded-xl px-3.5 py-2.5 shadow-xl text-xs whitespace-nowrap min-w-[160px]">
+            <p className="font-bold text-sm mb-1.5">{gu.gu_name}</p>
+            <div className="space-y-1 text-slate-200">
+              <p>📊 종합 <span className="text-white font-semibold">{Math.round(colorScore)}점</span></p>
+              <p>💰 평균매출 <span className="text-white font-semibold">{formatManShort(gu.avg_monthly_sales)}</span></p>
+              <p>👥 유동인구 <span className="text-white font-semibold">{formatTraffic(gu.total_foot_traffic)}</span></p>
+              <p>🏪 점포 <span className="text-white font-semibold">{gu.total_store_count}개</span></p>
+              <p>📈 생존율 <span className="text-white font-semibold">{Math.round(gu.avg_survival_rate * 100)}%</span></p>
+            </div>
+            <p className="text-blue-300 mt-1.5 text-[10px]">클릭하여 상세 보기 →</p>
+            {/* Arrow */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800/95" />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -273,6 +321,7 @@ function GuMarker({
 // ---------------------------------------------------------------------------
 
 function DistrictMarker({
+  district,
   colorScore,
   isSelected,
   onClick,
@@ -282,25 +331,49 @@ function DistrictMarker({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const sc = scoreColor(colorScore);
 
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "relative flex items-center justify-center rounded-full",
-        "bg-gradient-to-br shadow-md transition-all duration-200",
-        "border-2 border-white/80",
-        sc.gradient,
-        isSelected && "ring-3 ring-blue-400 scale-125 z-20",
-        !isSelected && "hover:scale-110 hover:z-10"
-      )}
-      style={{ width: 32, height: 32 }}
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <span className="text-white font-bold text-[10px]">
-        {Math.round(colorScore)}
-      </span>
-    </button>
+      <button
+        onClick={onClick}
+        className={cn(
+          "relative flex items-center justify-center rounded-full",
+          "bg-gradient-to-br shadow-md transition-all duration-200",
+          "border-2 border-white/80",
+          sc.gradient,
+          isSelected && "ring-3 ring-blue-400 scale-125 z-20",
+          !isSelected && hovered && "scale-115 z-10"
+        )}
+        style={{ width: 34, height: 34 }}
+      >
+        <span className="text-white font-bold text-[10px]">
+          {Math.round(colorScore)}
+        </span>
+      </button>
+
+      {/* Hover tooltip */}
+      {hovered && !isSelected && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 pointer-events-none">
+          <div className="bg-slate-800/95 backdrop-blur-sm text-white rounded-xl px-3 py-2 shadow-xl text-xs whitespace-nowrap min-w-[150px]">
+            <p className="font-bold text-[11px] mb-1">{district.district_name}</p>
+            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-white/20 mb-1.5">{district.district_type}</span>
+            <div className="space-y-0.5 text-slate-200 text-[10px]">
+              <p>💰 매출 <span className="text-white font-semibold">{formatManShort(district.monthly_sales)}</span></p>
+              <p>🏪 점포 <span className="text-white font-semibold">{district.store_count}개</span></p>
+              <p>📈 생존율 <span className="text-white font-semibold">{Math.round(district.survival_rate * 100)}%</span></p>
+              {district.peak_time && <p>⏰ 피크 <span className="text-white font-semibold">{district.peak_time}</span></p>}
+            </div>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-slate-800/95" />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -869,9 +942,21 @@ function ExploreContent() {
 
   // Zoom tracking
   const [zoom, setZoom] = useState(11);
+  const [viewCenter, setViewCenter] = useState<[number, number]>([126.978, 37.566]);
 
   // Mobile bottom sheet
   const [sheetHeight, setSheetHeight] = useState<SheetHeight>("collapsed");
+
+  // Guide hint
+  const [showGuide, setShowGuide] = useState(true);
+
+  // Auto-dismiss guide after 5s
+  useEffect(() => {
+    if (showGuide) {
+      const t = setTimeout(() => setShowGuide(false), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [showGuide]);
 
   // ── Fetch gu summary ──
   const fetchGuSummary = useCallback(async (code: string) => {
@@ -1034,6 +1119,53 @@ function ExploreContent() {
     }
   }, [selectedDistrict, selectedGu]);
 
+  // ── Auto-detect gu when user zooms in manually ──
+  const autoSelectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAutoSelectingRef = useRef(false);
+
+  useEffect(() => {
+    // When zoom >= 13 and no gu selected yet, find nearest gu to viewport center
+    if (zoom >= 13 && !selectedGu && guData.length > 0 && !isAutoSelectingRef.current) {
+      if (autoSelectTimerRef.current) clearTimeout(autoSelectTimerRef.current);
+      autoSelectTimerRef.current = setTimeout(() => {
+        const [cLng, cLat] = viewCenter;
+        let closest: GuSummary | null = null;
+        let minDist = Infinity;
+        for (const gu of guData) {
+          const dx = gu.center_lng - cLng;
+          const dy = gu.center_lat - cLat;
+          const dist = dx * dx + dy * dy;
+          if (dist < minDist) {
+            minDist = dist;
+            closest = gu;
+          }
+        }
+        if (closest) {
+          isAutoSelectingRef.current = true;
+          setSelectedGu(closest);
+          setSelectedDistrict(null);
+          setSheetHeight("half");
+          fetchDistricts(closest.gu_name);
+          // Reset flag after fetch
+          setTimeout(() => { isAutoSelectingRef.current = false; }, 1000);
+        }
+      }, 400); // 400ms debounce
+    }
+
+    // When zoom < 12.5 and gu is selected, auto-deselect
+    if (zoom < 12.5 && selectedGu && !isAutoSelectingRef.current) {
+      setSelectedGu(null);
+      setSelectedDistrict(null);
+      setDistricts([]);
+      setIndustryRankings([]);
+      setSheetHeight("collapsed");
+    }
+
+    return () => {
+      if (autoSelectTimerRef.current) clearTimeout(autoSelectTimerRef.current);
+    };
+  }, [zoom, viewCenter, selectedGu, guData, fetchDistricts]);
+
   // ── Industry chip handler ──
   const handleIndustryChange = useCallback((code: string) => {
     setIndustryCode(code);
@@ -1178,7 +1310,10 @@ function ExploreContent() {
             }}
             style={{ width: "100%", height: "100%" }}
             mapStyle={MAP_STYLE}
-            onZoom={(e) => setZoom(e.viewState.zoom)}
+            onMove={(e) => {
+              setZoom(e.viewState.zoom);
+              setViewCenter([e.viewState.longitude, e.viewState.latitude]);
+            }}
             attributionControl={false}
           >
             <NavigationControl position="top-right" showCompass={false} />
@@ -1234,6 +1369,29 @@ function ExploreContent() {
                 <span className="text-sm text-slate-600">
                   데이터 로딩중...
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Loading districts overlay */}
+          {loadingDistricts && (
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20">
+              <div className="bg-white/95 backdrop-blur-sm rounded-full shadow-lg px-4 py-2 flex items-center gap-2 border border-slate-200">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-slate-600 font-medium">상권 데이터 로딩중...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Guide hint */}
+          {showGuide && !loadingGu && guData.length > 0 && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div
+                onClick={() => setShowGuide(false)}
+                className="bg-blue-600/95 backdrop-blur-sm text-white rounded-2xl px-5 py-3 shadow-xl cursor-pointer max-w-xs text-center"
+              >
+                <p className="text-sm font-semibold mb-0.5">자치구를 클릭하거나 확대해보세요</p>
+                <p className="text-xs text-blue-200">마우스를 올리면 상세 정보를 볼 수 있어요</p>
               </div>
             </div>
           )}
