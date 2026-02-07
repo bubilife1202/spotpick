@@ -324,6 +324,21 @@ class ChatService:
         # 시스템 프롬프트
         self.system_prompt: str = self._build_system_prompt()
 
+    def _sanitize_user_input(self, text: str) -> str:
+        """사용자 입력에서 프롬프트 인젝션 시도를 방어"""
+        dangerous_patterns = [
+            r'(?i)ignore\s+(all\s+)?previous\s+instructions',
+            r'(?i)system\s*:\s*',
+            r'(?i)\[SYSTEM\s*(OVERRIDE|PROMPT)\]',
+            r'(?i)you\s+are\s+now\s+',
+            r'(?i)forget\s+(all\s+)?previous',
+            r'(?i)new\s+instructions?\s*:',
+        ]
+        sanitized = text
+        for pattern in dangerous_patterns:
+            sanitized = re.sub(pattern, '[filtered]', sanitized)
+        return sanitized[:5000]
+
     def _build_district_name_index(self) -> list[str]:
         names: list[str] = []
         try:
@@ -2091,6 +2106,9 @@ class ChatService:
         seed_context: ConversationContext | None = None,
     ) -> StructuredChatPayload:
         """대화형 응답 생성"""
+
+        # Sanitize user input against prompt injection
+        message = self._sanitize_user_input(message)
 
         # Seoul-only scope guard (beta)
         out_of_scope = self._detect_out_of_scope_regions(message)

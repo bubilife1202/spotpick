@@ -12,6 +12,16 @@ from typing import Any, Optional, Tuple, List, cast
 
 from config.industry_config import load_industry_config, DEFAULT_INDUSTRY
 
+VALID_INDUSTRY_CODES = {f"CS10000{i}" for i in range(1, 10)} | {"CS100010"}
+
+
+def _validate_industry_code(code: str) -> str:
+    """Validate industry code against whitelist."""
+    if code not in VALID_INDUSTRY_CODES:
+        raise ValueError(f"Invalid industry code: {code}")
+    return code
+
+
 _DEFAULT_RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
     "골목상권": (800_000, 1_200_000, 1_800_000, 2_800_000, 4_500_000),
     "발달상권": (2_500_000, 4_000_000, 5_500_000, 7_500_000, 12_000_000),
@@ -60,7 +70,7 @@ class DataService:
     """서울시 상권 데이터 서비스 — 업종별 인스턴스."""
 
     def __init__(self, industry_code: str = DEFAULT_INDUSTRY):
-        self.industry_code = industry_code
+        self.industry_code = _validate_industry_code(industry_code)
         self.config: dict[str, Any] = {}
         self.display_name: str = "카페"
         self._rent_ranges = _DEFAULT_RENT_RANGES

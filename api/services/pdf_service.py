@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
+from html import escape as html_escape
 from typing import Any, Optional
 from datetime import datetime
 
@@ -308,6 +309,8 @@ class PDFService:
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _build_html(self, data: dict[str, Any], industry_name: str) -> str:
+        # Escape user-controlled text values to prevent HTML injection
+        industry_name = html_escape(industry_name)
         now = datetime.now().strftime("%Y년 %m월 %d일")
         recs = data.get("recommendations", [])
         charts = data.get("charts", [])
@@ -386,9 +389,9 @@ svg {{ display:block; }}
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _page_cover(self, industry: str, date: str, ctx: dict, recs: list, sim: dict) -> str:
-        district = ctx.get("district", recs[0].get("district_name", "서울") if recs else "서울")
-        budget = ctx.get("budget", "")
-        target = ctx.get("target", "")
+        district = html_escape(str(ctx.get("district", recs[0].get("district_name", "서울") if recs else "서울")))
+        budget = html_escape(str(ctx.get("budget", "")))
+        target = html_escape(str(ctx.get("target", "")))
 
         meta_items = [f'<div style="font-size:14px; color:#CBD5E1;">{date} 생성</div>']
         if budget:
@@ -493,9 +496,9 @@ svg {{ display:block; }}
         <div style="margin-top:20px; padding:16px; background:{GRAY_100}; border-radius:8px;">
             <div style="font-size:10px; font-weight:700; color:{GRAY_500}; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">분석 범위</div>
             <div style="display:flex; gap:20px; font-size:11px; color:{GRAY_700};">
-                <span>📍 {ctx.get("district", "서울 전역")}</span>
-                <span>💰 {ctx.get("budget", "미지정")}</span>
-                <span>👥 {ctx.get("target", "전 연령")}</span>
+                <span>📍 {html_escape(str(ctx.get("district", "서울 전역")))}</span>
+                <span>💰 {html_escape(str(ctx.get("budget", "미지정")))}</span>
+                <span>👥 {html_escape(str(ctx.get("target", "전 연령")))}</span>
                 <span>📅 {datetime.now().strftime("%Y.%m.%d")} 기준</span>
             </div>
         </div>
@@ -647,7 +650,7 @@ svg {{ display:block; }}
 
     def _page_simulation(self, sim: dict, num: int) -> str:
         header = self._section_header(num, "창업 시뮬레이션")
-        district = sim.get("district_name", "")
+        district = html_escape(str(sim.get("district_name", "")))
 
         rev = sim.get("revenue", {})
         monthly_sales = rev.get("monthly_sales_per_store", 0)
