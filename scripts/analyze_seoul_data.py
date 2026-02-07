@@ -6,6 +6,7 @@
 - 6년 트렌드 분석
 """
 
+import argparse
 import json
 import pandas as pd
 from pathlib import Path
@@ -14,6 +15,20 @@ from collections import defaultdict
 DATA_DIR = Path(__file__).parent.parent / "data" / "seoul"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="서울시 상권 데이터 분석")
+    parser.add_argument(
+        "--industry",
+        default="CS100010",
+        help="업종코드 (default: CS100010)",
+    )
+    return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
@@ -118,18 +133,24 @@ def enrich_district(district: dict, extra: dict) -> dict:
     district["worker_age_50"] = _safe_int(w.get("AGRDE_50_WRC_POPLTN_CO"))
     district["worker_age_60"] = _safe_int(w.get("AGRDE_60_ABOVE_WRC_POPLTN_CO"))
 
-    # --- 상주인구 ---
+    # --- 상주인구 (VwsmTrdarRepopQq) ---
     r = extra.get("resident", {}).get(code, {})
-    district["resident_total"] = _safe_int(r.get("TOT_RESIDENT_CO"))
-    district["resident_male"] = _safe_int(r.get("ML_RESIDENT_CO"))
-    district["resident_female"] = _safe_int(r.get("FML_RESIDENT_CO"))
-    district["resident_age_10"] = _safe_int(r.get("AGRDE_10_RESIDENT_CO"))
-    district["resident_age_20"] = _safe_int(r.get("AGRDE_20_RESIDENT_CO"))
-    district["resident_age_30"] = _safe_int(r.get("AGRDE_30_RESIDENT_CO"))
-    district["resident_age_40"] = _safe_int(r.get("AGRDE_40_RESIDENT_CO"))
-    district["resident_age_50"] = _safe_int(r.get("AGRDE_50_RESIDENT_CO"))
-    district["resident_age_60"] = _safe_int(r.get("AGRDE_60_ABOVE_RESIDENT_CO"))
-    district["resident_apt"] = _safe_int(r.get("APT_HSHOLD_CO"))
+    district["resident_total"] = _safe_int(r.get("TOT_REPOP_CO"))
+    district["resident_male"] = _safe_int(r.get("ML_REPOP_CO"))
+    district["resident_female"] = _safe_int(r.get("FML_REPOP_CO"))
+    district["resident_age_10"] = _safe_int(r.get("AGRDE_10_REPOP_CO"))
+    district["resident_age_20"] = _safe_int(r.get("AGRDE_20_REPOP_CO"))
+    district["resident_age_30"] = _safe_int(r.get("AGRDE_30_REPOP_CO"))
+    district["resident_age_40"] = _safe_int(r.get("AGRDE_40_REPOP_CO"))
+    district["resident_age_50"] = _safe_int(r.get("AGRDE_50_REPOP_CO"))
+    district["resident_age_60"] = _safe_int(r.get("AGRDE_60_ABOVE_REPOP_CO"))
+    # 가구 데이터 (상주인구 API에 포함)
+    district["total_households"] = _safe_int(r.get("TOT_HSHLD_CO"))
+    district["apt_households"] = _safe_int(r.get("APT_HSHLD_CO"))
+    district["non_apt_households"] = _safe_int(r.get("NON_APT_HSHLD_CO"))
+    district["apt_ratio"] = round(
+        district["apt_households"] / max(1, district["total_households"]), 4
+    ) if district["total_households"] > 0 else 0.0
 
     # --- 유동인구 ---
     ft = extra.get("foot_traffic", {}).get(code, {})
@@ -190,25 +211,42 @@ def enrich_district(district: dict, extra: dict) -> dict:
     district["change_indicator_code"] = ch.get("TRDAR_CHNGE_IX_CD", "")
     district["avg_operation_months"] = _safe_float(ch.get("OPR_SALE_MT_AVRG"))  # 평균영업개월수
 
-    # --- 점포(전업종) —- 전체 업종 합계로 상권 활성도 파악
+    # --- 점포(전업종) ---
     sa = extra.get("stores_all", {}).get(code, {})
-    district["total_stores_all"] = _safe_int(sa.get("STOR_CO"))  # 전업종 점포 수
+    district["total_stores_all"] = _safe_int(sa.get("STOR_CO"))
     district["total_new_stores_all"] = _safe_int(sa.get("OPBIZ_STOR_CO"))
     district["total_closed_stores_all"] = _safe_int(sa.get("CLSBIZ_STOR_CO"))
+
+    # --- 교통 접근성 원점수 (정규화는 data_service에서) ---
+    district["transit_raw"] = (
+        district["facility_subway"] * 15
+        + district["facility_bus_stop"] * 3
+        + district.get("facility_train_station", 0) * 10
+        + district.get("facility_bus_terminal", 0) * 8
+    )
 
     return district
 
 
-def load_all_data():
+def load_all_data(industry_code: str = "CS100010"):
     """전체 데이터 로드"""
+    industry_dir = DATA_DIR / industry_code
+
+    # Try new per-industry directory structure first
+    if industry_dir.exists() and any(industry_dir.glob("sales_*.json")):
+        source_dir = industry_dir
+    else:
+        # Fallback: old flat structure (backward compat for CS100010)
+        source_dir = DATA_DIR
+
     # 매출 데이터
     all_sales = []
-    for f in sorted(DATA_DIR.glob("sales_*.json")):
+    for f in sorted(source_dir.glob("sales_*.json")):
         with open(f, "r", encoding="utf-8") as file:
             all_sales.extend(json.load(file))
 
     all_stores = []
-    for f in sorted(DATA_DIR.glob("stores_*.json")):
+    for f in sorted(source_dir.glob("stores_*.json")):
         if f.name == "stores_all.json":
             continue
         with open(f, "r", encoding="utf-8") as file:
@@ -223,7 +261,7 @@ def load_all_data():
     return sales_df, stores_df
 
 
-def process_latest_quarter(sales_df, stores_df):
+def process_latest_quarter(sales_df, stores_df, industry_code: str = "CS100010"):
     """최신 분기 데이터 가공 (풀버전)"""
     latest_quarter = "20253"
 
@@ -251,6 +289,7 @@ def process_latest_quarter(sales_df, stores_df):
 
         district = {
             # 기본 정보
+            "industry_code": industry_code,
             "district_code": row["TRDAR_CD"],
             "district_name": row["TRDAR_CD_NM"],
             "district_type_code": row["TRDAR_SE_CD"],
@@ -354,7 +393,7 @@ def get_peak_time(d):
         "17-21": d["time_17_21_sales"],
         "21-24": d["time_21_24_sales"],
     }
-    return max(times, key=times.get)
+    return max(times, key=lambda k: times[k])
 
 
 def get_peak_day(d):
@@ -368,7 +407,7 @@ def get_peak_day(d):
         "토": d["sat_sales"],
         "일": d["sun_sales"],
     }
-    return max(days, key=days.get)
+    return max(days, key=lambda k: days[k])
 
 
 def get_main_age_group(d):
@@ -381,7 +420,7 @@ def get_main_age_group(d):
         "50대": d["age_50_sales"],
         "60대+": d["age_60_sales"],
     }
-    return max(ages, key=ages.get)
+    return max(ages, key=lambda k: ages[k])
 
 
 def calculate_trends(sales_df, stores_df):
@@ -530,14 +569,17 @@ def create_summary(districts, trends):
 
 
 def main():
+    args = parse_args()
+    industry_code = args.industry
+
     print("=" * 60)
-    print("서울시 커피숍 상권 데이터 분석 (풀버전 v2)")
+    print(f"서울시 {industry_code} 상권 데이터 분석 (풀버전 v2)")
     print("=" * 60)
 
-    sales_df, stores_df = load_all_data()
+    sales_df, stores_df = load_all_data(industry_code)
 
     print("\n최신 분기 데이터 가공 중...")
-    districts = process_latest_quarter(sales_df, stores_df)
+    districts = process_latest_quarter(sales_df, stores_df, industry_code)
     print(f"  → {len(districts)}개 상권 처리 완료")
 
     print("\n추가 API 데이터 로드 중...")
@@ -558,13 +600,23 @@ def main():
     print("\n요약 통계 생성 중...")
     summary = create_summary(districts, trends)
 
-    with open(OUTPUT_DIR / "coffee_districts.json", "w", encoding="utf-8") as f:
-        json.dump(districts, f, ensure_ascii=False, indent=2)
-    print(f"\n저장: coffee_districts.json ({len(districts)}개 상권)")
+    # Output with industry code
+    districts_file = f"{industry_code}_districts.json"
+    summary_file = f"{industry_code}_summary.json"
 
-    with open(OUTPUT_DIR / "summary.json", "w", encoding="utf-8") as f:
+    with open(OUTPUT_DIR / districts_file, "w", encoding="utf-8") as f:
+        json.dump(districts, f, ensure_ascii=False, indent=2)
+    print(f"\n저장: {districts_file} ({len(districts)}개 상권)")
+
+    # Backward compat: also write coffee_districts.json for CS100010
+    if industry_code == "CS100010":
+        import shutil
+
+        shutil.copy2(OUTPUT_DIR / districts_file, OUTPUT_DIR / "coffee_districts.json")
+
+    with open(OUTPUT_DIR / summary_file, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
-    print(f"저장: summary.json")
+    print(f"저장: {summary_file}")
 
     print("\n" + "=" * 60)
     print("처리 완료!")

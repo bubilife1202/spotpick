@@ -46,7 +46,7 @@ SERVICES = [
         "filter_field": None,  # 상권 단위이므로 필터 불필요
     },
     {
-        "service": "VwsmTrdarPopltnQq",
+        "service": "VwsmTrdarRepopQq",
         "file_prefix": "resident_population",
         "desc": "상주인구-상권",
         "filter_field": None,
