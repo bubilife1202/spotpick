@@ -307,6 +307,27 @@ function ProfitabilitySection({
     <SectionCard icon={<DollarSign size={16} className="text-white" />} title="수익성 분석">
       <div className="space-y-6">
         <AnalysisInfoBox text={comment} />
+
+        {/* Key metrics summary cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-3 border border-blue-200/60 text-center">
+            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">초기 투자</p>
+            <p className="text-lg font-bold text-blue-800">{formatManRange(startup.total_min, startup.total_max)}</p>
+          </div>
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-3 border border-amber-200/60 text-center">
+            <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-1">월 운영비</p>
+            <p className="text-lg font-bold text-amber-800">{formatMan(operating.total)}</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-3 border border-emerald-200/60 text-center">
+            <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide mb-1">예상 월매출</p>
+            <p className="text-lg font-bold text-emerald-800">{formatKRWCompact(revenue.monthly_sales_per_store)}</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-3 border border-purple-200/60 text-center">
+            <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide mb-1">투자 회수</p>
+            <p className="text-lg font-bold text-purple-800">{breakEven.break_even_months_min}~{breakEven.break_even_months_max}개월</p>
+          </div>
+        </div>
+
         {/* Revenue scenarios */}
         <div>
           <h3 className="text-sm font-semibold text-slate-700 mb-3">월매출 시나리오</h3>
@@ -604,12 +625,12 @@ function CompetitionSection({
           </div>
         )}
 
-        {/* Strategies */}
+        {/* Strategies — show up to 5 */}
         {competitive.strategies.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">차별화 전략</h3>
             <div className="space-y-2">
-              {competitive.strategies.slice(0, 3).map((s, i) => (
+              {competitive.strategies.slice(0, 5).map((s, i) => (
                 <div key={i} className="flex items-start gap-2 text-sm">
                   <span className={cn(
                     "px-1.5 py-0.5 rounded text-[10px] font-semibold flex-shrink-0 mt-0.5",
@@ -625,6 +646,33 @@ function CompetitionSection({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Competitor list table */}
+        {competitive.top_competitors && competitive.top_competitors.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">주요 경쟁사</h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600">매장명</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600">유형</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 hidden sm:table-cell">주소</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {competitive.top_competitors.slice(0, 8).map((comp, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                      <td className="px-3 py-2 text-slate-800 font-medium">{comp.name}</td>
+                      <td className="px-3 py-2 text-slate-600">{comp.category}</td>
+                      <td className="px-3 py-2 text-slate-500 hidden sm:table-cell truncate max-w-[200px]">{comp.address}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
