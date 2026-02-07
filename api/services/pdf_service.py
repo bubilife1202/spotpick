@@ -5,6 +5,8 @@ Playwright 기반 HTML→PDF 변환 / SVG 인포그래픽 / AI 분석 코멘터�
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import logging
 import math
@@ -15,6 +17,18 @@ from html import escape as html_escape
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+try:
+    import httpx  # type: ignore[import-not-found]
+except ImportError:
+    httpx = None  # type: ignore[assignment]
+
+try:
+    from PIL import Image, ImageDraw, ImageFont  # type: ignore[import-not-found]
+except ImportError:
+    Image = None  # type: ignore[assignment]
+    ImageDraw = None  # type: ignore[assignment]
+    ImageFont = None  # type: ignore[assignment]
 
 try:
     from playwright.async_api import async_playwright
@@ -28,6 +42,7 @@ except Exception:
     pass
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 
 try:
     from google import genai  # type: ignore[import-not-found]
@@ -168,7 +183,10 @@ class PDFService:
         # AI 분석 코멘터리 생성
         ai_analysis = await self._generate_ai_analysis(conversation_data, industry_name)
 
-        html = self._build_html(conversation_data, industry_name, ai_analysis)
+        # 지도 이미지 생성 (추천 상권 마커)
+        map_image_b64 = await self._generate_map_image(conversation_data.get("recommendations", []))
+
+        html = self._build_html(conversation_data, industry_name, ai_analysis, map_image_b64=map_image_b64)
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -183,6 +201,260 @@ class PDFService:
                 return pdf_bytes
             finally:
                 await browser.close()
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Static Map Image Generation (OSM tiles + Pillow)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _geocode_district(self, district_name: str) -> Optional[dict[str, float]]:
+        """Kakao 키워드 검색으로 상권명 → 좌표 변환 (fallback)"""
+        if not KAKAO_REST_API_KEY or httpx is None:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                resp = await client.get(
+                    "https://dapi.kakao.com/v2/local/search/keyword.json",
+                    params={"query": f"서울 {district_name}", "size": 1},
+                    headers={"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"},
+                )
+                resp.raise_for_status()
+                docs = resp.json().get("documents", [])
+                if docs:
+                    x = docs[0].get("x")
+                    y = docs[0].get("y")
+                    if x and y:
+                        return {"lat": float(y), "lng": float(x)}
+        except Exception as e:
+            logger.debug(f"지오코딩 실패 ({district_name}): {e}")
+        return None
+
+    def _lat_lng_to_tile(self, lat: float, lng: float, zoom: int) -> tuple[int, int]:
+        """위경도를 OSM 타일 좌표(x, y)로 변환"""
+        n = 2 ** zoom
+        x = int((lng + 180.0) / 360.0 * n)
+        y = int((1.0 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2.0 * n)
+        return x, y
+
+    def _lat_lng_to_pixel(self, lat: float, lng: float, zoom: int) -> tuple[float, float]:
+        """위경도를 OSM 전체 픽셀 좌표로 변환 (zoom 레벨 기준)"""
+        n = 2 ** zoom
+        px = (lng + 180.0) / 360.0 * n * 256
+        py = (1.0 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2.0 * n * 256
+        return px, py
+
+    def _calculate_zoom(self, coords: list[dict[str, float]], img_w: int, img_h: int) -> int:
+        """모든 마커가 이미지 안에 보이도록 줌 레벨 계산"""
+        if len(coords) <= 1:
+            return 15  # 단일 포인트는 높은 줌
+
+        lats = [c["lat"] for c in coords]
+        lngs = [c["lng"] for c in coords]
+        lat_min, lat_max = min(lats), max(lats)
+        lng_min, lng_max = min(lngs), max(lngs)
+
+        # 마진 추가 (20%)
+        lat_margin = max((lat_max - lat_min) * 0.25, 0.005)
+        lng_margin = max((lng_max - lng_min) * 0.25, 0.005)
+        lat_min -= lat_margin
+        lat_max += lat_margin
+        lng_min -= lng_margin
+        lng_max += lng_margin
+
+        for z in range(17, 7, -1):
+            px_min_x, px_min_y = self._lat_lng_to_pixel(lat_max, lng_min, z)
+            px_max_x, px_max_y = self._lat_lng_to_pixel(lat_min, lng_max, z)
+            if (px_max_x - px_min_x) <= img_w and (px_max_y - px_min_y) <= img_h:
+                return z
+        return 8
+
+    async def _fetch_osm_tile(self, client: Any, z: int, x: int, y: int) -> Optional[bytes]:
+        """OSM 타일 다운로드"""
+        url = f"https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        try:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            return resp.content
+        except Exception as e:
+            logger.debug(f"OSM 타일 다운로드 실패 ({z}/{x}/{y}): {e}")
+            return None
+
+    async def _generate_map_image(self, recommendations: list[dict]) -> Optional[str]:
+        """
+        추천 상권 좌표로 지도 이미지 생성 → base64 PNG 반환.
+        실패 시 None 반환 (graceful fallback).
+        """
+        if Image is None or httpx is None:
+            logger.info("Pillow 또는 httpx 미설치 — 지도 생성 생략")
+            return None
+
+        if not recommendations:
+            return None
+
+        # 1. 좌표 수집 (최대 3개)
+        coords: list[dict[str, Any]] = []  # {lat, lng, rank, name}
+        for rec in recommendations[:3]:
+            lat: Optional[float] = None
+            lng: Optional[float] = None
+
+            # coordinates 필드 확인
+            c = rec.get("coordinates")
+            if isinstance(c, dict):
+                lat = c.get("lat")
+                lng = c.get("lng")
+
+            # 직접 필드 확인
+            if lat is None or lng is None:
+                lat = rec.get("latitude") or rec.get("district_lat")
+                lng = rec.get("longitude") or rec.get("district_lng")
+
+            # 좌표 없으면 지오코딩
+            if (lat is None or lng is None) and rec.get("district_name"):
+                geo = await self._geocode_district(rec["district_name"])
+                if geo:
+                    lat, lng = geo["lat"], geo["lng"]
+
+            if lat is not None and lng is not None:
+                try:
+                    coords.append({
+                        "lat": float(lat),
+                        "lng": float(lng),
+                        "rank": rec.get("rank", len(coords) + 1),
+                        "name": rec.get("district_name", ""),
+                    })
+                except (ValueError, TypeError):
+                    continue
+
+        if not coords:
+            logger.info("유효한 좌표 없음 — 지도 생성 생략")
+            return None
+
+        try:
+            return await self._render_osm_map(coords)
+        except Exception as e:
+            logger.warning(f"지도 이미지 생성 실패 (graceful skip): {e}", exc_info=True)
+            return None
+
+    async def _render_osm_map(self, coords: list[dict[str, Any]]) -> Optional[str]:
+        """OSM 타일을 다운로드하고 마커를 그려서 base64 PNG로 반환"""
+        IMG_W, IMG_H = 600, 360
+
+        # 줌 레벨 & 중심 계산
+        zoom = self._calculate_zoom(coords, IMG_W - 60, IMG_H - 60)
+
+        center_lat = sum(c["lat"] for c in coords) / len(coords)
+        center_lng = sum(c["lng"] for c in coords) / len(coords)
+
+        center_px, center_py = self._lat_lng_to_pixel(center_lat, center_lng, zoom)
+
+        # 필요한 타일 범위 계산
+        left_px = center_px - IMG_W / 2
+        top_py = center_py - IMG_H / 2
+
+        tile_x_min = int(left_px // 256)
+        tile_y_min = int(top_py // 256)
+        tile_x_max = int((left_px + IMG_W) // 256)
+        tile_y_max = int((top_py + IMG_H) // 256)
+
+        # 타일 다운로드
+        async with httpx.AsyncClient(
+            timeout=10,
+            headers={"User-Agent": "SpotPick-PDFReport/1.0 (contact: support@spotpick.kr)"},
+        ) as client:
+            canvas = Image.new("RGB", (IMG_W, IMG_H), (240, 240, 240))
+
+            for tx in range(tile_x_min, tile_x_max + 1):
+                for ty in range(tile_y_min, tile_y_max + 1):
+                    tile_bytes = await self._fetch_osm_tile(client, zoom, tx, ty)
+                    if tile_bytes:
+                        try:
+                            tile_img = Image.open(io.BytesIO(tile_bytes))
+                            # 타일 위치 → 캔버스 위치
+                            paste_x = int(tx * 256 - left_px)
+                            paste_y = int(ty * 256 - top_py)
+                            canvas.paste(tile_img, (paste_x, paste_y))
+                        except Exception:
+                            continue
+
+        # 마커 그리기
+        draw = ImageDraw.Draw(canvas)
+        marker_colors = [(192, 32, 32), (32, 80, 160), (30, 125, 78)]  # 빨강, 파랑, 초록
+
+        # 폰트 로드 (한글 지원 폰트 우선)
+        font_marker = ImageFont.load_default()
+        font_label = ImageFont.load_default()
+        font_candidates = [
+            # macOS Korean fonts
+            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+            "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+            "/Library/Fonts/Arial Unicode.ttf",
+            # Linux Korean fonts
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]
+        for fp in font_candidates:
+            try:
+                font_marker = ImageFont.truetype(fp, 14)
+                font_label = ImageFont.truetype(fp, 11)
+                break
+            except Exception:
+                continue
+
+        for i, c in enumerate(coords):
+            px, py = self._lat_lng_to_pixel(c["lat"], c["lng"], zoom)
+            x = int(px - left_px)
+            y = int(py - top_py)
+
+            color = marker_colors[i % len(marker_colors)]
+            rank = c.get("rank", i + 1)
+
+            # 마커 핀 그리기 (드롭 핀 모양)
+            # 핀 헤드 (원)
+            r = 14
+            draw.ellipse([x - r, y - r * 2 - 6, x + r, y - 6], fill=color, outline=(255, 255, 255), width=2)
+            # 핀 포인트 (삼각형)
+            draw.polygon([(x - 6, y - 10), (x + 6, y - 10), (x, y)], fill=color)
+
+            # 순위 번호
+            text = str(rank)
+            bbox = draw.textbbox((0, 0), text, font=font_marker)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+            draw.text((x - tw // 2, y - r - 6 - th // 2 - 2), text, fill=(255, 255, 255), font=font_marker)
+
+            # 상권명 라벨 (마커 위)
+            name = c.get("name", "")
+            if name:
+                # 너무 긴 이름은 줄임
+                if len(name) > 12:
+                    name = name[:11] + "…"
+                nbbox = draw.textbbox((0, 0), name, font=font_label)
+                nw = nbbox[2] - nbbox[0]
+                nh = nbbox[3] - nbbox[1]
+                label_x = x - nw // 2
+                label_y = y - r * 2 - 12 - nh
+                # 라벨 배경
+                pad = 3
+                draw.rounded_rectangle(
+                    [label_x - pad, label_y - pad, label_x + nw + pad, label_y + nh + pad],
+                    radius=3, fill=(255, 255, 255, 220), outline=color, width=1,
+                )
+                draw.text((label_x, label_y), name, fill=color, font=font_label)
+
+        # OSM 저작권 표시
+        attr_text = "\u00a9 OpenStreetMap"
+        abbox = draw.textbbox((0, 0), attr_text, font=font_label)
+        aw = abbox[2] - abbox[0]
+        ah = abbox[3] - abbox[1]
+        draw.rectangle([IMG_W - aw - 8, IMG_H - ah - 6, IMG_W, IMG_H], fill=(255, 255, 255, 200))
+        draw.text((IMG_W - aw - 4, IMG_H - ah - 3), attr_text, fill=(100, 100, 100), font=font_label)
+
+        # PNG → base64
+        buf = io.BytesIO()
+        canvas.save(buf, format="PNG", optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        logger.info(f"지도 이미지 생성 완료 ({len(coords)}개 마커, zoom={zoom})")
+        return b64
 
     # ═══════════════════════════════════════════════════════════════════════════
     # SVG Chart Helpers
@@ -545,7 +817,7 @@ class PDFService:
     # Main HTML Builder
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _build_html(self, data: dict[str, Any], industry_name: str, ai_analysis: dict[str, str] | None = None) -> str:
+    def _build_html(self, data: dict[str, Any], industry_name: str, ai_analysis: dict[str, str] | None = None, map_image_b64: Optional[str] = None) -> str:
         now = datetime.now()
         date_full = now.strftime("%Y년 %m월 %d일")
         date_short = now.strftime("%Y.%m.%d")
@@ -587,7 +859,7 @@ class PDFService:
 
         # Page 5: Location Analysis
         if recs:
-            pages.append(self._page_location(recs, sec_num, date_short, page_num, ai_text=ai.get("location", "")))
+            pages.append(self._page_location(recs, sec_num, date_short, page_num, ai_text=ai.get("location", ""), map_image_b64=map_image_b64))
             sec_num += 1
             page_num += 1
 
@@ -989,10 +1261,35 @@ svg {{ display:block; }}
     # Page: Location Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_location(self, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_location(self, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "", map_image_b64: Optional[str] = None) -> str:
         top = recs[0] if recs else {}
         sc = top.get("scorecard", {})
         action_title = f"{top.get('district_name', '')}이 종합 {sc.get('total_score', 0):.1f}점으로 최적 입지, 상위 {sc.get('percentile', 0):.0f}%"
+
+        # 지도 이미지 HTML
+        map_html = ""
+        if map_image_b64:
+            # 범례 (마커 색상 매핑)
+            marker_colors_hex = ["#C02020", "#2050A0", "#1E7D4E"]
+            legend_items = ""
+            for i, rec in enumerate(recs[:3]):
+                c = marker_colors_hex[i % len(marker_colors_hex)]
+                name = html_escape(rec.get("district_name", ""))
+                rank = rec.get("rank", i + 1)
+                legend_items += f'''<span style="display:inline-flex; align-items:center; gap:3px; margin-right:10px;">
+                    <span style="width:10px; height:10px; background:{c}; border-radius:50%; display:inline-block;"></span>
+                    <span style="font-size:8px; color:{GRAY_700}; font-family:sans-serif;">#{rank} {name}</span>
+                </span>'''
+
+            map_html = f'''<div style="margin-bottom:12px;">
+                <div style="font-size:10px; font-weight:700; color:{NAVY}; margin-bottom:6px; font-family:sans-serif;">추천 상권 위치 지도</div>
+                <div style="border:1px solid {GRAY_200}; border-radius:6px; overflow:hidden;">
+                    <img src="data:image/png;base64,{map_image_b64}" style="width:100%; height:auto; display:block;" />
+                    <div style="padding:6px 10px; background:{GRAY_50}; border-top:1px solid {GRAY_200};">
+                        {legend_items}
+                    </div>
+                </div>
+            </div>'''
 
         cards_html = ""
         for rec in recs[:3]:
@@ -1076,6 +1373,7 @@ svg {{ display:block; }}
         return f'''<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Location Analysis")}
+            {map_html}
             {self._location_overview(recs)}
             {cards_html}
             {self._ai_analysis_box(ai_text)}
