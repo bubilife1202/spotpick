@@ -773,6 +773,32 @@ function ReportContent() {
   const [loadingTimeline, setLoadingTimeline] = useState(true);
   const [loadingSupport, setLoadingSupport] = useState(true);
 
+  // Reset all state when district/industry changes to prevent stale data flash
+  useEffect(() => {
+    setScorecard(null);
+    setSimulation(null);
+    setCharts([]);
+    setCompetitive(null);
+    setTrademark(null);
+    setTimeline(null);
+    setSupportPrograms([]);
+    setRiskFactors([]);
+    setSingleHouseholdRatio(null);
+    setIncomeInfo(null);
+    setFootTraffic(null);
+    setWorkerTotal(null);
+    setCoordinates(null);
+    setAnalysis(null);
+    setLoadingScorecard(true);
+    setLoadingSimulation(true);
+    setLoadingCharts(true);
+    setLoadingCompetitive(true);
+    setLoadingTrademark(true);
+    setLoadingTimeline(true);
+    setLoadingSupport(true);
+    setLoadingAnalysis(true);
+  }, [districtCode, industryCode]);
+
   useEffect(() => {
     if (!districtCode) return;
 
