@@ -16,9 +16,32 @@ import {
   Pencil,
   ShoppingBag,
   Megaphone,
+  AlertTriangle,
+  Users,
+  Clock,
+  Target,
+  BarChart3,
 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 // ============================================================================
 // Constants
@@ -49,6 +72,19 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   roadmap: <CalendarDays className="w-4 h-4" />,
 };
 
+const SECTION_NUMBERS: Record<string, string> = {
+  overview: "01",
+  market: "02",
+  competition: "03",
+  menu: "04",
+  marketing: "05",
+  financials: "06",
+  risk: "07",
+  roadmap: "08",
+};
+
+const DONUT_COLORS = ["#3B82F6", "#8B5CF6", "#F59E0B", "#10B981", "#EF4444", "#EC4899"];
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -76,21 +112,28 @@ interface LoadingStep {
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+function formatMoney(val: number): string {
+  if (val >= 10000) return `${(val / 10000).toFixed(1)}억`;
+  if (val >= 1000) return `${(val / 1000).toFixed(1)}천만`;
+  return `${val.toLocaleString()}만`;
+}
+
+// ============================================================================
 // Markdown → HTML (simple converter for generated content)
 // ============================================================================
 
 function markdownToHtml(md: string): string {
   let html = md;
 
-  // Escape HTML entities first (except our markdown chars)
   html = html
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Restore markdown-style blockquote (> at start of line)
   html = html.replace(/^&gt;\s?(.*)$/gm, "<blockquote>$1</blockquote>");
-  // Merge consecutive blockquotes
   html = html.replace(/<\/blockquote>\n<blockquote>/g, "<br/>");
 
   // Tables
@@ -107,38 +150,429 @@ function markdownToHtml(md: string): string {
     },
   );
 
-  // Headers
   html = html.replace(/^#### (.+)$/gm, '<h4 class="bp-h4">$1</h4>');
   html = html.replace(/^### (.+)$/gm, '<h3 class="bp-h3">$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2 class="bp-h2">$1</h2>');
 
-  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Ordered lists
   html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="bp-oli">$2</li>');
   html = html.replace(/((?:<li class="bp-oli">.*<\/li>\n?)+)/g, '<ol class="bp-ol">$1</ol>');
 
-  // Unordered lists
   html = html.replace(/^- (.+)$/gm, '<li class="bp-uli">$1</li>');
   html = html.replace(/((?:<li class="bp-uli">.*<\/li>\n?)+)/g, '<ul class="bp-ul">$1</ul>');
 
-  // Paragraphs: wrap loose lines that aren't already wrapped in tags
   html = html
     .split("\n\n")
     .map((block) => {
       const trimmed = block.trim();
       if (!trimmed) return "";
-      if (
-        trimmed.startsWith("<") ||
-        trimmed.startsWith("#")
-      )
-        return trimmed;
+      if (trimmed.startsWith("<") || trimmed.startsWith("#")) return trimmed;
       return `<p>${trimmed.replace(/\n/g, "<br/>")}</p>`;
     })
     .join("\n");
 
   return html;
+}
+
+// ============================================================================
+// Data-driven visual components
+// ============================================================================
+
+/** KPI hero card */
+function KpiCard({
+  icon,
+  label,
+  value,
+  sub,
+  accent = "blue",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: "blue" | "emerald" | "amber" | "violet" | "red";
+}) {
+  const colorMap = {
+    blue: "from-blue-500 to-blue-600 shadow-blue-200",
+    emerald: "from-emerald-500 to-emerald-600 shadow-emerald-200",
+    amber: "from-amber-500 to-amber-600 shadow-amber-200",
+    violet: "from-violet-500 to-violet-600 shadow-violet-200",
+    red: "from-red-500 to-red-600 shadow-red-200",
+  };
+  return (
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl bg-gradient-to-br text-white p-5 shadow-lg",
+      colorMap[accent],
+    )}>
+      <div className="absolute top-3 right-3 opacity-20 text-3xl">{icon}</div>
+      <p className="text-xs font-medium opacity-80 mb-1">{label}</p>
+      <p className="text-2xl font-extrabold tracking-tight">{value}</p>
+      {sub && <p className="text-xs opacity-70 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+/** Score gauge (circular) */
+function ScoreGauge({ score, maxScore = 100, label }: { score: number; maxScore?: number; label?: string }) {
+  const pct = Math.min(score / maxScore, 1);
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - pct);
+  const color = pct >= 0.7 ? "#10B981" : pct >= 0.4 ? "#F59E0B" : "#EF4444";
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="#E2E8F0" strokeWidth="10" />
+        <circle
+          cx="70" cy="70" r={radius} fill="none"
+          stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          transform="rotate(-90 70 70)"
+          className="transition-all duration-1000"
+        />
+        <text x="70" y="65" textAnchor="middle" className="text-3xl font-extrabold" fill="#1E293B" fontSize="28" fontWeight="800">
+          {score}
+        </text>
+        <text x="70" y="85" textAnchor="middle" fill="#94A3B8" fontSize="11">
+          / {maxScore}점
+        </text>
+      </svg>
+      {label && <p className="text-sm font-semibold text-slate-700 mt-2">{label}</p>}
+    </div>
+  );
+}
+
+/** Budget warning banner */
+function BudgetWarningBanner({ budgetMan, startupMin }: { budgetMan: number; startupMin: number }) {
+  const gap = startupMin - budgetMan;
+  if (gap <= 0) return null;
+  return (
+    <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+      <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-bold text-red-800">예산 초과 경고</p>
+        <p className="text-xs text-red-600 mt-0.5">
+          예상 초기 투자비가 예산보다 <strong>{formatMoney(gap)}원</strong> 부족합니다.
+          추가 자금 확보 또는 비용 절감 방안을 검토하세요.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Financials section: KPI cards + donut chart + 3-year projection */
+function FinancialsVisual({ data }: { data: Record<string, unknown> }) {
+  const monthlyRev = Number(data.monthly_revenue || 0);
+  const monthlyOpCost = Number(data.monthly_operating_cost || 0);
+  const monthlyNet = Number(data.monthly_net_profit || 0);
+  const startupMin = Number(data.startup_total_min || 0);
+  const startupMax = Number(data.startup_total_max || 0);
+  const beMin = Number(data.break_even_months_min || 0);
+  const beMax = Number(data.break_even_months_max || 0);
+  const budgetMan = Number(data.budget_man || 0);
+  const budgetOk = Boolean(data.budget_ok);
+
+  // Operating cost breakdown for donut (simulated proportions)
+  const rent = monthlyOpCost * 0.35;
+  const labor = monthlyOpCost * 0.28;
+  const material = monthlyOpCost * 0.22;
+  const misc = monthlyOpCost * 0.15;
+
+  const donutData = [
+    { name: "임대료", value: Math.round(rent) },
+    { name: "인건비", value: Math.round(labor) },
+    { name: "재료비", value: Math.round(material) },
+    { name: "기타", value: Math.round(misc) },
+  ];
+
+  // 3-year projection line chart
+  const projectionData = [
+    { month: "현재", revenue: monthlyRev, cost: monthlyOpCost, profit: monthlyNet },
+    { month: "6개월", revenue: Math.round(monthlyRev * 1.05), cost: monthlyOpCost, profit: Math.round(monthlyRev * 1.05 - monthlyOpCost) },
+    { month: "1년", revenue: Math.round(monthlyRev * 1.12), cost: Math.round(monthlyOpCost * 1.02), profit: Math.round(monthlyRev * 1.12 - monthlyOpCost * 1.02) },
+    { month: "2년", revenue: Math.round(monthlyRev * 1.2), cost: Math.round(monthlyOpCost * 1.05), profit: Math.round(monthlyRev * 1.2 - monthlyOpCost * 1.05) },
+    { month: "3년", revenue: Math.round(monthlyRev * 1.3), cost: Math.round(monthlyOpCost * 1.08), profit: Math.round(monthlyRev * 1.3 - monthlyOpCost * 1.08) },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Budget warning */}
+      {!budgetOk && <BudgetWarningBanner budgetMan={budgetMan} startupMin={startupMin} />}
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<DollarSign className="w-6 h-6" />}
+          label="월 예상 매출"
+          value={`${formatMoney(monthlyRev)}원`}
+          accent="blue"
+        />
+        <KpiCard
+          icon={<TrendingUp className="w-6 h-6" />}
+          label="월 순이익"
+          value={`${formatMoney(monthlyNet)}원`}
+          sub={monthlyRev > 0 ? `마진율 ${((monthlyNet / monthlyRev) * 100).toFixed(0)}%` : undefined}
+          accent={monthlyNet > 0 ? "emerald" : "red"}
+        />
+        <KpiCard
+          icon={<BarChart3 className="w-6 h-6" />}
+          label="초기 투자비"
+          value={`${formatMoney(startupMin)}~${formatMoney(startupMax)}원`}
+          accent="violet"
+        />
+        <KpiCard
+          icon={<Clock className="w-6 h-6" />}
+          label="투자 회수"
+          value={`${beMin}~${beMax}개월`}
+          sub="손익분기 도달"
+          accent="amber"
+        />
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Donut chart */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5">
+          <h4 className="text-sm font-bold text-slate-700 mb-4">월 운영비 구성</h4>
+          <div className="flex items-center justify-center gap-4">
+            <ResponsiveContainer width={160} height={160}>
+              <PieChart>
+                <Pie
+                  data={donutData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={70}
+                  paddingAngle={3}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {donutData.map((_, idx) => (
+                    <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(val: number) => `${formatMoney(val)}원`} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2">
+              {donutData.map((d, idx) => (
+                <div key={d.name} className="flex items-center gap-2 text-xs">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[idx] }} />
+                  <span className="text-slate-600">{d.name}</span>
+                  <span className="font-semibold text-slate-800 ml-auto">{formatMoney(d.value)}원</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Line chart: 3-year projection */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5">
+          <h4 className="text-sm font-bold text-slate-700 mb-4">3년 매출·비용 전망</h4>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={projectionData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${formatMoney(v)}`} />
+              <Tooltip formatter={(val: number) => `${formatMoney(val)}원`} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="revenue" name="매출" stroke="#3B82F6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="cost" name="비용" stroke="#F59E0B" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="profit" name="순이익" stroke="#10B981" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Risk/verdict section: radar + score gauge */
+function RiskVisual({ data }: { data: Record<string, unknown> }) {
+  const riskLevel = String(data.risk_level || "보통");
+  const riskScore = Number(data.risk_score || 50);
+  const survivalRate = Number(data.survival_rate || 0);
+  const scorecardTotal = Number(data.scorecard_total || 0);
+
+  // Radar chart data (5 categories)
+  const radarData = [
+    { category: "상권", value: Math.min(Math.round(survivalRate), 100) },
+    { category: "경쟁력", value: Math.min(100 - riskScore, 100) },
+    { category: "수익성", value: Math.round(scorecardTotal * 1.2) || 60 },
+    { category: "안정성", value: Math.round(survivalRate * 0.9) || 50 },
+    { category: "성장성", value: Math.round((100 - riskScore) * 0.8) || 55 },
+  ];
+
+  const verdictColor = riskLevel === "낮음" || riskLevel === "안전"
+    ? "emerald" : riskLevel === "높음" || riskLevel === "위험"
+    ? "red" : "amber";
+
+  const verdictColorMap = {
+    emerald: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-500" },
+    amber: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-500" },
+    red: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", badge: "bg-red-500" },
+  };
+  const vc = verdictColorMap[verdictColor];
+
+  return (
+    <div className="space-y-6">
+      {/* Verdict banner */}
+      <div className={cn("flex items-center gap-4 rounded-2xl p-5 border", vc.bg, vc.border)}>
+        <span className={cn("shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm", vc.badge)}>
+          {riskLevel.charAt(0)}
+        </span>
+        <div>
+          <p className={cn("text-base font-bold", vc.text)}>종합 리스크 판정: {riskLevel}</p>
+          <p className="text-xs text-slate-500 mt-0.5">생존율 {survivalRate}% · 리스크 점수 {riskScore}점</p>
+        </div>
+      </div>
+
+      {/* Gauge + Radar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-200 py-6">
+          <ScoreGauge score={scorecardTotal || Math.round(100 - riskScore)} label="종합 점수" />
+        </div>
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+          <h4 className="text-sm font-bold text-slate-700 mb-2 text-center">5대 카테고리 분석</h4>
+          <ResponsiveContainer width="100%" height={220}>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="#CBD5E1" />
+              <PolarAngleAxis dataKey="category" tick={{ fontSize: 11, fill: "#475569" }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
+              <Radar name="점수" dataKey="value" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} strokeWidth={2} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Market section KPI strip */
+function MarketVisual({ data }: { data: Record<string, unknown> }) {
+  const footTraffic = Number(data.foot_traffic || 0);
+  const residentTotal = Number(data.resident_total || 0);
+  const workerTotal = Number(data.worker_total || 0);
+  const peakTime = String(data.peak_time || "-");
+  const mainAgeGroup = String(data.main_age_group || "-");
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+      <MiniStat icon={<Users className="w-4 h-4" />} label="유동인구" value={footTraffic.toLocaleString()} unit="명/일" />
+      <MiniStat icon={<Users className="w-4 h-4" />} label="거주인구" value={residentTotal.toLocaleString()} unit="명" />
+      <MiniStat icon={<Users className="w-4 h-4" />} label="직장인구" value={workerTotal.toLocaleString()} unit="명" />
+      <MiniStat icon={<Clock className="w-4 h-4" />} label="피크 시간" value={peakTime} />
+      <MiniStat icon={<Target className="w-4 h-4" />} label="주요 연령대" value={mainAgeGroup} />
+    </div>
+  );
+}
+
+/** Competition section KPI strip */
+function CompetitionVisual({ data }: { data: Record<string, unknown> }) {
+  const storeCount = Number(data.store_count || 0);
+  const franchiseRatio = Number(data.franchise_ratio || 0);
+  const newStores = Number(data.new_stores || 0);
+  const closedStores = Number(data.closed_stores || 0);
+  const survivalRate = Number(data.survival_rate || 0);
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+      <MiniStat icon={<Store className="w-4 h-4" />} label="매장 수" value={String(storeCount)} unit="개" />
+      <MiniStat icon={<BarChart3 className="w-4 h-4" />} label="프랜차이즈 비율" value={`${franchiseRatio}%`} />
+      <MiniStat icon={<TrendingUp className="w-4 h-4" />} label="신규 개점" value={String(newStores)} unit="개" color="emerald" />
+      <MiniStat icon={<AlertTriangle className="w-4 h-4" />} label="폐점" value={String(closedStores)} unit="개" color="red" />
+      <MiniStat icon={<Shield className="w-4 h-4" />} label="생존율" value={`${survivalRate}%`} color={survivalRate >= 60 ? "emerald" : "amber"} />
+    </div>
+  );
+}
+
+function MiniStat({
+  icon,
+  label,
+  value,
+  unit,
+  color = "blue",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  unit?: string;
+  color?: "blue" | "emerald" | "amber" | "red";
+}) {
+  const colorMap = {
+    blue: "text-blue-600 bg-blue-50",
+    emerald: "text-emerald-600 bg-emerald-50",
+    amber: "text-amber-600 bg-amber-50",
+    red: "text-red-600 bg-red-50",
+  };
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <span className={cn("w-6 h-6 rounded-md flex items-center justify-center", colorMap[color])}>
+          {icon}
+        </span>
+        <span className="text-[10px] text-slate-500 font-medium">{label}</span>
+      </div>
+      <p className="text-lg font-bold text-slate-800 leading-tight">
+        {value}
+        {unit && <span className="text-xs font-normal text-slate-400 ml-0.5">{unit}</span>}
+      </p>
+    </div>
+  );
+}
+
+/** Roadmap timeline */
+function RoadmapTimeline({ data }: { data: Record<string, unknown> }) {
+  const phases = (data.phases as string[]) || ["준비기", "시공기", "오픈 준비", "안정화"];
+  const totalDays = Number(data.total_days || 90);
+  const daysPerPhase = Math.round(totalDays / phases.length);
+
+  const phaseColors = ["#3B82F6", "#8B5CF6", "#F59E0B", "#10B981"];
+  const phaseIcons = ["📋", "🔨", "🎯", "📈"];
+
+  return (
+    <div className="relative mb-4">
+      <div className="flex flex-col gap-0">
+        {phases.map((phase, i) => (
+          <div key={i} className="flex gap-4">
+            {/* Timeline bar */}
+            <div className="flex flex-col items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md"
+                style={{ backgroundColor: phaseColors[i % phaseColors.length] }}
+              >
+                {phaseIcons[i] || (i + 1)}
+              </div>
+              {i < phases.length - 1 && (
+                <div className="w-0.5 h-16 bg-gradient-to-b from-slate-300 to-slate-200" />
+              )}
+            </div>
+            {/* Card */}
+            <div className="flex-1 pb-6">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: phaseColors[i % phaseColors.length] }}
+                  >
+                    Phase {i + 1}
+                  </span>
+                  <span className="text-xs text-slate-400">{daysPerPhase}일</span>
+                </div>
+                <p className="font-semibold text-slate-800">{phase}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 text-center text-xs text-slate-400">
+        총 {totalDays}일 계획
+      </div>
+    </div>
+  );
 }
 
 // ============================================================================
@@ -167,14 +601,12 @@ function ConfirmScreen({
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-          {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-white text-center">
             <div className="text-4xl mb-3">{icon}</div>
             <h1 className="text-xl font-bold">AI 사업계획서</h1>
             <p className="text-blue-100 text-sm mt-1">입력 정보를 확인하고 생성하세요</p>
           </div>
 
-          {/* Info Cards */}
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <InfoCard label="업종" value={`${icon} ${industryName}`} />
@@ -183,7 +615,6 @@ function ConfirmScreen({
               <InfoCard label="매장 면적" value={`${areaPyeong}평`} />
             </div>
 
-            {/* Business Name Input */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 상호명 (선택)
@@ -197,7 +628,6 @@ function ConfirmScreen({
               />
             </div>
 
-            {/* Generate Button */}
             <button
               onClick={() => onGenerate(businessName)}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
@@ -265,7 +695,6 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
             ))}
           </div>
 
-          {/* Progress bar */}
           <div className="mt-6 h-2 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
@@ -301,7 +730,6 @@ function PreviewScreen({
     sectionRefs.current[idx]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // Track active section on scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -322,6 +750,27 @@ function PreviewScreen({
     return () => observer.disconnect();
   }, [plan]);
 
+  /** Render data-driven visuals above markdown content per section */
+  const renderSectionVisuals = (sec: PlanSection) => {
+    if (!sec.data) return null;
+    const d = sec.data;
+
+    switch (sec.id) {
+      case "financials":
+        return <FinancialsVisual data={d} />;
+      case "risk":
+        return <RiskVisual data={d} />;
+      case "market":
+        return <MarketVisual data={d} />;
+      case "competition":
+        return <CompetitionVisual data={d} />;
+      case "roadmap":
+        return <RoadmapTimeline data={d} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Toast */}
@@ -335,7 +784,9 @@ function PreviewScreen({
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-blue-600" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+              <FileText className="w-4.5 h-4.5 text-white" />
+            </div>
             <div>
               <h1 className="text-sm font-bold text-slate-800">{plan.business_name}</h1>
               <p className="text-xs text-slate-500">
@@ -350,10 +801,10 @@ function PreviewScreen({
       </header>
 
       <div className="max-w-7xl mx-auto flex">
-        {/* Sidebar (목차) — desktop only */}
+        {/* Sidebar */}
         <aside className="hidden lg:block w-64 shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto border-r border-slate-200 bg-white">
           <nav className="p-4 space-y-1">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
               목차
             </div>
             {plan.sections.map((sec, i) => (
@@ -363,12 +814,13 @@ function PreviewScreen({
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all text-sm",
                   activeSection === i
-                    ? "bg-blue-50 text-blue-700 font-semibold"
+                    ? "bg-blue-50 text-blue-700 font-semibold border-l-2 border-blue-500"
                     : "text-slate-600 hover:bg-slate-50",
                 )}
               >
+                <span className="text-[10px] font-mono text-slate-400 w-5">{SECTION_NUMBERS[sec.id] || `0${i + 1}`}</span>
                 <span className="shrink-0">{SECTION_ICONS[sec.id] || <ChevronRight className="w-4 h-4" />}</span>
-                <span className="truncate">{sec.title}</span>
+                <span className="truncate">{sec.title.replace(/^\d+\.\s*/, "")}</span>
               </button>
             ))}
           </nav>
@@ -396,7 +848,7 @@ function PreviewScreen({
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 px-4 lg:px-8 py-8 space-y-8">
+        <main className="flex-1 min-w-0 px-4 lg:px-8 py-8 space-y-6">
           {plan.sections.map((sec, i) => (
             <div
               key={sec.id}
@@ -404,8 +856,9 @@ function PreviewScreen({
               className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
             >
               {/* Section header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono font-bold text-slate-400">{SECTION_NUMBERS[sec.id] || `0${i + 1}`}</span>
                   <span className="text-blue-600">{SECTION_ICONS[sec.id]}</span>
                   <h2 className="font-bold text-slate-800">{sec.title}</h2>
                 </div>
@@ -418,7 +871,12 @@ function PreviewScreen({
                 </button>
               </div>
 
-              {/* Section body */}
+              {/* Data-driven visual */}
+              <div className="px-6 pt-6">
+                {renderSectionVisuals(sec)}
+              </div>
+
+              {/* Markdown content */}
               <div
                 className="bp-content px-6 py-6"
                 dangerouslySetInnerHTML={{
@@ -451,7 +909,7 @@ function PreviewScreen({
       {/* Inline styles for business-plan content */}
       <style jsx global>{`
         .bp-content .bp-h2 {
-          display: none; /* Already shown in section header */
+          display: none;
         }
         .bp-content .bp-h3 {
           font-size: 1rem;
@@ -459,7 +917,11 @@ function PreviewScreen({
           color: #1e293b;
           margin: 1.5rem 0 0.75rem 0;
           padding-bottom: 0.5rem;
-          border-bottom: 1px solid #f1f5f9;
+          border-bottom: 2px solid #EEF2FF;
+        }
+        .bp-content .bp-h3::before {
+          content: "▸ ";
+          color: #3B82F6;
         }
         .bp-content .bp-h4 {
           font-size: 0.925rem;
@@ -469,19 +931,22 @@ function PreviewScreen({
         }
         .bp-content p {
           color: #475569;
-          line-height: 1.7;
+          line-height: 1.8;
           margin: 0.5rem 0;
           font-size: 0.9rem;
         }
         .bp-content strong {
           color: #1e293b;
-          font-weight: 600;
+          font-weight: 700;
+          background: linear-gradient(to bottom, transparent 60%, #DBEAFE 60%);
+          padding: 0 2px;
         }
         .bp-content .table-wrap {
           overflow-x: auto;
-          margin: 0.75rem 0;
+          margin: 1rem 0;
           border-radius: 0.75rem;
           border: 1px solid #e2e8f0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .bp-content table {
           width: 100%;
@@ -489,49 +954,85 @@ function PreviewScreen({
           font-size: 0.85rem;
         }
         .bp-content th {
-          background: #f8fafc;
-          color: #475569;
-          font-weight: 600;
+          background: linear-gradient(135deg, #F8FAFC, #EFF6FF);
+          color: #1E40AF;
+          font-weight: 700;
           text-align: left;
-          padding: 0.625rem 0.875rem;
-          border-bottom: 1px solid #e2e8f0;
+          padding: 0.75rem 1rem;
+          border-bottom: 2px solid #BFDBFE;
           white-space: nowrap;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
         }
         .bp-content td {
-          padding: 0.5rem 0.875rem;
+          padding: 0.625rem 1rem;
           border-bottom: 1px solid #f1f5f9;
           color: #334155;
+        }
+        .bp-content tr:nth-child(even) td {
+          background: #F8FAFC;
         }
         .bp-content tr:last-child td {
           border-bottom: none;
         }
         .bp-content tr:hover td {
-          background: #f8fafc;
+          background: #EFF6FF;
         }
         .bp-content .bp-ul, .bp-content .bp-ol {
-          margin: 0.5rem 0;
-          padding-left: 1.25rem;
+          margin: 0.75rem 0;
+          padding-left: 0;
         }
         .bp-content .bp-uli, .bp-content .bp-oli {
           color: #475569;
           font-size: 0.875rem;
-          line-height: 1.7;
-          margin: 0.25rem 0;
+          line-height: 1.8;
+          margin: 0.375rem 0;
+          padding: 0.25rem 0.5rem 0.25rem 1.75rem;
+          position: relative;
+          list-style: none;
         }
-        .bp-content .bp-uli {
-          list-style: disc;
+        .bp-content .bp-uli::before {
+          content: "";
+          position: absolute;
+          left: 0.5rem;
+          top: 0.75rem;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #3B82F6;
         }
         .bp-content .bp-oli {
-          list-style: decimal;
+          counter-increment: bp-counter;
+        }
+        .bp-content .bp-ol {
+          counter-reset: bp-counter;
+        }
+        .bp-content .bp-oli::before {
+          content: counter(bp-counter);
+          position: absolute;
+          left: 0.25rem;
+          top: 0.25rem;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #EEF2FF;
+          color: #3B82F6;
+          font-size: 0.7rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .bp-content blockquote {
-          margin: 0.75rem 0;
-          padding: 0.75rem 1rem;
-          background: #f0f9ff;
-          border-left: 3px solid #3b82f6;
-          border-radius: 0 0.5rem 0.5rem 0;
-          color: #1e40af;
-          font-size: 0.85rem;
+          margin: 1rem 0;
+          padding: 1rem 1.25rem;
+          background: linear-gradient(135deg, #F0F9FF, #EFF6FF);
+          border-left: 4px solid #3B82F6;
+          border-radius: 0 0.75rem 0.75rem 0;
+          color: #1E40AF;
+          font-size: 0.875rem;
+          font-weight: 500;
         }
         @keyframes fade-in {
           from { opacity: 0; transform: translate(-50%, -8px); }
@@ -553,14 +1054,12 @@ function BusinessPlanPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Read params
   const industryCode = searchParams?.get("industry_code") || "CS100010";
   const districtCode = searchParams?.get("district_code") || "";
   const budgetParam = parseInt(searchParams?.get("budget") || "0", 10);
   const areaParam = parseInt(searchParams?.get("area_pyeong") || "15", 10);
   const districtNameParam = searchParams?.get("district_name") || "";
 
-  // Fallbacks from localStorage
   const [budget, setBudget] = useState(budgetParam || 8000);
   const [areaPyeong, setAreaPyeong] = useState(areaParam || 15);
   const [districtName, setDistrictName] = useState(districtNameParam || "");
@@ -599,7 +1098,6 @@ function BusinessPlanPageInner() {
     setStage("loading");
     setError(null);
 
-    // Reset loading steps
     const steps = [
       { label: "상권 데이터 수집", done: false },
       { label: "경쟁 분석", done: false },
@@ -609,7 +1107,6 @@ function BusinessPlanPageInner() {
     ];
     setLoadingSteps([...steps]);
 
-    // Simulate progress steps
     const stepDelays = [600, 1200, 1800, 2400];
     for (let i = 0; i < stepDelays.length; i++) {
       setTimeout(() => {
@@ -640,10 +1137,8 @@ function BusinessPlanPageInner() {
       const data: BusinessPlanData = await res.json();
       setPlan(data);
 
-      // Mark final step done
       setLoadingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
 
-      // Brief delay then show preview
       setTimeout(() => setStage("preview"), 600);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "알 수 없는 오류";
