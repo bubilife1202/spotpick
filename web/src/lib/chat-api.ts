@@ -26,7 +26,7 @@ export { GLOSSARY };
 // Re-export suggested questions for backward compatibility
 export const SUGGESTED_QUESTIONS = [...DEFAULT_SUGGESTED_QUESTIONS];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 function getStoredIndustryCode(): string {
   if (typeof window === "undefined") return "CS100010";

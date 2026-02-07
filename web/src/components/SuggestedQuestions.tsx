@@ -276,7 +276,7 @@ const DEFAULT_INITIAL_QUESTIONS = [
   "서울 성수에서 골목상권 + 월세 200~300만원 추천해줘",
 ] as const;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 export function InitialQuestions({ onSelect, industryCode }: { onSelect: (q: string) => void; industryCode?: string }) {
   const [isVisible, setIsVisible] = useState(false);

@@ -55,6 +55,8 @@ export interface ChartData {
 export interface RecommendationCardData {
   /** Ranking position (1-based) */
   rank: number;
+  /** District code (e.g., "3110001") for API lookups */
+  district_code: string;
   /** Name of the district/area (e.g., "홍대입구역") */
   district_name: string;
   /** Type of commercial area (발달상권, 골목상권, 전통시장, 관광특구) */
@@ -102,6 +104,9 @@ export interface RecommendationCardData {
   positioning?: string;
   positioning_detail?: string;
   purchasing_power?: number;
+  single_household_ratio?: number;
+  /** 소득소비 데이터 (서울 열린데이터) */
+  income_info?: DistrictIncomeInfo;
   scorecard?: ScorecardResult;
 }
 
@@ -595,6 +600,23 @@ export interface ScorecardResult {
   rank: number;
   percentile: number;
   categories: ScorecardCategory[];
+}
+
+// ============================================================================
+// Income Data Types (서울 열린데이터 소득소비)
+// ============================================================================
+
+export interface DistrictIncomeInfo {
+  /** 월평균소득금액 (원) */
+  avg_monthly_income: number;
+  /** 외식비지출총금액 (원) */
+  dining_out_expenditure: number;
+  /** 외식비 비율 (소득 대비, 0.0~1.0) */
+  dining_out_ratio: number;
+  /** 소득수준 (상/중/하) */
+  income_level: string;
+  /** 출처 */
+  source: string;
 }
 
 // ============================================================================

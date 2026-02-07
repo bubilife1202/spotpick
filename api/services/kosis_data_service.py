@@ -99,6 +99,15 @@ class AvgTicket(TypedDict, total=False):
     year: str
 
 
+class SingleHouseholdData(TypedDict, total=False):
+    ratio: float                 # 1인가구 비율 (0.0~1.0)
+    count: int                   # 1인가구 수
+    total_households: int        # 전체 가구 수
+    year: str
+    source: str
+    by_district: list[dict]      # 시도별 상세 (선택적)
+
+
 class KosisBenchmark(TypedDict, total=False):
     industry_code: str
     industry_name: str
@@ -481,6 +490,208 @@ async def get_all_benchmarks(
 
     _set_cached(cache_key, result)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Public API: 1인가구 비율 (장래가구추계)
+# ---------------------------------------------------------------------------
+
+# 시도 이름 → KOSIS 분류값 매핑
+_REGION_ALIAS: dict[str, str] = {
+    "서울": "서울특별시",
+    "부산": "부산광역시",
+    "대구": "대구광역시",
+    "인천": "인천광역시",
+    "광주": "광주광역시",
+    "대전": "대전광역시",
+    "울산": "울산광역시",
+    "세종": "세종특별자치시",
+    "경기": "경기도",
+    "강원": "강원도",
+    "충북": "충청북도",
+    "충남": "충청남도",
+    "전북": "전라북도",
+    "전남": "전라남도",
+    "경북": "경상북도",
+    "경남": "경상남도",
+    "제주": "제주특별자치도",
+}
+
+
+def _normalize_region(region: str) -> str:
+    """사용자 입력 지역명을 KOSIS 분류값명으로 정규화."""
+    region = region.strip()
+    if region in _REGION_ALIAS:
+        return _REGION_ALIAS[region]
+    # 이미 정식 명칭이면 그대로
+    for full_name in _REGION_ALIAS.values():
+        if region == full_name:
+            return region
+    # 부분 매칭 시도
+    for short, full in _REGION_ALIAS.items():
+        if short in region or region in full:
+            return full
+    return region
+
+
+def _fetch_household_table(year: str = "2025") -> Any:
+    """
+    DT_1BZ0506 (가구주의 연령/가구원수별 추계가구_시도) 조회.
+    orgId=101 (통계청), 장래가구추계.
+    """
+    cache_key = f"kosis_household_raw:{year}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    client = _get_kosis_client()
+    if client is None:
+        return None
+
+    try:
+        df = client.get_data(
+            service_name="통계자료",
+            orgId="101",
+            tblId="DT_1BZ0506",
+            objL1="ALL",
+            objL2="ALL",
+            itmId="ALL",
+            prdSe="Y",
+            startPrdDe=year,
+            endPrdDe=year,
+        )
+        if df is not None and len(df) > 0:
+            _set_cached(cache_key, df)
+            return df
+        logger.info("KOSIS DT_1BZ0506 (%s): 데이터 없음", year)
+        return None
+    except Exception as e:
+        logger.warning("KOSIS DT_1BZ0506 조회 실패: %s", e)
+        return None
+
+
+async def get_single_household_ratio(
+    region: str = "서울특별시",
+    year: str = "2025",
+) -> SingleHouseholdData | None:
+    """
+    KOSIS 장래가구추계에서 지역별 1인가구 비율 조회.
+
+    DT_1BZ0506 테이블 구조:
+    - 분류값명1: 시도 (서울특별시, 부산광역시 ...)
+    - 분류값명2: 연령 (합계, 24세이하, ...)
+    - 항목명: 가구원수 (계, 1인, 2인, 3인, 4인, 5인이상)
+    - 수치값: 가구 수
+    """
+    normalized = _normalize_region(region)
+    cache_key = f"kosis_household:{normalized}:{year}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    df = _fetch_household_table(year)
+    if df is None:
+        # 1년 전 데이터로 재시도
+        prev_year = str(int(year) - 1)
+        df = _fetch_household_table(prev_year)
+        if df is None:
+            return None
+        year = prev_year
+
+    try:
+        # '합계' 연령대만 필터 (전체 합산)
+        total_age = df[df["분류값명2"] == "합계"]
+
+        # 특정 지역 데이터
+        region_data = total_age[total_age["분류값명1"] == normalized]
+        if region_data.empty:
+            logger.info("KOSIS 1인가구: %s 매칭 실패", normalized)
+            return None
+
+        total_row = region_data[region_data["항목명"] == "계"]
+        single_row = region_data[region_data["항목명"] == "1인"]
+
+        if total_row.empty or single_row.empty:
+            return None
+
+        total_val = _safe_float(total_row.iloc[0]["수치값"])
+        single_val = _safe_float(single_row.iloc[0]["수치값"])
+
+        if total_val is None or single_val is None or total_val == 0:
+            return None
+
+        ratio = single_val / total_val
+
+        result = SingleHouseholdData(
+            ratio=round(ratio, 4),
+            count=int(single_val),
+            total_households=int(total_val),
+            year=year,
+            source=f"KOSIS 장래가구추계 {year}",
+        )
+
+        # 전국 데이터일 때: 시도별 상세 포함
+        if normalized in ("전국",):
+            by_district: list[dict] = []
+            for reg_name in total_age["분류값명1"].unique():
+                if reg_name == "전국":
+                    continue
+                rd = total_age[total_age["분류값명1"] == reg_name]
+                t = _safe_float(rd[rd["항목명"] == "계"].iloc[0]["수치값"]) if len(rd[rd["항목명"] == "계"]) > 0 else None
+                s = _safe_float(rd[rd["항목명"] == "1인"].iloc[0]["수치값"]) if len(rd[rd["항목명"] == "1인"]) > 0 else None
+                if t and s and t > 0:
+                    by_district.append({
+                        "region": reg_name,
+                        "ratio": round(s / t, 4),
+                        "count": int(s),
+                        "total": int(t),
+                    })
+            by_district.sort(key=lambda x: x["ratio"], reverse=True)
+            result["by_district"] = by_district
+
+        _set_cached(cache_key, result)
+        return result
+
+    except Exception as e:
+        logger.warning("KOSIS 1인가구 비율 파싱 실패: %s", e)
+        return None
+
+
+async def get_region_household_ratios(year: str = "2025") -> dict[str, float]:
+    """
+    전체 시도의 1인가구 비율을 dict로 반환.
+    {"서울특별시": 0.402, "부산광역시": 0.371, ...}
+    추천 카드에 뱃지로 표시할 때 사용.
+    """
+    cache_key = f"kosis_household_all:{year}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    df = _fetch_household_table(year)
+    if df is None:
+        prev_year = str(int(year) - 1)
+        df = _fetch_household_table(prev_year)
+        if df is None:
+            return {}
+
+    try:
+        total_age = df[df["분류값명2"] == "합계"]
+        ratios: dict[str, float] = {}
+
+        for region_name in total_age["분류값명1"].unique():
+            rd = total_age[total_age["분류값명1"] == region_name]
+            t = _safe_float(rd[rd["항목명"] == "계"].iloc[0]["수치값"]) if len(rd[rd["항목명"] == "계"]) > 0 else None
+            s = _safe_float(rd[rd["항목명"] == "1인"].iloc[0]["수치값"]) if len(rd[rd["항목명"] == "1인"]) > 0 else None
+            if t and s and t > 0:
+                ratios[region_name] = round(s / t, 4)
+
+        _set_cached(cache_key, ratios)
+        return ratios
+
+    except Exception as e:
+        logger.warning("KOSIS 전체 시도 1인가구 비율 조회 실패: %s", e)
+        return {}
 
 
 # ---------------------------------------------------------------------------

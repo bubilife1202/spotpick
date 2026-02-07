@@ -12,8 +12,10 @@ import DOMPurify from "dompurify";
 
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import SearchMode from "@/components/SearchMode";
 import { Onboarding, OnboardingData } from "@/components/Onboarding";
+import { useRouter } from "next/navigation";
 import type { MapMarker } from "@/components/MiniMap";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import TrendChart from "@/components/TrendChart";
@@ -57,7 +59,7 @@ interface DistrictSearchResponse {
   total: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -89,6 +91,9 @@ const MiniMap = dynamic(
     ),
   }
 );
+
+// 보고서 페이지로 이동한 무거운 섹션들 — false로 두면 채팅에서 숨김
+const SHOW_DETAIL_SECTIONS = false;
 
 function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSearch: () => void; onGoHome: () => void; initialQuery?: string }) {
   const [industry] = useState(() => getStoredIndustry());
@@ -641,7 +646,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               </span>
                                             )}
                                           </div>
-                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator) && (
+                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator || rec.single_household_ratio) && (
                                             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                               {rec.foot_traffic_total ? (
                                                 <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 font-medium">
@@ -678,6 +683,11 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                                   🚇 교통 {rec.transit_percentile > 0.8 ? '우수' : rec.transit_percentile > 0.4 ? '양호' : '보통'}
                                                 </span>
                                               )}
+                                              {rec.single_household_ratio != null && rec.single_household_ratio > 0.35 && (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-50 text-orange-600 font-medium">
+                                                  🏠 1인가구 {(rec.single_household_ratio * 100).toFixed(0)}%
+                                                </span>
+                                              )}
                                             </div>
                                           )}
                                           {rec.positioning && (
@@ -695,6 +705,15 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               <ScorecardCard scorecard={rec.scorecard} />
                                             </div>
                                           )}
+                                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-end">
+                                            <Link
+                                              href={`/report?district_code=${rec.district_code}&industry_code=${industry.code}`}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                                            >
+                                              상세 보고서 보기 →
+                                            </Link>
+                                          </div>
                                         </div>
                                       );
                                     })}
@@ -746,7 +765,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             );
                           })()}
                           
-                          {message.structured?.charts && message.structured.charts.length > 0 && (
+                          {/* 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.charts && message.structured.charts.length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                 <BarChart3 size={12} className="text-blue-500" />
@@ -778,7 +798,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.competitive && (
+                          {/* 경쟁분석 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.competitive && (
                             <div className={cn(
                               "mt-3 p-3 rounded-xl",
                               "bg-white/70 border border-slate-200/60",
@@ -847,7 +868,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.simulation && (() => {
+                          {/* 시뮬레이션 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.simulation && (() => {
                             const sim = message.structured!.simulation;
                             const startup = sim.startup_cost;
                             const operating = sim.operating_cost;
@@ -1068,7 +1090,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             );
                           })()}
 
-                          {message.structured?.timeline && (
+                          {/* 타임라인 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.timeline && (
                             <div className="space-y-3">
                               <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                                 <CalendarDays size={16} className="text-teal-500" />
@@ -1114,13 +1137,15 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.trend && (
+                          {/* 트렌드 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.trend && (
                             <div className="mt-4">
                               <TrendChart data={message.structured.trend} />
                             </div>
                           )}
 
-                          {message.structured?.trademark && (
+                          {/* 상표충돌 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.trademark && (
                             <div className={cn(
                               "mt-3 p-3 rounded-xl border space-y-2",
                               message.structured.trademark.risk_level === "high" ? "bg-rose-50 border-rose-200" :
@@ -1165,7 +1190,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.support_programs && message.structured.support_programs.length > 0 && (
+                          {/* 지원사업 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.support_programs && message.structured.support_programs.length > 0 && (
                             <div className="mt-4">
                               <h4 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1361,57 +1387,6 @@ type Mode = "landing" | "onboarding" | "search" | "chat";
 const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
 const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
 
-const CAFE_TYPE_LABELS: Record<string, string> = {
-  takeout: "테이크아웃 카페",
-  brunch: "브런치 카페",
-  aesthetic: "감성 카페",
-  study: "스터디 카페",
-};
-
-const BUDGET_RENT_LABELS: Record<string, string> = {
-  low: "월세 150~300만원",
-  mid: "월세 200~500만원",
-  high: "월세 300~800만원",
-};
-
-const TARGET_LABELS: Record<string, string> = {
-  office: "직장인",
-  "20s_female": "20대 여성",
-  "30s": "30~40대",
-  student: "대학생",
-  local: "동네 주민",
-  tourist: "관광객",
-};
-
-function buildAutoQuery(data: OnboardingData): string {
-  const location = data.district ? `서울 ${data.district}` : "서울";
-  const rent = BUDGET_RENT_LABELS[data.budget];
-  const rentPart = rent ? ` ${rent}으로` : "";
-  const industryName = INDUSTRY_NAMES[data.industryCode] || "카페";
-  const cafeLabel = data.industryCode === "CS100010"
-    ? (CAFE_TYPE_LABELS[data.cafeType] || industryName)
-    : industryName;
-  const targetLabel = TARGET_LABELS[data.target];
-  const targetPart = targetLabel ? `, ${targetLabel} 타겟` : "";
-
-  return `${location}에서${rentPart}${targetPart} ${cafeLabel} 창업 추천해줘`;
-}
-
-function rentDefaultsFromOnboarding(budgetId: OnboardingData["budget"]): {
-  budgetMin: number;
-  budgetMax: number;
-} {
-  switch (budgetId) {
-    case "low":
-      return { budgetMin: 1500000, budgetMax: 3000000 };
-    case "mid":
-      return { budgetMin: 2000000, budgetMax: 5000000 };
-    case "high":
-      return { budgetMin: 3000000, budgetMax: 8000000 };
-    default:
-      return { budgetMin: 2000000, budgetMax: 5000000 };
-  }
-}
 
 function LandingPage({ onStart, hasSaved, onResume, onClear }: {
   onStart: () => void;
@@ -1445,12 +1420,12 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
       </div>
 
       <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight text-center">
-        창업,<br className="sm:hidden" /> 어디서 해야 성공할까?
+        3가지만 알려주면<br className="sm:hidden" /> 맞춤 상권을 추천합니다
       </h1>
       <p className="text-gray-500 max-w-sm mx-auto text-center mb-2 text-sm leading-relaxed">
-        서울시 1,077개 상권 · 6년간 데이터를<br />AI가 분석해 맞춤 추천합니다.
+        서울시 1,077개 상권 · 6년간 데이터를<br />AI가 분석해 즉시 결과를 보여드립니다.
       </p>
-      <p className="text-xs text-gray-400 mb-10">몇 가지 질문에 답하면 바로 시작됩니다</p>
+      <p className="text-xs text-gray-400 mb-10">업종, 지역, 예산 3단계면 바로 추천 결과를 확인하세요</p>
 
       <div className="flex flex-col items-center gap-3">
         <button
@@ -1478,7 +1453,7 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
                 "active:scale-[0.98] transition-all duration-200"
               )}
             >
-              이전 분석 이어하기
+              이전 분석 결과 보기
               {savedLabel && (
                 <span className="ml-2 text-xs text-slate-400">{savedLabel}</span>
               )}
@@ -1497,9 +1472,10 @@ function LandingPage({ onStart, hasSaved, onResume, onClear }: {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode | null>(null);
-  const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
-  const [initialSearchParams, setInitialSearchParams] = useState<{
+  const [initialQuery] = useState<string | undefined>(undefined);
+  const [initialSearchParams] = useState<{
     budgetMin: number;
     budgetMax: number;
     district?: string;
@@ -1515,30 +1491,30 @@ export default function Page() {
 
   const completeOnboarding = (data: OnboardingData) => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+      window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
       if (data.industryCode) {
         window.localStorage.setItem("builder_curation_industry_code", data.industryCode);
       }
-      const { budgetMin, budgetMax } = rentDefaultsFromOnboarding(data.budget);
+      // Save budget range in 만원 units
+      window.localStorage.setItem("builder_curation_budget_min", String(data.budgetMin));
+      window.localStorage.setItem("builder_curation_budget_max", String(data.budgetMax));
+      // Legacy rent keys (cleared)
+      window.localStorage.removeItem("builder_curation_rent_min");
+      window.localStorage.removeItem("builder_curation_rent_max");
+      // Save districts as comma-separated
+      window.localStorage.setItem("builder_curation_districts", data.districts.join(","));
       window.localStorage.setItem(
         ONBOARDING_CONTEXT_KEY,
         JSON.stringify({
-          district: data.district,
-          budget_min: budgetMin,
-          budget_max: budgetMax,
-          cafe_type: data.cafeType,
-          target: data.target,
+          districts: data.districts,
+          budget_min: data.budgetMin,
+          budget_max: data.budgetMax,
           industry_code: data.industryCode || "CS100010",
         })
       );
-      setInitialSearchParams({
-        budgetMin,
-        budgetMax,
-        district: data.district || undefined,
-      });
-      setInitialQuery(buildAutoQuery(data));
     }
-    setMode("chat");
+    // Redirect to results dashboard
+    router.push("/results");
   };
 
   if (mode === null) {
@@ -1552,23 +1528,7 @@ export default function Page() {
         onStart={() => setMode("onboarding")}
         hasSaved={hasSavedSession}
         onResume={() => {
-          if (typeof window !== "undefined") {
-            try {
-              const raw = window.localStorage.getItem(ONBOARDING_CONTEXT_KEY);
-              if (raw) {
-                const ctx = JSON.parse(raw);
-                setInitialSearchParams({
-                  budgetMin: ctx.budget_min ?? 2000000,
-                  budgetMax: ctx.budget_max ?? 5000000,
-                  district: ctx.district || undefined,
-                });
-                setInitialQuery(
-                  `서울 ${ctx.district || ""}에서 월세 ${Math.round((ctx.budget_min ?? 2000000) / 10000)}~${Math.round((ctx.budget_max ?? 5000000) / 10000)}만원 ${ctx.industry_code ? (INDUSTRY_NAMES[ctx.industry_code] || "창업") : "창업"} 추천해줘`.trim()
-                );
-              }
-            } catch { /* parse error */ }
-          }
-          setMode("chat");
+          router.push("/results");
         }}
         onClear={() => {
           if (typeof window !== "undefined") {
@@ -1587,10 +1547,10 @@ export default function Page() {
         onComplete={completeOnboarding}
         onSkip={() => {
           if (typeof window !== "undefined") {
-            window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+            window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
             window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
           }
-          setMode("chat");
+          router.push("/results");
         }}
       />
     );

@@ -58,15 +58,11 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        # Production: add your deployed frontend domain(s) here
-        allow_origins=[
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3000",
-        ],
-        allow_credentials=True,
+        # Dev mode: allow all origins. For production, restrict to deployed domain(s).
+        allow_origins=["*"],
+        allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["*"],
     )
 
     @app.middleware("http")
@@ -119,6 +115,15 @@ def create_app() -> FastAPI:
 
     kosis_router = cast(APIRouter, import_module("api.routes.kosis").router)
     app.include_router(kosis_router, prefix="/api/v1", tags=["KOSIS"])
+
+    income_router = cast(APIRouter, import_module("api.routes.income").router)
+    app.include_router(income_router, prefix="/api/v1", tags=["Income"])
+
+    report_router = cast(APIRouter, import_module("api.routes.report").router)
+    app.include_router(report_router, prefix="/api/v1", tags=["Report"])
+
+    dashboard_router = cast(APIRouter, import_module("api.routes.dashboard").router)
+    app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
 
     return app
 

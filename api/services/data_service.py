@@ -42,13 +42,54 @@ def _parse_rent_ranges(config: dict[str, Any]) -> dict[str, tuple[int, int, int,
     return result or _DEFAULT_RENT_RANGES
 
 
+def _get_krei_rent_ranges(
+    industry_code: str,
+) -> dict[str, tuple[int, int, int, int, int]] | None:
+    """KREI 원시자료에서 업종별 · 상권유형별 임대료 분위수를 5구간 튜플로 변환."""
+    try:
+        from api.services.krei_data_service import get_rent_benchmark
+
+        result: dict[str, tuple[int, int, int, int, int]] = {}
+        for dt in ("골목상권", "발달상권", "전통시장", "관광특구"):
+            bm = get_rent_benchmark(industry_code, district_type=dt, seoul_only=True)
+            if bm and bm.get("n", 0) >= 10:
+                # 만원 → 원 변환
+                p25 = int(bm.get("monthly_rent_p25", 0) * 10_000)
+                med = int(bm.get("monthly_rent_median", 0) * 10_000)
+                p75 = int(bm.get("monthly_rent_p75", 0) * 10_000)
+                # p5 ≈ p25*0.5, p95 ≈ p75*1.5 (외삽)
+                p5 = max(int(p25 * 0.5), 300_000)
+                p95 = int(p75 * 1.5)
+                result[dt] = (p5, p25, med, p75, p95)
+
+        return result if result else None
+    except Exception:
+        return None
+
+
+# KREI 기반 임대료 범위 캐시 (업종별)
+_krei_rent_cache: dict[str, dict[str, tuple[int, int, int, int, int]] | None] = {}
+
+
 def estimate_rent(
     district_type: str,
     sales_per_store: int,
     percentile_rank: float,
     rent_ranges: dict[str, tuple[int, int, int, int, int]] | None = None,
+    industry_code: str | None = None,
 ) -> int:
-    """Estimate monthly rent based on district type and sales percentile rank (0.0-1.0)."""
+    """Estimate monthly rent based on district type and sales percentile rank (0.0-1.0).
+
+    KREI 원시자료 → config RENT_RANGES → 기본값 순 폴백.
+    """
+    # KREI 데이터 우선 시도 (industry_code 있을 때)
+    if rent_ranges is None and industry_code:
+        if industry_code not in _krei_rent_cache:
+            _krei_rent_cache[industry_code] = _get_krei_rent_ranges(industry_code)
+        krei = _krei_rent_cache[industry_code]
+        if krei and district_type in krei:
+            rent_ranges = krei
+
     ranges = rent_ranges or _DEFAULT_RENT_RANGES
     r = ranges.get(district_type, ranges.get("골목상권", _DEFAULT_RENT_RANGES["골목상권"]))
     if percentile_rank <= 0.25:
@@ -300,7 +341,7 @@ class DataService:
         for d in self.districts:
             sales_per_store = int(d["monthly_sales"] / max(1, d.get("store_count", 1)))
             pctile = self._sales_percentile.get(d["district_code"], 0.5)
-            estimated_rent = estimate_rent(d["district_type"], sales_per_store, pctile, self._rent_ranges)
+            estimated_rent = estimate_rent(d["district_type"], sales_per_store, pctile, self._rent_ranges, industry_code=self.industry_code)
 
             if estimated_rent > budget_max:
                 continue

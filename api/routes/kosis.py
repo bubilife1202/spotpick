@@ -94,6 +94,28 @@ async def get_benchmark(industry_code: str):
         )
 
 
+@router.get("/single-household")
+async def get_single_household(region: str = "서울특별시"):
+    """지역별 1인가구 비율 (KOSIS 장래가구추계)"""
+    from api.services.kosis_data_service import get_single_household_ratio
+
+    try:
+        result = await get_single_household_ratio(region)
+        if result is None:
+            return {
+                "region": region,
+                "available": False,
+                "message": "해당 지역의 1인가구 데이터가 없습니다.",
+            }
+        return {"region": region, "available": True, **result}
+    except Exception as e:
+        logger.error("KOSIS single-household error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="KOSIS 1인가구 데이터 조회 중 오류가 발생했습니다.",
+        )
+
+
 @router.get("/health")
 async def health():
     """KOSIS API 헬스체크"""

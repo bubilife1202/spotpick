@@ -104,6 +104,7 @@ class RecommendationCardData(BaseModel):
     positioning: Optional[str] = Field(None)
     positioning_detail: Optional[str] = Field(None)
     purchasing_power: Optional[float] = Field(None)
+    income_info: Optional[dict[str, object]] = Field(None, description="소득소비 데이터")
 
 
 class StructuredChatResponse(BaseModel):

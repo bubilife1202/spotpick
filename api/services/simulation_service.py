@@ -225,64 +225,133 @@ class SimulationService:
             self._percentiles[dt] = (p25, p50, p75)
 
     # -----------------------------------------------------------------------
-    # KOSIS 데이터로 원가율 보강 (최초 1회만 실행)
+    # KREI 원시자료 → KOSIS API 폴백 체인으로 원가율 보강 (최초 1회)
     # -----------------------------------------------------------------------
 
     async def _enrich_with_kosis(self) -> None:
-        """KOSIS 외식업체경영실태조사 데이터로 원가율을 실측치로 대체."""
+        """KREI 원시자료 우선, KOSIS API 폴백으로 원가율을 실측치로 대체."""
         if self._kosis_enriched:
             return
 
         self._kosis_enriched = True  # 실패해도 재시도 방지
 
+        # --- 1단계: KREI 원시자료 ---
+        krei_ok = self._try_krei_enrichment()
+        if krei_ok:
+            return
+
+        # --- 2단계: KOSIS API 폴백 ---
+        await self._try_kosis_enrichment()
+
+    def _try_krei_enrichment(self) -> bool:
+        """KREI 원시자료 데이터로 원가율 보강. 성공하면 True."""
+        try:
+            from api.services.krei_data_service import (
+                get_cost_ratios,
+                get_startup_investment,
+                get_avg_area,
+            )
+
+            cost = get_cost_ratios(self.industry_code, seoul_only=True)
+            if cost is None or cost.get("n", 0) < 5:
+                logger.info("KREI 데이터 부족 — KOSIS 폴백 (%s)", self.industry_code)
+                return False
+
+            updated = False
+            n = cost.get("n", 0)
+
+            # 식재료비 비율 → _cogs_ratio (% → 소수)
+            if cost.get("food_pct"):
+                self._cogs_ratio = round(cost["food_pct"] / 100.0, 4)
+                updated = True
+                logger.info(
+                    "KREI 식재료비 비율 적용: %.1f%% (%s)",
+                    cost["food_pct"], self.industry_code,
+                )
+
+            # 인건비 비율 → DISTRICT_TYPE_FACTORS의 labor_ratio
+            if cost.get("labor_pct"):
+                krei_labor = cost["labor_pct"] / 100.0
+                for dt_name, factors in self._district_type_factors.items():
+                    original = factors.get("labor_ratio", 0.25)
+                    delta = original - 0.25
+                    factors["labor_ratio"] = round(krei_labor + delta, 4)
+                updated = True
+                logger.info(
+                    "KREI 인건비 비율 적용: %.1f%% (기준) (%s)",
+                    cost["labor_pct"], self.industry_code,
+                )
+
+            # 임차료 비율 (참고용)
+            if cost.get("rent_pct"):
+                self._rent_ratio = round(cost["rent_pct"] / 100.0, 4)
+                updated = True
+
+            # 영업이익률
+            if cost.get("profit_pct") is not None:
+                self._kosis_profit_margin = round(cost["profit_pct"] / 100.0, 4)
+                updated = True
+
+            # 인테리어 단가 보강 (KREI 투자비 ÷ 평균면적)
+            invest = get_startup_investment(self.industry_code, seoul_only=True)
+            avg_area = get_avg_area(self.industry_code, seoul_only=True)
+            if invest and avg_area and avg_area > 0 and invest.get("interior"):
+                interior_man = invest["interior"]  # 만원
+                interior_per_pyeong = int(interior_man * 10_000 / avg_area)
+                for dt_name, factors in self._district_type_factors.items():
+                    factors["interior_per_pyeong"] = interior_per_pyeong
+                updated = True
+                logger.info(
+                    "KREI 인테리어 단가 적용: %s원/평 (%s)",
+                    f"{interior_per_pyeong:,}", self.industry_code,
+                )
+
+            if updated:
+                self._cost_data_source = f"KREI 외식업체경영실태조사 2023 (n={n})"
+                logger.info("KREI 원가구조 반영 완료 (%s)", self.industry_code)
+                return True
+
+        except Exception as e:
+            logger.warning("KREI 보강 실패: %s", e)
+
+        return False
+
+    async def _try_kosis_enrichment(self) -> None:
+        """KOSIS API 폴백으로 원가율 보강."""
         try:
             from api.services.kosis_data_service import get_cost_structure
 
             cost = await get_cost_structure(self.industry_code)
             if cost is None:
-                logger.info("KOSIS 데이터 없음 — config 기본값 사용 (%s)", self.industry_code)
+                logger.info("KOSIS 데이터도 없음 — config 기본값 사용 (%s)", self.industry_code)
                 return
 
             updated = False
 
-            # 식재료비 비율 → _cogs_ratio
             if cost.get("food_cost_ratio"):
                 self._cogs_ratio = cost["food_cost_ratio"]
                 updated = True
-                logger.info(
-                    "KOSIS 식재료비 비율 적용: %.1f%% (%s)",
-                    self._cogs_ratio * 100, self.industry_code,
-                )
 
-            # 인건비 비율 → DISTRICT_TYPE_FACTORS의 labor_ratio
             if cost.get("labor_cost_ratio"):
                 kosis_labor = cost["labor_cost_ratio"]
-                # 상권 유형별 보정 계수를 유지하되, 기준값을 KOSIS로 대체
                 for dt_name, factors in self._district_type_factors.items():
                     original = factors.get("labor_ratio", 0.25)
-                    # 기존 기본값(0.25) 대비 각 상권 유형의 편차를 유지
                     delta = original - 0.25
                     factors["labor_ratio"] = round(kosis_labor + delta, 4)
                 updated = True
-                logger.info(
-                    "KOSIS 인건비 비율 적용: %.1f%% (기준) (%s)",
-                    kosis_labor * 100, self.industry_code,
-                )
 
-            # 임차료 비율 (참고용 — 시뮬레이션은 실제 임대료 추정값 사용)
             if cost.get("rent_ratio"):
-                self._rent_ratio: float = cost["rent_ratio"]
+                self._rent_ratio = cost["rent_ratio"]
                 updated = True
 
-            # 영업이익률
             if cost.get("profit_margin"):
-                self._kosis_profit_margin: float = cost["profit_margin"]
+                self._kosis_profit_margin = cost["profit_margin"]
                 updated = True
 
             if updated:
                 year = cost.get("year", "2023")
                 self._cost_data_source = f"KOSIS 외식업체경영실태조사 {year}"
-                logger.info("KOSIS 원가구조 반영 완료 (%s)", self.industry_code)
+                logger.info("KOSIS 원가구조 반영 완료 (폴백) (%s)", self.industry_code)
 
         except Exception as e:
             logger.warning("KOSIS 보강 실패 (config 기본값 사용): %s", e)
@@ -361,6 +430,17 @@ class SimulationService:
 
         eq_min = sum(lo for lo, _ in self._equipment_cost.values())
         eq_max = sum(hi for _, hi in self._equipment_cost.values())
+
+        # KREI 투자비 데이터로 보강 (deposit 보정)
+        try:
+            from api.services.krei_data_service import get_rent_benchmark
+            rent_bm = get_rent_benchmark(self.industry_code, district_type, seoul_only=True)
+            if rent_bm and rent_bm.get("deposit_median"):
+                krei_deposit = int(rent_bm["deposit_median"] * 10_000)  # 만원 → 원
+                # KREI 보증금과 계산 보증금 중 더 신뢰할 수 있는 값 사용
+                deposit = krei_deposit
+        except Exception:
+            pass
 
         return StartupCost(
             deposit=deposit,
@@ -503,7 +583,7 @@ class SimulationService:
         sc = max(1, district.get("store_count", 1))
         sps = int(district["monthly_sales"] / sc)
         pctile = self.data_service._sales_percentile.get(district["district_code"], 0.5)
-        estimated_rent = estimate_rent(district["district_type"], sps, pctile)
+        estimated_rent = estimate_rent(district["district_type"], sps, pctile, industry_code=self.industry_code)
 
         revenue = self.estimate_revenue(district)
         startup = self.estimate_startup_cost(

@@ -82,6 +82,19 @@ function RecommendationCards({
               <span>피크 {rec.peak_time}</span>
               <span>•</span>
               <span>주 고객 {rec.main_age_group}</span>
+              {rec.income_info && (
+                <>
+                  <span>•</span>
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded font-medium",
+                    rec.income_info.income_level === "상" ? "bg-emerald-100 text-emerald-700" :
+                    rec.income_info.income_level === "중" ? "bg-blue-100 text-blue-700" :
+                    "bg-gray-100 text-gray-600"
+                  )}>
+                    소득 {rec.income_info.income_level}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         ))}

@@ -11,11 +11,12 @@ import { sendStructuredChatMessage, GLOSSARY } from "@/lib/chat-api";
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { MapMarker } from "@/components/MiniMap";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { getStoredIndustry } from "@/lib/onboarding-utils";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 interface DistrictSearchResult {
   code: string;
@@ -54,6 +55,9 @@ const MiniMap = dynamic(
     ),
   }
 );
+
+// 보고서 페이지로 이동한 무거운 섹션들 — false로 두면 채팅에서 숨김
+const SHOW_DETAIL_SECTIONS = false;
 
 export default function ChatPage() {
   const router = useRouter();
@@ -582,7 +586,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               </span>
                                             )}
                                           </div>
-                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator) && (
+                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator || rec.single_household_ratio || rec.income_info) && (
                                             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                               {rec.foot_traffic_total ? (
                                                 <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 font-medium">
@@ -619,6 +623,21 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                                   🚇 교통 {rec.transit_percentile > 0.8 ? '우수' : rec.transit_percentile > 0.4 ? '양호' : '보통'}
                                                 </span>
                                               )}
+                                              {rec.single_household_ratio != null && rec.single_household_ratio > 0.35 && (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-50 text-orange-600 font-medium">
+                                                  🏠 1인가구 {(rec.single_household_ratio * 100).toFixed(0)}%
+                                                </span>
+                                              )}
+                                              {rec.income_info && (
+                                                <span className={cn(
+                                                  "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                                  rec.income_info.income_level === "상" ? "bg-emerald-50 text-emerald-600" :
+                                                  rec.income_info.income_level === "중" ? "bg-blue-50 text-blue-600" :
+                                                  "bg-slate-50 text-slate-500"
+                                                )}>
+                                                  💰 소득 {rec.income_info.income_level}
+                                                </span>
+                                              )}
                                             </div>
                                           )}
                                           {rec.positioning && (
@@ -636,6 +655,15 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               <ScorecardCard scorecard={rec.scorecard} />
                                             </div>
                                           )}
+                                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-end">
+                                            <Link
+                                              href={`/report?district_code=${rec.district_code}&industry_code=${industry.code}`}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                                            >
+                                              상세 보고서 보기 →
+                                            </Link>
+                                          </div>
                                         </div>
                                       );
                                     })}
@@ -682,7 +710,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             );
                           })()}
 
-                          {message.structured?.charts && message.structured.charts.length > 0 && (
+                          {/* 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.charts && message.structured.charts.length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                 <BarChart3 size={12} className="text-blue-500" />
@@ -714,7 +743,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.competitive && (
+                          {/* 경쟁분석 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.competitive && (
                             <div className={cn("mt-3 p-3 rounded-xl", "bg-white/70 border border-slate-200/60", "space-y-2.5")}>
                               <div className="flex items-center gap-2">
                                 <Store size={14} className="text-amber-600" />
@@ -768,7 +798,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.simulation && (() => {
+                          {/* 시뮬레이션 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.simulation && (() => {
                             const sim = message.structured!.simulation;
                             const startup = sim.startup_cost;
                             const operating = sim.operating_cost;
@@ -946,7 +977,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             );
                           })()}
 
-                          {message.structured?.timeline && (
+                          {/* 타임라인 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.timeline && (
                             <div className="space-y-3">
                               <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                                 <CalendarDays size={16} className="text-teal-500" />
@@ -978,7 +1010,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             </div>
                           )}
 
-                          {message.structured?.trademark && (
+                          {/* 상표충돌 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
+                          {SHOW_DETAIL_SECTIONS && message.structured?.trademark && (
                             <div className={cn(
                               "mt-3 p-3 rounded-xl border space-y-2",
                               message.structured.trademark.risk_level === "high" ? "bg-rose-50 border-rose-200" :

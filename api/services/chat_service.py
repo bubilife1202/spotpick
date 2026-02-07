@@ -144,6 +144,7 @@ class StructuredRecommendation(TypedDict):
     positioning: str
     positioning_detail: str
     purchasing_power: float
+    income_info: Optional[dict[str, object]]
     scorecard: Optional[dict[str, object]]
 
 
@@ -417,7 +418,7 @@ class ChatService:
             store_count = int(sc) if isinstance(sc, (int, float)) and sc else 1
             sales_per_store = int(int(ms) / max(1, store_count))
             pctile = self.data_service._sales_percentile.get(str(dc), 0.5) if dc else 0.5
-            return estimate_rent(str(dt), sales_per_store, pctile)
+            return estimate_rent(str(dt), sales_per_store, pctile, industry_code=self.industry_code)
         except Exception:
             return None
 
@@ -739,7 +740,8 @@ class ChatService:
             monthly_sales_per_store = int(d["monthly_sales"] / max(1, sc))
             sales_pct = self.data_service._sales_percentile.get(d["district_code"], 0.5)
             estimated_rent = estimate_rent(
-                d["district_type"], monthly_sales_per_store, sales_pct, self.data_service._rent_ranges
+                d["district_type"], monthly_sales_per_store, sales_pct, self.data_service._rent_ranges,
+                industry_code=self.industry_code,
             )
 
             scorecard_result = sc_svc.score_district(d)
@@ -1946,6 +1948,8 @@ class ChatService:
                         "positioning": r.get("positioning", ""),
                         "positioning_detail": r.get("positioning_detail", ""),
                         "purchasing_power": r.get("purchasing_power", 0),
+                        "single_household_ratio": None,
+                        "income_info": None,
                         "scorecard": None,
                     }
                 )
@@ -1959,6 +1963,24 @@ class ChatService:
                     district_raw = self.data_service.get_district(r["district_code"])
                     if district_raw:
                         structured_recommendations[-1]["scorecard"] = sc_svc.score_district(district_raw)
+                except Exception:
+                    pass
+
+                # Attach 1인가구 비율 (서울 전체)
+                try:
+                    from api.services.kosis_data_service import get_single_household_ratio
+                    household = await get_single_household_ratio("서울특별시")
+                    if household:
+                        structured_recommendations[-1]["single_household_ratio"] = household["ratio"]
+                except Exception:
+                    pass
+
+                # Attach 소득소비 데이터 (상권별)
+                try:
+                    from api.services.income_data_service import get_district_income_info
+                    income = await get_district_income_info(r["district_code"])
+                    if income:
+                        structured_recommendations[-1]["income_info"] = income
                 except Exception:
                     pass
 
