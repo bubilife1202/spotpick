@@ -18,7 +18,9 @@ import {
   CheckCircle,
   XCircle,
   Download,
+  SlidersHorizontal,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { ChatChartSection } from "@/components/ChatChart";
@@ -1020,29 +1022,26 @@ function ReportContent() {
 
         {/* Bottom CTA */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-4">
-          {/* PDF download hidden — endpoint not yet implemented */}
-          {false && (
-            <button
-              onClick={handlePDFDownload}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-            >
-              <FileText size={16} />
-              PDF 다운로드
-            </button>
-          )}
+          <Link
+            href={`/simulator?district_code=${districtCode}&industry_code=${industryCode}`}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-medium shadow-sm"
+          >
+            <SlidersHorizontal size={16} />
+            시뮬레이션
+          </Link>
+          <Link
+            href={`/business-plan?district_code=${districtCode}&industry_code=${industryCode}`}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all font-medium shadow-sm"
+          >
+            <FileText size={16} />
+            사업계획서
+          </Link>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/results")}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
           >
             <RefreshCw size={16} />
             다른 상권 보기
-          </button>
-          <button
-            onClick={() => router.back()}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
-          >
-            <MessageCircle size={16} />
-            채팅으로 돌아가기
           </button>
         </div>
       </div>

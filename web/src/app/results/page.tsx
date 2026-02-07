@@ -453,9 +453,25 @@ function ResultCard({
           className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md hover:from-blue-600 hover:to-indigo-700 transition-all"
         >
           <FileText size={14} />
-          보고서 보기
+          상세 보고서
           <ChevronRight size={14} />
         </Link>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Link
+            href={`/simulator?district_code=${result.district_code}&industry_code=${industryCode}`}
+            className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
+          >
+            <SlidersHorizontal size={12} />
+            시뮬레이션
+          </Link>
+          <Link
+            href={`/business-plan?district_code=${result.district_code}&industry_code=${industryCode}`}
+            className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
+          >
+            <FileText size={12} />
+            사업계획서
+          </Link>
+        </div>
       </div>
     </div>
   );
