@@ -1,14 +1,18 @@
 """
 PDF 리포트 생성 서비스 — McKinsey 컨설팅 보고서 품질
-Playwright 기반 HTML→PDF 변환 / SVG 인포그래픽 / 전문 데이터 시각화
+Playwright 기반 HTML→PDF 변환 / SVG 인포그래픽 / AI 분석 코멘터리
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import math
+import os
 from typing import Any, Optional
 from datetime import datetime
+from html import escape as html_escape
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +20,19 @@ try:
     from playwright.async_api import async_playwright
 except ImportError:
     async_playwright = None  # type: ignore[assignment]
+
+try:
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
+    load_dotenv(Path(__file__).parent.parent.parent / ".env")
+except Exception:
+    pass
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+try:
+    from google import genai  # type: ignore[import-not-found]
+except Exception:
+    genai = None  # type: ignore[assignment]
 
 # ─── Monochromatic Blue Scale ────────────────────────────────────────────────
 B1 = "#1B2A4A"   # darkest navy
@@ -51,6 +68,95 @@ class PDFService:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
+    async def _generate_ai_analysis(self, data: dict[str, Any], industry_name: str) -> dict[str, str]:
+        """Gemini를 호출하여 각 섹션별 컨설팅 분석 코멘터리 생성"""
+        if not GEMINI_API_KEY or genai is None:
+            logger.warning("Gemini API 미설정 — AI 분석 생략")
+            return {}
+
+        recs = data.get("recommendations", [])
+        charts = data.get("charts", [])
+        comp = data.get("competitive")
+        sim = data.get("simulation")
+        timeline = data.get("timeline")
+        trend = data.get("trend")
+        programs = data.get("support_programs", [])
+
+        # 섹션별 데이터 요약
+        summary_parts = []
+        if recs:
+            top3 = [{"name": r.get("district_name"), "success_prob": r.get("success_probability"),
+                      "monthly_sales": r.get("monthly_sales"), "store_count": r.get("store_count"),
+                      "survival_rate": r.get("survival_rate"), "foot_traffic": r.get("foot_traffic_total"),
+                      "worker": r.get("worker_total"), "rent": r.get("estimated_rent")} for r in recs[:3]]
+            summary_parts.append(f"[추천상권] {json.dumps(top3, ensure_ascii=False)}")
+        if charts:
+            chart_summary = [{"type": c.get("type"), "data": c.get("data", [])[:6]} for c in charts[:3]]
+            summary_parts.append(f"[시장데이터] {json.dumps(chart_summary, ensure_ascii=False)}")
+        if sim:
+            sim_brief = {
+                "monthly_sales": sim.get("revenue", {}).get("monthly_sales_per_store"),
+                "net_profit": sim.get("break_even", {}).get("monthly_net_profit"),
+                "margin": sim.get("break_even", {}).get("net_profit_margin"),
+                "break_even_months": sim.get("break_even", {}).get("break_even_months_min"),
+                "total_investment": sim.get("startup_cost", {}).get("total_min"),
+                "rent": sim.get("operating_cost", {}).get("rent"),
+                "store_count": sim.get("competition", {}).get("store_count"),
+                "franchise_ratio": sim.get("competition", {}).get("franchise_ratio"),
+                "survival_rate": sim.get("competition", {}).get("survival_rate"),
+            }
+            summary_parts.append(f"[시뮬레이션] {json.dumps(sim_brief, ensure_ascii=False)}")
+        if comp:
+            comp_brief = {
+                "total": comp.get("total_nearby_cafes"),
+                "types": [{"type": t.get("type"), "ratio": t.get("ratio")} for t in comp.get("cafe_types", [])[:5]],
+                "gaps": [g.get("gap_type") for g in comp.get("market_gaps", [])[:3]],
+            }
+            summary_parts.append(f"[경쟁분석] {json.dumps(comp_brief, ensure_ascii=False)}")
+        if trend and trend.get("trends"):
+            trend_brief = [{"keyword": t.get("keyword"), "avg": t.get("average_ratio")} for t in trend.get("trends", [])[:3]]
+            summary_parts.append(f"[트렌드] {json.dumps(trend_brief, ensure_ascii=False)}")
+
+        data_text = "\n".join(summary_parts)
+
+        prompt = f"""당신은 맥킨지 수석 컨설턴트입니다. 아래 {industry_name} 창업 분석 데이터를 보고, 각 섹션별로 전문적인 컨설팅 분석을 작성하세요.
+
+데이터:
+{data_text}
+
+아래 7개 섹션에 대해 각각 정확히 2-3문장으로 작성하세요.
+각 분석은 반드시 (1) 데이터에서 도출한 핵심 인사이트 (So What?) + (2) 구체적 행동 제안 (Implication)을 포함해야 합니다.
+숫자를 적극 인용하고, "~할 수 있습니다", "~이 필요합니다" 등 행동 지향적으로 작성하세요.
+
+다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
+{{
+  "executive_summary": "...",
+  "market": "...",
+  "location": "...",
+  "simulation": "...",
+  "competitive": "...",
+  "risk": "...",
+  "trend": "..."
+}}"""
+
+        try:
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            text = response.text or ""
+            # JSON 추출
+            text = text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            result = json.loads(text)
+            logger.info("AI 분석 코멘터리 생성 완료")
+            return result
+        except Exception as e:
+            logger.error(f"AI 분석 생성 실패: {e}", exc_info=True)
+            return {}
+
     async def generate_report_pdf(
         self,
         conversation_data: dict[str, Any],
@@ -59,7 +165,10 @@ class PDFService:
         if async_playwright is None:
             raise RuntimeError("playwright 미설치")
 
-        html = self._build_html(conversation_data, industry_name)
+        # AI 분석 코멘터리 생성
+        ai_analysis = await self._generate_ai_analysis(conversation_data, industry_name)
+
+        html = self._build_html(conversation_data, industry_name, ai_analysis)
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -409,6 +518,21 @@ class PDFService:
             <div style="font-size:9.5px; color:{NAVY}; line-height:1.55; font-family:sans-serif;">{text}</div>
         </div>'''
 
+    def _ai_analysis_box(self, text: str) -> str:
+        """AI 컨설턴트 분석 코멘터리 박스 — So What? + Implication"""
+        if not text:
+            return ""
+        escaped = html_escape(text)
+        return f'''<div style="margin:14px 0; padding:12px 16px; background:linear-gradient(135deg, #F0F4FA 0%, #E8EEF6 100%); border-left:4px solid {NAVY}; border-radius:0 6px 6px 0; box-shadow:0 1px 3px rgba(27,42,74,0.08);">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:5px;">
+                <div style="width:18px; height:18px; background:{NAVY}; border-radius:4px; display:flex; align-items:center; justify-content:center;">
+                    <span style="font-size:9px; font-weight:800; color:{WHITE}; font-family:sans-serif;">AI</span>
+                </div>
+                <span style="font-size:8px; font-weight:700; color:{NAVY}; text-transform:uppercase; letter-spacing:1px; font-family:sans-serif;">Consultant Analysis</span>
+            </div>
+            <div style="font-size:9.5px; color:{GRAY_900}; line-height:1.65; font-family:sans-serif;">{escaped}</div>
+        </div>'''
+
     def _severity_badge(self, level: str) -> str:
         level_lower = level.lower() if level else "medium"
         if level_lower in ("high", "높음"):
@@ -421,7 +545,7 @@ class PDFService:
     # Main HTML Builder
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _build_html(self, data: dict[str, Any], industry_name: str) -> str:
+    def _build_html(self, data: dict[str, Any], industry_name: str, ai_analysis: dict[str, str] | None = None) -> str:
         now = datetime.now()
         date_full = now.strftime("%Y년 %m월 %d일")
         date_short = now.strftime("%Y.%m.%d")
@@ -434,6 +558,8 @@ class PDFService:
         timeline = data.get("timeline")
         trend = data.get("trend")
         programs = data.get("support_programs", [])
+
+        ai = ai_analysis or {}
 
         pages = []
         page_num = 0
@@ -448,26 +574,26 @@ class PDFService:
 
         # Page 3: Executive Summary
         page_num = 3
-        pages.append(self._page_exec_summary(recs, sim, comp, ctx, industry_name, date_short, page_num))
+        pages.append(self._page_exec_summary(recs, sim, comp, ctx, industry_name, date_short, page_num, ai_text=ai.get("executive_summary", "")))
 
         sec_num = 1
         page_num = 4
 
         # Page 4: Market Analysis
         if charts:
-            pages.append(self._page_market(charts, recs, sec_num, date_short, page_num))
+            pages.append(self._page_market(charts, recs, sec_num, date_short, page_num, ai_text=ai.get("market", "")))
             sec_num += 1
             page_num += 1
 
         # Page 5: Location Analysis
         if recs:
-            pages.append(self._page_location(recs, sec_num, date_short, page_num))
+            pages.append(self._page_location(recs, sec_num, date_short, page_num, ai_text=ai.get("location", "")))
             sec_num += 1
             page_num += 1
 
         # Page 6: Financial Simulation — Revenue & P&L
         if sim:
-            pages.append(self._page_sim_revenue(sim, sec_num, date_short, page_num))
+            pages.append(self._page_sim_revenue(sim, sec_num, date_short, page_num, ai_text=ai.get("simulation", "")))
             page_num += 1
             # Page 7: Financial Simulation — Investment & Costs
             pages.append(self._page_sim_costs(sim, sec_num, date_short, page_num))
@@ -476,13 +602,13 @@ class PDFService:
 
         # Page 8: Competitive Analysis
         if comp:
-            pages.append(self._page_competitive(comp, sec_num, date_short, page_num))
+            pages.append(self._page_competitive(comp, sec_num, date_short, page_num, ai_text=ai.get("competitive", "")))
             sec_num += 1
             page_num += 1
 
         # Page 9: Risk Assessment
         if sim or recs:
-            pages.append(self._page_risk(sim, recs, sec_num, date_short, page_num))
+            pages.append(self._page_risk(sim, recs, sec_num, date_short, page_num, ai_text=ai.get("risk", "")))
             sec_num += 1
             page_num += 1
 
@@ -494,7 +620,7 @@ class PDFService:
 
         # Page 11: Trend Analysis
         if trend and trend.get("trends"):
-            pages.append(self._page_trend(trend, sec_num, date_short, page_num))
+            pages.append(self._page_trend(trend, sec_num, date_short, page_num, ai_text=ai.get("trend", "")))
             sec_num += 1
             page_num += 1
 
@@ -602,6 +728,24 @@ svg {{ display:block; }}
         items.append({"title": "Disclaimer", "page": p})
         return items
 
+    def _location_overview(self, recs: list) -> str:
+        """추천 상권 위치 개요 — 시각적 카드"""
+        if not recs:
+            return ""
+        cards = ""
+        for i, rec in enumerate(recs[:3]):
+            name = html_escape(rec.get("district_name", ""))
+            dtype = html_escape(rec.get("district_type", ""))
+            prob = rec.get("success_probability", 0)
+            color = [B1, B2, B3][i]
+            cards += f'''<div style="flex:1; padding:10px; background:{WHITE}; border-radius:6px; border:1px solid {GRAY_200}; text-align:center;">
+            <div style="width:32px; height:32px; background:{color}; color:{WHITE}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; font-family:sans-serif; margin:0 auto 6px;">{i+1}</div>
+            <div style="font-size:11px; font-weight:700; color:{NAVY}; font-family:sans-serif;">{name}</div>
+            <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif; margin-top:2px;">{dtype}</div>
+            <div style="font-size:13px; font-weight:800; color:{color}; font-family:sans-serif; margin-top:4px;">{prob:.1f}%</div>
+        </div>'''
+        return f'<div style="display:flex; gap:10px; margin-bottom:14px;">{cards}</div>'
+
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Cover
     # ═══════════════════════════════════════════════════════════════════════════
@@ -674,7 +818,7 @@ svg {{ display:block; }}
     # Page: Executive Summary
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_exec_summary(self, recs: list, sim: dict, comp: dict, ctx: dict, industry_name: str, date_short: str, page_num: int) -> str:
+    def _page_exec_summary(self, recs: list, sim: dict, comp: dict, ctx: dict, industry_name: str, date_short: str, page_num: int, ai_text: str = "") -> str:
         top = recs[0] if recs else {}
         top_district = top.get("district_name", "-")
         success_prob = top.get("success_probability", 0)
@@ -753,6 +897,8 @@ svg {{ display:block; }}
 
             {self._insight_box("RECOMMENDATION", f"{top_district} 상권은 매출 잠재력, 유동인구, 경쟁 강도를 종합적으로 고려할 때 가장 유망한 입지입니다. {industry_name} 창업 시 스페셜티/브런치 등 차별화 전략과 함께 피크타임 외 매출 확대 방안을 병행할 것을 권고합니다.")}
 
+            {self._ai_analysis_box(ai_text)}
+
             <div style="margin-top:auto; padding:10px 14px; background:{GRAY_50}; border-radius:6px; border:1px solid {GRAY_200};">
                 <div style="font-size:8px; font-weight:700; color:{GRAY_500}; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; font-family:sans-serif;">분석 범위 (Scope)</div>
                 <div style="display:flex; gap:24px; font-size:9px; color:{GRAY_700}; font-family:sans-serif;">
@@ -770,7 +916,7 @@ svg {{ display:block; }}
     # Page: Market Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_market(self, charts: list, recs: list, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_market(self, charts: list, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         # Derive action title
         age_chart = next((c for c in charts if c.get("type") == "age"), None)
         time_chart = next((c for c in charts if c.get("type") == "time"), None)
@@ -833,6 +979,7 @@ svg {{ display:block; }}
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Market Analysis")}
             {charts_html}
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("서울 상권분석 서비스 / 소상공인시장진흥공단 (2025년 데이터)")}
         </div>
         {self._footer(date_short, page_num)}
@@ -842,7 +989,7 @@ svg {{ display:block; }}
     # Page: Location Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_location(self, recs: list, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_location(self, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         top = recs[0] if recs else {}
         sc = top.get("scorecard", {})
         action_title = f"{top.get('district_name', '')}이 종합 {sc.get('total_score', 0):.1f}점으로 최적 입지, 상위 {sc.get('percentile', 0):.0f}%"
@@ -929,7 +1076,9 @@ svg {{ display:block; }}
         return f'''<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Location Analysis")}
+            {self._location_overview(recs)}
             {cards_html}
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("서울 상권분석 서비스 / 소상공인시장진흥공단 (2025년 데이터)")}
         </div>
         {self._footer(date_short, page_num)}
@@ -939,7 +1088,7 @@ svg {{ display:block; }}
     # Page: Simulation — Revenue & P&L
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_sim_revenue(self, sim: dict, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_sim_revenue(self, sim: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         district = sim.get("district_name", "")
         rev = sim.get("revenue", {})
         monthly_sales = rev.get("monthly_sales_per_store", 0)
@@ -1023,6 +1172,7 @@ svg {{ display:block; }}
             <div style="font-size:10px; font-weight:700; color:{NAVY}; margin-bottom:4px; margin-top:6px; font-family:sans-serif;">주요 매출 지표</div>
             {rev_table}
 
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("SpotPick AI 분석 모델 기반 추정치 / 서울 상권분석 서비스")}
         </div>
         {self._footer(date_short, page_num)}
@@ -1170,7 +1320,7 @@ svg {{ display:block; }}
     # Page: Competitive Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_competitive(self, comp: dict, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_competitive(self, comp: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         total = comp.get("total_nearby_cafes", comp.get("total_competitors", 0))
         cafe_types = comp.get("cafe_types", [])
         gaps = comp.get("market_gaps", [])
@@ -1252,6 +1402,7 @@ svg {{ display:block; }}
                 </div>
             </div>
 
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("서울 상권분석 서비스 / SpotPick AI 경쟁 분석 모델")}
         </div>
         {self._footer(date_short, page_num)}
@@ -1261,7 +1412,7 @@ svg {{ display:block; }}
     # Page: Risk Assessment
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_risk(self, sim: dict, recs: list, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_risk(self, sim: dict, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         risks = []
 
         # From simulation risk_summary
@@ -1330,6 +1481,7 @@ svg {{ display:block; }}
 
             {self._insight_box("RISK MITIGATION", "고위험 항목에 대해서는 사전 대비 전략을 반드시 수립해야 합니다. 임대료 상승 리스크는 장기 계약 및 권리금 협상으로, 경쟁 심화 리스크는 명확한 차별화 포지셔닝으로 대응할 것을 권고합니다.")}
 
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("SpotPick AI 리스크 분석 모델 / 서울 상권분석 서비스")}
         </div>
         {self._footer(date_short, page_num)}
@@ -1404,7 +1556,7 @@ svg {{ display:block; }}
     # Page: Trend Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_trend(self, trend: dict, sec_num: int, date_short: str, page_num: int) -> str:
+    def _page_trend(self, trend: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
         trends = trend.get("trends", [])
         if not trends:
             return ""
@@ -1460,6 +1612,7 @@ svg {{ display:block; }}
             <div style="font-size:10px; font-weight:700; color:{NAVY}; margin:10px 0 4px; font-family:sans-serif;">상세 데이터</div>
             <table><tr><th>기간</th>{h_cols}</tr>{rows}</table>
 
+            {self._ai_analysis_box(ai_text)}
             {self._source_footnote("네이버 데이터랩 / Google Trends (검색 관심도 지수, 100 = 최고치)")}
         </div>
         {self._footer(date_short, page_num)}
