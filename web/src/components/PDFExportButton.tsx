@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileDown, Loader2 } from "lucide-react";
-import { ChatMessage, RecommendationCardData, ChartData, CompetitiveInsight, SimulationData } from "@/types/chat";
+import { ChatMessage, RecommendationCardData, ChartData, CompetitiveInsight, SimulationData, TimelineData, TrendData, SupportProgramData, TrademarkCheckResult } from "@/types/chat";
 
 // ============================================================================
 // Props Types
@@ -124,6 +124,10 @@ function extractConversationData(messages: ChatMessage[]) {
   let charts: ChartData[] = [];
   let competitive: CompetitiveInsight | null = null;
   let simulation: SimulationData | null = null;
+  let timeline: TimelineData | null = null;
+  let trend: TrendData | null = null;
+  let supportPrograms: SupportProgramData[] = [];
+  let trademark: TrademarkCheckResult | null = null;
   let context: Record<string, unknown> = {};
 
   // 가장 최근 어시스턴트 메시지부터 역순으로 탐색
@@ -150,6 +154,26 @@ function extractConversationData(messages: ChatMessage[]) {
     if (!simulation && msg.structured?.simulation) {
       simulation = msg.structured.simulation;
     }
+
+    // 타임라인 (첫 번째 발견한 것만)
+    if (!timeline && msg.structured?.timeline) {
+      timeline = msg.structured.timeline;
+    }
+
+    // 트렌드 (첫 번째 발견한 것만)
+    if (!trend && msg.structured?.trend) {
+      trend = msg.structured.trend;
+    }
+
+    // 지원사업 (모두 수집)
+    if (msg.structured?.support_programs?.length) {
+      supportPrograms = [...supportPrograms, ...msg.structured.support_programs];
+    }
+
+    // 상표 (첫 번째 발견한 것만)
+    if (!trademark && msg.structured?.trademark) {
+      trademark = msg.structured.trademark;
+    }
   }
 
   // 컨텍스트 추출 (가장 최근 것)
@@ -175,6 +199,10 @@ function extractConversationData(messages: ChatMessage[]) {
     charts,
     competitive,
     simulation,
+    timeline,
+    trend,
+    support_programs: supportPrograms,
+    trademark,
     context,
   };
 }
@@ -187,6 +215,9 @@ function hasExportableData(data: ReturnType<typeof extractConversationData>): bo
     data.recommendations.length > 0 ||
     data.charts.length > 0 ||
     !!data.competitive ||
-    !!data.simulation
+    !!data.simulation ||
+    !!data.timeline ||
+    !!data.trend ||
+    data.support_programs.length > 0
   );
 }
