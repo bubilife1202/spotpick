@@ -102,6 +102,7 @@ class SimulationResponse(BaseModel):
     competition: CompetitionResponse
     risk_summary: list[str]
     franchise_benchmark: Optional[FranchiseBenchmarkResponse] = None
+    cost_data_source: Optional[str] = None
 
 
 @router.post("/simulate", response_model=SimulationResponse)
@@ -138,6 +139,7 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
         competition=CompetitionResponse(**result["competition"]),
         risk_summary=result["risk_summary"],
         franchise_benchmark=franchise_bm,
+        cost_data_source=result.get("cost_data_source"),
     )
 
 

@@ -117,6 +117,9 @@ def create_app() -> FastAPI:
     franchise_router = cast(APIRouter, import_module("api.routes.franchise").router)
     app.include_router(franchise_router, prefix="/api/v1", tags=["Franchise"])
 
+    kosis_router = cast(APIRouter, import_module("api.routes.kosis").router)
+    app.include_router(kosis_router, prefix="/api/v1", tags=["KOSIS"])
+
     return app
 
 

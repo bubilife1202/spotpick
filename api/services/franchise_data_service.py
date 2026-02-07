@@ -52,7 +52,7 @@ INDUSTRY_KEYWORD_MAP: dict[str, list[str]] = {
 
 
 class FranchiseStartupCost(TypedDict):
-    """공정위 기준 가맹사업 창업비용 (단위: 만원 → 원으로 변환)"""
+    """공정위 기준 가맹사업 창업비용 (단위: 천원 → 원으로 변환)"""
     year: str
     industry_name: str
     franchise_fee: int          # 가맹비
@@ -166,11 +166,11 @@ def _match_industry(
     return matched
 
 
-def _safe_int(val: Any, unit_manwon: bool = True) -> int:
-    """값을 int로 변환. unit_manwon=True면 만원→원 변환"""
+def _safe_int(val: Any, unit_cheonwon: bool = True) -> int:
+    """값을 int로 변환. unit_cheonwon=True면 천원→원 변환 (API 응답 단위: 천원)"""
     try:
         v = int(float(str(val).replace(",", "")))
-        return v * 10_000 if unit_manwon else v
+        return v * 1_000 if unit_cheonwon else v
     except (ValueError, TypeError):
         return 0
 
@@ -263,8 +263,8 @@ async def fetch_franchise_industry_status(
             result = FranchiseIndustryStatus(
                 year=yr,
                 industry_name=item.get("indutyMlsfcNm", item.get("indutyNm", "")),
-                brand_count=_safe_int(item.get("frchsHdofcCnt", 0), unit_manwon=False),
-                store_count=_safe_int(item.get("frchsStorCnt", 0), unit_manwon=False),
+                brand_count=_safe_int(item.get("frchsHdofcCnt", 0), unit_cheonwon=False),
+                store_count=_safe_int(item.get("frchsStorCnt", 0), unit_cheonwon=False),
                 avg_sales=_safe_int(item.get("avrgSlsAmt", 0)),
                 raw=item,
             )

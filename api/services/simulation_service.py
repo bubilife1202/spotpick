@@ -123,6 +123,7 @@ class SimulationResult(TypedDict, total=False):
     competition: dict[str, Any]
     risk_summary: list[str]
     franchise_benchmark: dict[str, Any]
+    cost_data_source: str
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,10 @@ class SimulationService:
         self._load_config()
 
         self._build_percentile_cache()
+
+        # KOSIS 보강 상태
+        self._kosis_enriched: bool = False
+        self._cost_data_source: str = "업종 평균 추정치"
 
     # -------------------------------------------------------------------
     # Config loading with fallback to module-level defaults
@@ -218,6 +223,69 @@ class SimulationService:
             p50 = values[max(0, int(n * 0.50))]
             p75 = values[max(0, int(n * 0.75))]
             self._percentiles[dt] = (p25, p50, p75)
+
+    # -----------------------------------------------------------------------
+    # KOSIS 데이터로 원가율 보강 (최초 1회만 실행)
+    # -----------------------------------------------------------------------
+
+    async def _enrich_with_kosis(self) -> None:
+        """KOSIS 외식업체경영실태조사 데이터로 원가율을 실측치로 대체."""
+        if self._kosis_enriched:
+            return
+
+        self._kosis_enriched = True  # 실패해도 재시도 방지
+
+        try:
+            from api.services.kosis_data_service import get_cost_structure
+
+            cost = await get_cost_structure(self.industry_code)
+            if cost is None:
+                logger.info("KOSIS 데이터 없음 — config 기본값 사용 (%s)", self.industry_code)
+                return
+
+            updated = False
+
+            # 식재료비 비율 → _cogs_ratio
+            if cost.get("food_cost_ratio"):
+                self._cogs_ratio = cost["food_cost_ratio"]
+                updated = True
+                logger.info(
+                    "KOSIS 식재료비 비율 적용: %.1f%% (%s)",
+                    self._cogs_ratio * 100, self.industry_code,
+                )
+
+            # 인건비 비율 → DISTRICT_TYPE_FACTORS의 labor_ratio
+            if cost.get("labor_cost_ratio"):
+                kosis_labor = cost["labor_cost_ratio"]
+                # 상권 유형별 보정 계수를 유지하되, 기준값을 KOSIS로 대체
+                for dt_name, factors in self._district_type_factors.items():
+                    original = factors.get("labor_ratio", 0.25)
+                    # 기존 기본값(0.25) 대비 각 상권 유형의 편차를 유지
+                    delta = original - 0.25
+                    factors["labor_ratio"] = round(kosis_labor + delta, 4)
+                updated = True
+                logger.info(
+                    "KOSIS 인건비 비율 적용: %.1f%% (기준) (%s)",
+                    kosis_labor * 100, self.industry_code,
+                )
+
+            # 임차료 비율 (참고용 — 시뮬레이션은 실제 임대료 추정값 사용)
+            if cost.get("rent_ratio"):
+                self._rent_ratio: float = cost["rent_ratio"]
+                updated = True
+
+            # 영업이익률
+            if cost.get("profit_margin"):
+                self._kosis_profit_margin: float = cost["profit_margin"]
+                updated = True
+
+            if updated:
+                year = cost.get("year", "2023")
+                self._cost_data_source = f"KOSIS 외식업체경영실태조사 {year}"
+                logger.info("KOSIS 원가구조 반영 완료 (%s)", self.industry_code)
+
+        except Exception as e:
+            logger.warning("KOSIS 보강 실패 (config 기본값 사용): %s", e)
 
     # -----------------------------------------------------------------------
     # 1. 매출 시뮬레이션
@@ -415,6 +483,9 @@ class SimulationService:
         district_code: str,
         area_pyeong: int = 10,
     ) -> SimulationResult | None:
+        # KOSIS 데이터로 원가율 보강 (최초 1회)
+        await self._enrich_with_kosis()
+
         detail_raw: dict[str, Any] | None = None
         district: dict[str, Any] | None = None
 
@@ -492,6 +563,7 @@ class SimulationService:
                 "survival_rate": district.get("survival_rate", 0),
             },
             risk_summary=risks,
+            cost_data_source=self._cost_data_source,
         )
 
         # 공정위 가맹사업 벤치마크 데이터 보강
