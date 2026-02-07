@@ -87,7 +87,6 @@ async def pdf_health_check():
         return {
             "status": "healthy",
             "service": "pdf_service",
-            "template_dir": str(pdf_service.template_dir),
         }
     except Exception as e:
         return {
