@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, User, Loader2, Sparkles, X, MessageCircle, ChevronRight } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, X, MessageCircle, ChevronRight, LayoutDashboard, DollarSign, Clock, TrendingUp } from "lucide-react";
 import DOMPurify from "dompurify";
-import { 
-  ChatMessage, 
-  hasRecommendations, 
-  hasCharts, 
+import {
+  ChatMessage,
+  SimulationData,
+  hasRecommendations,
+  hasCharts,
   hasSuggestedQuestions,
   GLOSSARY,
   DEFAULT_SUGGESTED_QUESTIONS,
@@ -124,6 +125,174 @@ function SuggestedQuestions({
   );
 }
 
+/**
+ * Renders simulation data with independent vs franchise cost comparison
+ */
+function SimulationCard({ sim }: { sim: SimulationData }) {
+  const startup = sim.startup_cost;
+  const operating = sim.operating_cost;
+  const breakEven = sim.break_even;
+  const formatMan = (value: number) => `${Math.round(value / 10000).toLocaleString()}만원`;
+  const formatManRange = (min: number, max: number) => `${formatMan(min)} ~ ${formatMan(max)}`;
+  const operatingPercent = (value: number) =>
+    operating.total > 0 ? Math.round((value / operating.total) * 100) : 0;
+
+  const hasFranchise = sim.franchise_benchmark?.startup_costs && sim.franchise_benchmark.startup_costs.length > 0;
+
+  return (
+    <div className="mt-3 p-3 rounded-xl bg-white/70 border border-slate-200/60 space-y-3">
+      <div className="flex items-center gap-2">
+        <LayoutDashboard size={14} className="text-slate-600" />
+        <span className="text-xs font-semibold text-slate-700">창업 시뮬레이션</span>
+        <span className="text-[10px] text-slate-400 ml-auto">{sim.district_name}</span>
+      </div>
+      {sim.assumptions && (
+        <div className="text-[10px] text-slate-400 -mt-1.5">
+          {sim.assumptions.summary} · {sim.assumptions.disclaimer}
+        </div>
+      )}
+
+      {/* 초기 투자비용 */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+          <DollarSign size={12} className="text-emerald-600" />
+          초기 투자비용
+        </div>
+        {hasFranchise ? (() => {
+          const fb = sim.franchise_benchmark!;
+          const costs = fb.startup_costs!;
+          const avgFranchiseFee = Math.round(costs.reduce((s, c) => s + c.franchise_fee, 0) / costs.length);
+          const avgEducationFee = Math.round(costs.reduce((s, c) => s + c.education_fee, 0) / costs.length);
+          const avgDeposit = Math.round(costs.reduce((s, c) => s + c.deposit, 0) / costs.length);
+          const avgInterior = Math.round(costs.reduce((s, c) => s + c.interior_cost, 0) / costs.length);
+          const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_startup_cost, 0) / costs.length);
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-2 space-y-1.5">
+                <div className="text-[10px] font-semibold text-blue-700 text-center pb-1 border-b border-blue-200/60">
+                  독립창업 예상
+                </div>
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">보증금</span>
+                    <span className="text-blue-800 font-medium">{formatMan(startup.deposit)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">인테리어</span>
+                    <span className="text-blue-800 font-medium">{formatMan(startup.interior)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">장비</span>
+                    <span className="text-blue-800 font-medium">{formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">재고+기타</span>
+                    <span className="text-blue-800 font-medium">{formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-blue-200/60 text-[11px]">
+                  <span className="font-semibold text-blue-700">합계</span>
+                  <span className="font-bold text-blue-800">{formatManRange(startup.total_min, startup.total_max)}</span>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2 space-y-1.5">
+                <div className="text-[10px] font-semibold text-slate-500 text-center pb-1 border-b border-slate-200/60">
+                  가맹평균 (공정위)
+                </div>
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">가맹비</span>
+                    <span className="text-slate-600 font-medium">{avgFranchiseFee > 0 ? formatMan(avgFranchiseFee) : "-"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">교육비</span>
+                    <span className="text-slate-600 font-medium">{avgEducationFee > 0 ? formatMan(avgEducationFee) : "-"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">보증금</span>
+                    <span className="text-slate-600 font-medium">{avgDeposit > 0 ? formatMan(avgDeposit) : "-"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">인테리어</span>
+                    <span className="text-slate-600 font-medium">{avgInterior > 0 ? formatMan(avgInterior) : "-"}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-200/60 text-[11px]">
+                  <span className="font-semibold text-slate-500">합계</span>
+                  <span className="font-bold text-slate-700">{avgTotal > 0 ? formatMan(avgTotal) : "-"}</span>
+                </div>
+                <div className="text-[9px] text-slate-400 text-center">
+                  {fb.source}{fb.brand_count ? ` (${fb.brand_count}개 브랜드)` : ""}
+                </div>
+              </div>
+            </div>
+          );
+        })() : (
+          <>
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="text-slate-500">총 투자</span>
+              <span className="font-semibold text-slate-800">{formatManRange(startup.total_min, startup.total_max)}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                보증금 {formatMan(startup.deposit)}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                인테리어 {formatMan(startup.interior)}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 월 운영비 */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+          <Clock size={12} className="text-amber-600" />
+          월 운영비
+        </div>
+        <div className="flex items-center justify-between text-[12px]">
+          <span className="text-slate-500">총 운영비</span>
+          <span className="font-semibold text-slate-800">{formatMan(operating.total)}/월</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 text-[10px]">
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">월세 {formatMan(operating.rent)}</span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">재료비 {operatingPercent(operating.cogs)}%</span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">인건비 {operatingPercent(operating.labor)}%</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">공과금 {formatMan(operating.utilities)}</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">기타 {formatMan(operating.other)}</span>
+        </div>
+      </div>
+
+      {/* 손익분기 */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+          <TrendingUp size={12} className="text-emerald-600" />
+          손익분기
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="text-slate-500">월 순이익</span>
+          <span className="font-semibold text-emerald-700">{formatMan(breakEven.monthly_net_profit)}</span>
+          <span className="text-slate-500">마진</span>
+          <span className="font-semibold text-emerald-700">{(breakEven.net_profit_margin * 100).toFixed(1)}%</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="text-slate-500">투자 회수</span>
+          <span className="font-semibold text-slate-700">{breakEven.break_even_months_min}~{breakEven.break_even_months_max}개월</span>
+          <span className="text-slate-500">일 손익분기</span>
+          <span className="font-semibold text-amber-700">{formatMan(breakEven.daily_break_even_sales)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -171,6 +340,7 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
         recommendations: response.recommendations,
         charts: response.charts,
         suggestedQuestions: response.suggested_questions,
+        simulation: response.simulation,
       });
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -243,7 +413,12 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
         {hasCharts(message) && (
           <ChatChartSection charts={message.structured!.charts!} />
         )}
-        
+
+        {/* Structured Data: Simulation */}
+        {message.structured?.simulation && (
+          <SimulationCard sim={message.structured.simulation} />
+        )}
+
         {/* Structured Data: Suggested Questions */}
         {hasSuggestedQuestions(message) && (
           <SuggestedQuestions 

@@ -293,13 +293,7 @@ export interface SimulationData {
     disclaimer: string;
   };
   risk_summary: string[];
-  franchise_benchmark?: {
-    source: string;
-    avg_total_startup_cost?: number;
-    avg_interior_cost?: number;
-    brand_count?: number;
-    store_count?: number;
-  };
+  franchise_benchmark?: FranchiseBenchmark;
   menu_costs?: {
     menu_costs: MenuCostItem[];
     avg_margin_rate: number;
@@ -315,6 +309,26 @@ export interface SimulationData {
       monthly_gross_profit: number;
     };
   };
+}
+
+export interface FranchiseStartupCostItem {
+  name: string;
+  franchise_fee: number;
+  education_fee: number;
+  deposit: number;
+  other_fee: number;
+  total_joining_cost: number;
+  interior_cost: number;
+  total_startup_cost: number;
+}
+
+export interface FranchiseBenchmark {
+  source: string;
+  avg_total_startup_cost?: number;
+  avg_interior_cost?: number;
+  brand_count?: number;
+  store_count?: number;
+  startup_costs?: FranchiseStartupCostItem[];
 }
 
 export interface TimelineStage {

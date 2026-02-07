@@ -886,26 +886,104 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     <DollarSign size={12} className="text-emerald-600" />
                                     초기 투자비용
                                   </div>
-                                  <div className="flex items-center justify-between text-[12px]">
-                                    <span className="text-slate-500">총 투자</span>
-                                    <span className="font-semibold text-slate-800">
-                                      {formatManRange(startup.total_min, startup.total_max)}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                                      보증금 {formatMan(startup.deposit)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      인테리어 {formatMan(startup.interior)} ({startup.area_pyeong}평/{startup.interior_grade})
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}
-                                    </span>
-                                  </div>
+                                  {/* 독립창업 vs 가맹평균 비교 */}
+                                  {sim.franchise_benchmark?.startup_costs && sim.franchise_benchmark.startup_costs.length > 0 ? (() => {
+                                    const fb = sim.franchise_benchmark!;
+                                    const costs = fb.startup_costs!;
+                                    // 평균 계산 (여러 소분류가 있을 수 있으므로)
+                                    const avgFranchiseFee = Math.round(costs.reduce((s, c) => s + c.franchise_fee, 0) / costs.length);
+                                    const avgEducationFee = Math.round(costs.reduce((s, c) => s + c.education_fee, 0) / costs.length);
+                                    const avgDeposit = Math.round(costs.reduce((s, c) => s + c.deposit, 0) / costs.length);
+                                    const avgInterior = Math.round(costs.reduce((s, c) => s + c.interior_cost, 0) / costs.length);
+                                    const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_startup_cost, 0) / costs.length);
+                                    return (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {/* 왼쪽: 독립창업 예상 */}
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-2 space-y-1.5">
+                                          <div className="text-[10px] font-semibold text-blue-700 text-center pb-1 border-b border-blue-200/60">
+                                            독립창업 예상
+                                          </div>
+                                          <div className="space-y-0.5 text-[10px]">
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">보증금</span>
+                                              <span className="text-blue-800 font-medium">{formatMan(startup.deposit)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">인테리어</span>
+                                              <span className="text-blue-800 font-medium">{formatMan(startup.interior)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">장비</span>
+                                              <span className="text-blue-800 font-medium">{formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">재고+기타</span>
+                                              <span className="text-blue-800 font-medium">{formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}</span>
+                                            </div>
+                                          </div>
+                                          <div className="flex justify-between pt-1 border-t border-blue-200/60 text-[11px]">
+                                            <span className="font-semibold text-blue-700">합계</span>
+                                            <span className="font-bold text-blue-800">{formatManRange(startup.total_min, startup.total_max)}</span>
+                                          </div>
+                                        </div>
+                                        {/* 오른쪽: 가맹평균 (공정위) */}
+                                        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2 space-y-1.5">
+                                          <div className="text-[10px] font-semibold text-slate-500 text-center pb-1 border-b border-slate-200/60">
+                                            가맹평균 (공정위)
+                                          </div>
+                                          <div className="space-y-0.5 text-[10px]">
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-400">가맹비</span>
+                                              <span className="text-slate-600 font-medium">{avgFranchiseFee > 0 ? formatMan(avgFranchiseFee) : "-"}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-400">교육비</span>
+                                              <span className="text-slate-600 font-medium">{avgEducationFee > 0 ? formatMan(avgEducationFee) : "-"}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-400">보증금</span>
+                                              <span className="text-slate-600 font-medium">{avgDeposit > 0 ? formatMan(avgDeposit) : "-"}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-400">인테리어</span>
+                                              <span className="text-slate-600 font-medium">{avgInterior > 0 ? formatMan(avgInterior) : "-"}</span>
+                                            </div>
+                                          </div>
+                                          <div className="flex justify-between pt-1 border-t border-slate-200/60 text-[11px]">
+                                            <span className="font-semibold text-slate-500">합계</span>
+                                            <span className="font-bold text-slate-700">{avgTotal > 0 ? formatMan(avgTotal) : "-"}</span>
+                                          </div>
+                                          <div className="text-[9px] text-slate-400 text-center">
+                                            {fb.source}{fb.brand_count ? ` (${fb.brand_count}개 브랜드)` : ""}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })() : (
+                                    /* 가맹 데이터 없을 때 기존 단일 레이아웃 */
+                                    <>
+                                      <div className="flex items-center justify-between text-[12px]">
+                                        <span className="text-slate-500">총 투자</span>
+                                        <span className="font-semibold text-slate-800">
+                                          {formatManRange(startup.total_min, startup.total_max)}
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5 text-[10px]">
+                                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                                          보증금 {formatMan(startup.deposit)}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                          인테리어 {formatMan(startup.interior)} ({startup.area_pyeong}평/{startup.interior_grade})
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                          장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                          재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
 
                                 <div className="space-y-1.5">
