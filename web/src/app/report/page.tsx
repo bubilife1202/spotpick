@@ -153,6 +153,37 @@ function AnalysisInfoBox({ text }: { text: string | undefined }) {
   );
 }
 
+// --- Category interpretation helper ---
+function getCategoryInterpretation(name: string, score: number): string {
+  const s = Math.round(score);
+  if (name === "매출력") {
+    if (s >= 75) return "매출 수준이 높아 수익 확보에 유리합니다";
+    if (s >= 50) return "매출 수준이 보통이므로 차별화 전략이 필요합니다";
+    return "매출이 낮아 수요 창출 전략이 필수입니다";
+  }
+  if (name === "성장성") {
+    if (s >= 75) return "상권이 성장 중이며 신규 진입에 적합합니다";
+    if (s >= 50) return "성장세가 보통이므로 시장 변화를 주시하세요";
+    return "상권이 정체/위축 중이라 진입에 신중해야 합니다";
+  }
+  if (name === "경쟁환경") {
+    if (s >= 75) return "경쟁이 적어 시장 선점 기회가 있습니다";
+    if (s >= 50) return "경쟁이 보통 수준으로 차별화가 권장됩니다";
+    return "경쟁이 치열하여 강력한 차별화가 필요합니다";
+  }
+  if (name === "입지여건") {
+    if (s >= 75) return "교통·유동인구 등 입지 조건이 우수합니다";
+    if (s >= 50) return "입지 조건이 보통으로 마케팅 보완이 필요합니다";
+    return "입지 여건이 부족하여 접근성 개선이 과제입니다";
+  }
+  if (name === "안정성") {
+    if (s >= 75) return "생존율이 높아 장기 운영에 안정적입니다";
+    if (s >= 50) return "안정성이 보통이므로 리스크 관리가 중요합니다";
+    return "생존율이 낮아 철저한 사전 준비가 필요합니다";
+  }
+  return s >= 60 ? "양호한 수준입니다" : "보완이 필요합니다";
+}
+
 // --- Section 1: Go/No-Go ---
 function GoNoGoSection({
   scorecard,
@@ -173,41 +204,79 @@ function GoNoGoSection({
   const successProb = Math.min(99, Math.max(10, Math.round(score * 0.95 + 5)));
   const verdict =
     successProb >= 65
-      ? { label: "추천", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", icon: <CheckCircle size={20} className="text-emerald-500" /> }
+      ? { label: "추천", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", badgeBg: "bg-gradient-to-r from-emerald-500 to-emerald-600", icon: <CheckCircle size={24} className="text-white" /> }
       : successProb >= 50
-        ? { label: "주의", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", icon: <AlertTriangle size={20} className="text-amber-500" /> }
-        : { label: "비추천", color: "text-rose-600", bg: "bg-rose-50 border-rose-200", icon: <XCircle size={20} className="text-rose-500" /> };
+        ? { label: "주의", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", badgeBg: "bg-gradient-to-r from-amber-500 to-amber-600", icon: <AlertTriangle size={24} className="text-white" /> }
+        : { label: "비추천", color: "text-rose-600", bg: "bg-rose-50 border-rose-200", badgeBg: "bg-gradient-to-r from-rose-500 to-rose-600", icon: <XCircle size={24} className="text-white" /> };
 
   const probColor =
     successProb >= 70 ? "text-emerald-600" : successProb >= 50 ? "text-amber-600" : "text-rose-600";
 
+  const catColors: Record<string, string> = {
+    "매출력": "text-blue-600",
+    "성장성": "text-green-600",
+    "경쟁환경": "text-amber-600",
+    "입지여건": "text-purple-600",
+    "안정성": "text-teal-600",
+  };
+
   return (
     <SectionCard icon={<TrendingUp size={16} className="text-white" />} title="종합 판정">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Big number */}
-        <div className="space-y-4">
-          <div className="text-center md:text-left">
+      <div className="space-y-6">
+        {/* Top row: Big verdict badge + success probability */}
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          {/* Large verdict badge */}
+          <div className={cn("flex items-center gap-3 px-6 py-4 rounded-2xl shadow-md text-white", verdict.badgeBg)}>
+            {verdict.icon}
+            <span className="text-2xl font-extrabold">{verdict.label}</span>
+          </div>
+          <div className="text-center sm:text-left">
             <p className="text-xs text-slate-500 mb-1">예상 성공확률</p>
-            <span className={cn("text-6xl sm:text-7xl font-extrabold tracking-tight", probColor)}>
+            <span className={cn("text-5xl sm:text-6xl font-extrabold tracking-tight", probColor)}>
               {successProb}%
             </span>
+            <div className="flex items-center gap-3 text-sm text-slate-600 mt-1">
+              <span className="font-semibold text-slate-800">{score}/100점</span>
+              <span className="text-slate-400">|</span>
+              <span>상위 {topPercent}%</span>
+            </div>
           </div>
-          <div className={cn("inline-flex items-center gap-2 px-4 py-2 rounded-xl border", verdict.bg)}>
-            {verdict.icon}
-            <span className={cn("text-sm font-bold", verdict.color)}>{verdict.label}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-600">
-            <span className="font-semibold text-slate-800">{score}/100점</span>
-            <span className="text-slate-400">|</span>
-            <span>상위 {topPercent}%</span>
-          </div>
-          {verdictSummary && (
-            <p className="mt-3 text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-200/60">
-              {verdictSummary}
-            </p>
-          )}
         </div>
-        {/* Right: Scorecard */}
+
+        {/* AI commentary */}
+        {verdictSummary && (
+          <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-4 border border-slate-200/60">
+            {verdictSummary}
+          </p>
+        )}
+
+        {/* Category interpretations */}
+        {scorecard.categories.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">5대 카테고리 평가</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {scorecard.categories.map((cat) => {
+                const catScore = Math.round(cat.score);
+                const interpretation = getCategoryInterpretation(cat.name, cat.score);
+                const colorClass = catColors[cat.name] || "text-slate-600";
+                return (
+                  <div key={cat.name} className="flex items-start gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+                    <div className="flex-shrink-0 text-center">
+                      <span className={cn("text-lg font-bold", colorClass)}>{catScore}</span>
+                      <p className="text-[10px] text-slate-400">/ 100</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className={cn("text-xs font-semibold", colorClass)}>{cat.name}</p>
+                      <p className="text-xs text-slate-500 leading-relaxed">{interpretation}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed scorecard (collapsible) */}
         <div>
           <ScorecardCard scorecard={scorecard} />
         </div>
