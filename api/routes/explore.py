@@ -16,6 +16,44 @@ router = APIRouter(prefix="/explore")
 _GU_CENTERS: list[dict[str, Any]] = []
 _GU_MAP_CACHE: dict[str, dict[str, str]] = {}  # industry_code -> {district_code: gu_name}
 
+# stores_all.json 캐시: {industry_code -> {district_code -> {...}}}
+_STORES_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
+
+
+def _load_stores_by_industry(industry_code: str) -> dict[str, dict[str, Any]]:
+    """stores_all.json에서 특정 업종의 상권별 점포 데이터 로드 (캐시)."""
+    if industry_code in _STORES_CACHE:
+        return _STORES_CACHE[industry_code]
+
+    stores_file = Path(__file__).parent.parent.parent / "data" / "seoul" / "stores_all.json"
+    if not stores_file.exists():
+        _STORES_CACHE[industry_code] = {}
+        return {}
+
+    # 전체 로드 후 업종별 캐시 (처음 한 번만)
+    if not _STORES_CACHE:
+        with open(stores_file, encoding="utf-8") as f:
+            all_rows = json.load(f)
+
+        by_industry: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        for row in all_rows:
+            ind = row.get("SVC_INDUTY_CD", "")
+            if ind not in _INDUSTRY_NAMES:
+                continue
+            dc = str(row.get("TRDAR_CD", ""))
+            by_industry[ind][dc] = {
+                "store_count": int(row.get("STOR_CO", 0) or 0),
+                "new_stores": int(row.get("OPBIZ_STOR_CO", 0) or 0),
+                "closed_stores": int(row.get("CLSBIZ_STOR_CO", 0) or 0),
+                "franchise_stores": int(row.get("FRC_STOR_CO", 0) or 0),
+                "similar_stores": int(row.get("SIMILR_INDUTY_STOR_CO", 0) or 0),
+                "industry_name": row.get("SVC_INDUTY_CD_NM", ""),
+            }
+        for k, v in by_industry.items():
+            _STORES_CACHE[k] = v
+
+    return _STORES_CACHE.get(industry_code, {})
+
 _INDUSTRY_NAMES: dict[str, str] = {
     "CS100001": "한식",
     "CS100002": "중식",
@@ -87,15 +125,19 @@ def _get_gu_map(industry_code: str) -> dict[str, str]:
 def gu_summary(
     industry_code: str = Query("CS100010", description="업종 코드"),
 ):
-    """자치구별 요약 — 지도 오버레이용."""
+    """자치구별 요약 — 업종별 점포 데이터 + 공유 유동인구/시설 데이터."""
     from api.services.data_service import get_data_service
 
-    svc = get_data_service(industry_code)
-    gu_map = _get_gu_map(industry_code)
+    # 카페 데이터 서비스 (공유 데이터: 좌표, 유동인구, 시설)
+    base_svc = get_data_service("CS100010")
+    gu_map = _get_gu_map("CS100010")
 
-    # Group districts by gu (skip districts without coordinates)
+    # 업종별 점포 데이터
+    stores_data = _load_stores_by_industry(industry_code)
+
+    # Group base districts by gu
     gu_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for d in svc.districts:
+    for d in base_svc.districts:
         code = str(d["district_code"])
         gu = gu_map.get(code)
         if gu:
@@ -111,30 +153,65 @@ def gu_summary(
 
         center = centers.get(gu_name, {"lat": 0, "lng": 0})
 
-        total_sales = sum(d.get("monthly_sales", 0) for d in districts)
-        total_stores = sum(d.get("store_count", 0) for d in districts)
+        # 공유 데이터 (유동인구 — 업종 무관)
         total_foot_traffic = sum(d.get("foot_traffic_total", 0) for d in districts)
-        total_new = sum(d.get("new_stores", 0) for d in districts)
-        total_closed = sum(d.get("closed_stores", 0) for d in districts)
-        avg_survival = sum(d.get("survival_rate", 0) for d in districts) / n
 
-        # Score: composite of survival, sales per store, growth
+        # 업종별 데이터 from stores_all.json
+        total_stores = 0
+        total_new = 0
+        total_closed = 0
+        total_franchise = 0
+        districts_with_stores = 0
+        for d in districts:
+            code = str(d["district_code"])
+            sd = stores_data.get(code)
+            if sd:
+                total_stores += sd["store_count"]
+                total_new += sd["new_stores"]
+                total_closed += sd["closed_stores"]
+                total_franchise += sd["franchise_stores"]
+                districts_with_stores += 1
+
+        # 매출: 카페만 실데이터, 나머지는 점포당 추정
+        if industry_code == "CS100010":
+            total_sales = sum(d.get("monthly_sales", 0) for d in districts)
+            avg_survival = sum(d.get("survival_rate", 0) for d in districts) / n
+        else:
+            # 업종별 추정 매출 (점포당 평균 * 점포수)
+            industry_avg_sales = {
+                "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
+                "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
+                "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
+            }
+            per_store = industry_avg_sales.get(industry_code, 25_000_000)
+            total_sales = total_stores * per_store
+            # 생존율: 점포 성장률 기반 추정
+            growth = (total_new + 1) / max(1, total_closed + 1)
+            avg_survival = min(1.0, max(0.3, 0.5 + (growth - 1) * 0.15))
+
+        # Score
         sales_per_store = total_sales / max(1, total_stores)
         growth_ratio = (total_new + 1) / max(1, total_closed + 1)
-        score = round(avg_survival * 40 + min(1.0, sales_per_store / 50_000_000) * 35 + min(1.0, growth_ratio) * 25, 1)
+        score = round(
+            avg_survival * 40
+            + min(1.0, sales_per_store / 50_000_000) * 35
+            + min(1.0, growth_ratio) * 25,
+            1,
+        )
 
         results.append({
             "gu_name": gu_name,
             "center_lat": center["lat"],
             "center_lng": center["lng"],
             "avg_score": score,
-            "avg_monthly_sales": round(total_sales / n),
+            "avg_monthly_sales": round(total_sales / max(1, n)),
             "total_foot_traffic": total_foot_traffic,
             "total_store_count": total_stores,
             "avg_survival_rate": round(avg_survival, 4),
-            "district_count": n,
+            "district_count": districts_with_stores if districts_with_stores > 0 else n,
             "new_stores_total": total_new,
             "closed_stores_total": total_closed,
+            "franchise_ratio": min(100.0, round(total_franchise / max(1, total_stores) * 100, 1)),
         })
 
     results.sort(key=lambda x: x["avg_score"], reverse=True)
@@ -146,32 +223,55 @@ def districts_geo(
     industry_code: str = Query("CS100010", description="업종 코드"),
     gu: str = Query(..., description="자치구 이름 (e.g., 강남구)"),
 ):
-    """특정 자치구 내 상권 목록 + 좌표."""
+    """특정 자치구 내 상권 목록 + 업종별 점포 데이터."""
     from api.services.data_service import get_data_service
 
-    svc = get_data_service(industry_code)
-    gu_map = _get_gu_map(industry_code)
+    base_svc = get_data_service("CS100010")
+    gu_map = _get_gu_map("CS100010")
+    stores_data = _load_stores_by_industry(industry_code)
+
+    industry_avg_sales = {
+        "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
+        "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
+        "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
+        "CS100010": 0,  # use real data
+    }
 
     districts: list[dict[str, Any]] = []
-    for d in svc.districts:
+    for d in base_svc.districts:
         code = str(d["district_code"])
         if gu_map.get(code) != gu:
             continue
 
-        sc = max(1, d.get("store_count", 1))
+        sd = stores_data.get(code, {})
+        store_count = sd.get("store_count", 0) if sd else d.get("store_count", 0)
+        new_stores = sd.get("new_stores", 0) if sd else d.get("new_stores", 0)
+        closed_stores = sd.get("closed_stores", 0) if sd else d.get("closed_stores", 0)
+
+        if industry_code == "CS100010":
+            monthly_sales = d.get("monthly_sales", 0)
+            survival_rate = d.get("survival_rate", 0)
+        else:
+            per_store = industry_avg_sales.get(industry_code, 25_000_000)
+            monthly_sales = store_count * per_store
+            growth = (new_stores + 1) / max(1, closed_stores + 1)
+            survival_rate = min(1.0, max(0.3, 0.5 + (growth - 1) * 0.15))
+
+        sc = max(1, store_count)
         districts.append({
             "district_code": d["district_code"],
             "district_name": d["district_name"],
             "district_type": d.get("district_type", ""),
             "lat": d.get("lat", 0.0),
             "lng": d.get("lng", 0.0),
-            "monthly_sales": d.get("monthly_sales", 0),
-            "sales_per_store": round(d.get("monthly_sales", 0) / sc),
-            "store_count": d.get("store_count", 0),
-            "survival_rate": d.get("survival_rate", 0),
+            "monthly_sales": monthly_sales,
+            "sales_per_store": round(monthly_sales / sc),
+            "store_count": store_count,
+            "survival_rate": survival_rate,
             "foot_traffic_total": d.get("foot_traffic_total", 0),
-            "new_stores": d.get("new_stores", 0),
-            "closed_stores": d.get("closed_stores", 0),
+            "new_stores": new_stores,
+            "closed_stores": closed_stores,
+            "franchise_stores": sd.get("franchise_stores", 0) if sd else 0,
             "peak_time": d.get("peak_time", ""),
             "main_age_group": d.get("main_age_group", ""),
             "change_indicator": d.get("change_indicator", ""),
