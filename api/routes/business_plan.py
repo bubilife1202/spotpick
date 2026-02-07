@@ -59,7 +59,7 @@ def _get_gemini_client() -> object | None:
     return _gemini_client
 
 
-GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # ---------------------------------------------------------------------------
 # Request / Response Models

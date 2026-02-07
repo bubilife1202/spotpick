@@ -529,7 +529,7 @@ async def get_district_analysis(
 감지된 리스크: {risk_str}
 성공 확률: {success_prob:.0%}"""
 
-    gemini_model = "gemini-2.5-flash-preview-05-20"
+    gemini_model = "gemini-2.5-flash"
     loop = asyncio.get_event_loop()
 
     async def _gen(prompt: str) -> str | None:
