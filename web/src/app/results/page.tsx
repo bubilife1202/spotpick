@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
-// import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import {
   MapPin,
   TrendingUp,
@@ -16,11 +15,15 @@ import {
   MessageCircle,
   FileText,
   ChevronDown,
+  GitCompareArrows,
+  X,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { MapMarker } from "@/components/MiniMap";
+import type { InteractiveMarkerData } from "@/components/InteractiveMap";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,6 +64,8 @@ const TYPE_BADGE: Record<string, { bg: string; text: string }> = {
   관광특구: { bg: "bg-purple-50 border-purple-200", text: "text-purple-700" },
   전통시장: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700" },
 };
+
+const MAX_COMPARE = 3;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -140,8 +145,8 @@ function useDebounce<T>(value: T, delay: number): T {
 // Dynamic imports
 // ---------------------------------------------------------------------------
 
-const MiniMap = dynamic(
-  () => import("@/components/MiniMap").then((mod) => ({ default: mod.MiniMap })),
+const InteractiveMap = dynamic(
+  () => import("@/components/InteractiveMap").then((mod) => ({ default: mod.InteractiveMap })),
   {
     ssr: false,
     loading: () => (
@@ -297,7 +302,7 @@ function FilterBar({
 }
 
 // ---------------------------------------------------------------------------
-// Result Card
+// Result Card (with compare checkbox)
 // ---------------------------------------------------------------------------
 
 function ResultCard({
@@ -305,13 +310,21 @@ function ResultCard({
   industryCode,
   industryName,
   isHighlighted,
+  isCompareSelected,
+  compareDisabled,
   onHover,
+  onCompareToggle,
+  cardRef,
 }: {
   result: DashboardResult;
   industryCode: string;
   industryName: string;
   isHighlighted: boolean;
+  isCompareSelected: boolean;
+  compareDisabled: boolean;
   onHover: (code: string | null) => void;
+  onCompareToggle: (code: string) => void;
+  cardRef: (el: HTMLDivElement | null) => void;
 }) {
   const v = verdictStyle(result.verdict);
   const badge = TYPE_BADGE[result.district_type] || TYPE_BADGE["골목상권"];
@@ -320,18 +333,41 @@ function ResultCard({
 
   return (
     <div
+      ref={cardRef}
+      data-district={result.district_code}
       onMouseEnter={() => onHover(result.district_code)}
       onMouseLeave={() => onHover(null)}
       className={cn(
         "bg-white rounded-2xl border shadow-sm transition-all duration-200 overflow-hidden",
         isHighlighted
           ? "border-blue-400 shadow-md ring-2 ring-blue-500/20 scale-[1.01]"
-          : "border-slate-200/60 hover:shadow-md hover:border-slate-300"
+          : isCompareSelected
+            ? "border-indigo-400 shadow-md ring-2 ring-indigo-500/20"
+            : "border-slate-200/60 hover:shadow-md hover:border-slate-300"
       )}
     >
       <div className="p-4 sm:p-5">
         {/* Header row */}
         <div className="flex items-start gap-3 mb-3">
+          {/* Compare checkbox */}
+          <button
+            onClick={() => onCompareToggle(result.district_code)}
+            disabled={compareDisabled && !isCompareSelected}
+            className={cn(
+              "flex-shrink-0 mt-0.5 transition-all",
+              compareDisabled && !isCompareSelected
+                ? "opacity-30 cursor-not-allowed"
+                : "cursor-pointer hover:scale-110"
+            )}
+            title={isCompareSelected ? "비교 해제" : compareDisabled ? `최대 ${MAX_COMPARE}개` : "비교에 추가"}
+          >
+            {isCompareSelected ? (
+              <CheckSquare size={18} className="text-indigo-600" />
+            ) : (
+              <Square size={18} className="text-slate-300" />
+            )}
+          </button>
+
           {/* Rank badge */}
           <div className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0",
@@ -426,6 +462,236 @@ function ResultCard({
 }
 
 // ---------------------------------------------------------------------------
+// Compare Modal
+// ---------------------------------------------------------------------------
+
+function CompareModal({
+  items,
+  industryCode,
+  onClose,
+}: {
+  items: DashboardResult[];
+  industryCode: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const rows: { label: string; icon: React.ReactNode; getValue: (r: DashboardResult) => string; highlight?: "max" | "min" }[] = [
+    {
+      label: "추천점수",
+      icon: <TrendingUp size={14} className="text-emerald-500" />,
+      getValue: (r) => `${Math.round(r.success_probability * 100)}%`,
+      highlight: "max",
+    },
+    {
+      label: "판정",
+      icon: <Shield size={14} className="text-blue-500" />,
+      getValue: (r) => r.verdict,
+    },
+    {
+      label: "월세",
+      icon: <DollarSign size={14} className="text-blue-500" />,
+      getValue: (r) => formatMan(r.estimated_rent),
+      highlight: "min",
+    },
+    {
+      label: "월매출",
+      icon: <TrendingUp size={14} className="text-emerald-500" />,
+      getValue: (r) => formatMan(r.sales_per_store),
+      highlight: "max",
+    },
+    {
+      label: "경쟁점포",
+      icon: <Store size={14} className="text-orange-500" />,
+      getValue: (r) => `${r.store_count}개`,
+      highlight: "min",
+    },
+    {
+      label: "생존율",
+      icon: <Shield size={14} className="text-indigo-500" />,
+      getValue: (r) => `${Math.round(r.survival_rate * 100)}%`,
+      highlight: "max",
+    },
+    {
+      label: "피크타임",
+      icon: <Clock size={14} className="text-pink-500" />,
+      getValue: (r) => r.peak_time || "-",
+    },
+    {
+      label: "유동인구",
+      icon: <Users size={14} className="text-violet-500" />,
+      getValue: (r) => r.foot_traffic_total > 0 ? `${Math.round(r.foot_traffic_total / 10000).toLocaleString()}만` : "-",
+      highlight: "max",
+    },
+    {
+      label: "상권유형",
+      icon: <MapPin size={14} className="text-slate-500" />,
+      getValue: (r) => r.district_type,
+    },
+  ];
+
+  // Compute best value per row for highlighting
+  const bestIdx: Record<number, number[]> = {};
+  rows.forEach((row, ri) => {
+    if (!row.highlight) return;
+    const numericValues = items.map((item) => {
+      if (row.label === "추천점수") return item.success_probability;
+      if (row.label === "월세") return item.estimated_rent;
+      if (row.label === "월매출") return item.sales_per_store;
+      if (row.label === "경쟁점포") return item.store_count;
+      if (row.label === "생존율") return item.survival_rate;
+      if (row.label === "유동인구") return item.foot_traffic_total;
+      return 0;
+    });
+    const target = row.highlight === "max" ? Math.max(...numericValues) : Math.min(...numericValues);
+    bestIdx[ri] = numericValues.reduce<number[]>((acc, v, i) => (v === target ? [...acc, i] : acc), []);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <GitCompareArrows size={18} className="text-indigo-600" />
+            <h3 className="text-base font-bold text-slate-800">상권 비교</h3>
+            <span className="text-xs text-slate-400">{items.length}개 선택</span>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+            <X size={18} className="text-slate-400" />
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-slate-50 z-10">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 w-28" />
+                {items.map((item) => {
+                  const v = verdictStyle(item.verdict);
+                  return (
+                    <th key={item.district_code} className="text-center px-3 py-3 min-w-[130px]">
+                      <div className="font-bold text-slate-800 text-sm">{item.district_name}</div>
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full border mt-0.5 inline-block", v.bg, v.color)}>
+                        #{item.rank}
+                      </span>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, ri) => (
+                <tr key={row.label} className={ri % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      {row.icon}
+                      <span className="text-xs font-medium text-slate-600">{row.label}</span>
+                    </div>
+                  </td>
+                  {items.map((item, ci) => (
+                    <td key={item.district_code} className="text-center px-3 py-2.5">
+                      <span className={cn(
+                        "text-sm font-semibold",
+                        bestIdx[ri]?.includes(ci) ? "text-blue-600" : "text-slate-700"
+                      )}>
+                        {row.getValue(item)}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer actions */}
+        <div className="px-5 py-3 border-t border-slate-100 flex gap-2">
+          {items.map((item) => (
+            <Link
+              key={item.district_code}
+              href={`/report?district_code=${item.district_code}&industry_code=${industryCode}`}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <FileText size={12} />
+              {item.district_name} 보고서
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Compare Floating Bar
+// ---------------------------------------------------------------------------
+
+function CompareBar({
+  selectedCodes,
+  results,
+  onRemove,
+  onClear,
+  onCompare,
+}: {
+  selectedCodes: string[];
+  results: DashboardResult[];
+  onRemove: (code: string) => void;
+  onClear: () => void;
+  onCompare: () => void;
+}) {
+  const selected = results.filter((r) => selectedCodes.includes(r.district_code));
+
+  return (
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md border border-indigo-200 shadow-xl rounded-2xl px-4 py-3 flex items-center gap-3 animate-slide-up">
+      <div className="flex items-center gap-2">
+        {selected.map((r) => (
+          <span
+            key={r.district_code}
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium border border-indigo-200"
+          >
+            {r.district_name}
+            <button onClick={() => onRemove(r.district_code)} className="hover:text-indigo-900">
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 ml-2">
+        <button
+          onClick={onClear}
+          className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          초기화
+        </button>
+        <button
+          onClick={onCompare}
+          disabled={selectedCodes.length < 2}
+          className={cn(
+            "flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+            selectedCodes.length >= 2
+              ? "bg-indigo-600 text-white shadow-md hover:bg-indigo-700"
+              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+          )}
+        >
+          <GitCompareArrows size={14} />
+          비교하기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Content (needs useSearchParams → wrapped in Suspense)
 // ---------------------------------------------------------------------------
 
@@ -448,8 +714,15 @@ function ResultsContent() {
   // Map interaction
   const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
 
+  // Compare mode
+  const [compareCodes, setCompareCodes] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+
   // Mobile filter toggle
   const [showFilters, setShowFilters] = useState(true);
+
+  // Card refs for scroll-to
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Initialize filters from localStorage
   useEffect(() => {
@@ -506,15 +779,51 @@ function ResultsContent() {
     fetchData();
   }, [fetchData]);
 
-  // Map markers
-  const markers: MapMarker[] = results.map((r) => ({
-    lat: r.lat,
-    lng: r.lng,
-    label: r.district_name,
-    type: "recommended" as const,
-    rank: r.rank,
-    successProbability: r.success_probability,
-  }));
+  // Map markers (rich data for InteractiveMap)
+  const mapMarkers: InteractiveMarkerData[] = useMemo(
+    () =>
+      results.map((r) => ({
+        district_code: r.district_code,
+        district_name: r.district_name,
+        district_type: r.district_type,
+        lat: r.lat,
+        lng: r.lng,
+        rank: r.rank,
+        success_probability: r.success_probability,
+        estimated_rent: r.estimated_rent,
+        store_count: r.store_count,
+        survival_rate: r.survival_rate,
+        peak_time: r.peak_time,
+        industry_code: industry.code,
+        scorecard_total: r.scorecard_total,
+      })),
+    [results, industry.code]
+  );
+
+  // Card↔Map sync: when marker clicked on map, scroll to card
+  const handleMarkerClick = useCallback((districtCode: string) => {
+    const el = cardRefs.current[districtCode];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedCode(districtCode);
+      // Auto-clear highlight after 2s
+      setTimeout(() => setHighlightedCode((prev) => (prev === districtCode ? null : prev)), 2000);
+    }
+  }, []);
+
+  // Compare toggle
+  const handleCompareToggle = useCallback((code: string) => {
+    setCompareCodes((prev) => {
+      if (prev.includes(code)) return prev.filter((c) => c !== code);
+      if (prev.length >= MAX_COMPARE) return prev;
+      return [...prev, code];
+    });
+  }, []);
+
+  const compareItems = useMemo(
+    () => results.filter((r) => compareCodes.includes(r.district_code)),
+    [results, compareCodes]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -575,6 +884,11 @@ function ResultsContent() {
             <span className="font-bold text-blue-600">{totalAvailable}개</span> 상권 중{" "}
             <span className="font-bold text-slate-800">TOP {results.length}</span> 추천
           </p>
+          {compareCodes.length === 0 && results.length > 1 && (
+            <p className="text-xs text-slate-400">
+              카드 체크박스를 눌러 비교해보세요
+            </p>
+          )}
         </div>
 
         {/* Main layout: cards + map */}
@@ -618,7 +932,11 @@ function ResultsContent() {
                   industryCode={industry.code}
                   industryName={industry.name}
                   isHighlighted={highlightedCode === r.district_code}
+                  isCompareSelected={compareCodes.includes(r.district_code)}
+                  compareDisabled={compareCodes.length >= MAX_COMPARE}
                   onHover={setHighlightedCode}
+                  onCompareToggle={handleCompareToggle}
+                  cardRef={(el) => { cardRefs.current[r.district_code] = el; }}
                 />
               ))}
           </div>
@@ -626,14 +944,13 @@ function ResultsContent() {
           {/* Map (right) — on mobile stacks above cards via order */}
           <div className="w-full lg:w-[42%] order-first lg:order-last">
             <div className="lg:sticky lg:top-20">
-              <div className="rounded-2xl overflow-hidden border border-slate-200/60 shadow-sm">
-                <MiniMap
-                  markers={markers}
-                  zoom={11}
-                  height={480}
-                  className="!rounded-none !border-0"
-                />
-              </div>
+              <InteractiveMap
+                markers={mapMarkers}
+                highlightedCode={highlightedCode}
+                onMarkerClick={handleMarkerClick}
+                onMarkerHover={setHighlightedCode}
+                height={480}
+              />
 
               {/* Mini legend for quick glance */}
               {!loading && results.length > 0 && (
@@ -642,11 +959,13 @@ function ResultsContent() {
                   <div className="space-y-1.5">
                     {results.slice(0, 5).map((r) => {
                       const vStyle = verdictStyle(r.verdict);
+                      const score = Math.round(r.success_probability * 100);
                       return (
                         <button
                           key={r.district_code}
                           onMouseEnter={() => setHighlightedCode(r.district_code)}
                           onMouseLeave={() => setHighlightedCode(null)}
+                          onClick={() => handleMarkerClick(r.district_code)}
                           className={cn(
                             "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors",
                             highlightedCode === r.district_code
@@ -654,12 +973,17 @@ function ResultsContent() {
                               : "hover:bg-slate-50 text-slate-600"
                           )}
                         >
-                          <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          <span className={cn(
+                            "w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 bg-gradient-to-br",
+                            score >= 80 ? "from-emerald-500 to-emerald-600"
+                              : score >= 60 ? "from-amber-500 to-amber-600"
+                                : "from-rose-500 to-rose-600"
+                          )}>
                             {r.rank}
                           </span>
                           <span className="truncate flex-1 font-medium">{r.district_name}</span>
                           <span className={cn("font-bold text-[11px]", vStyle.color)}>
-                            {Math.round(r.success_probability * 100)}%
+                            {score}%
                           </span>
                         </button>
                       );
@@ -671,6 +995,26 @@ function ResultsContent() {
           </div>
         </div>
       </main>
+
+      {/* Compare floating bar */}
+      {compareCodes.length > 0 && (
+        <CompareBar
+          selectedCodes={compareCodes}
+          results={results}
+          onRemove={(code) => setCompareCodes((prev) => prev.filter((c) => c !== code))}
+          onClear={() => setCompareCodes([])}
+          onCompare={() => setShowCompareModal(true)}
+        />
+      )}
+
+      {/* Compare modal */}
+      {showCompareModal && compareItems.length >= 2 && (
+        <CompareModal
+          items={compareItems}
+          industryCode={industry.code}
+          onClose={() => setShowCompareModal(false)}
+        />
+      )}
 
       {/* AI Chat FAB */}
       <Link
@@ -689,7 +1033,7 @@ function ResultsContent() {
         <span className="text-sm font-semibold">AI에게 질문하기</span>
       </Link>
 
-      {/* Bounce-slow animation */}
+      {/* Animations */}
       <style jsx global>{`
         @keyframes bounce-slow {
           0%, 100% { transform: translateY(0); }
@@ -697,6 +1041,21 @@ function ResultsContent() {
         }
         .animate-bounce-slow {
           animation: bounce-slow 3s ease-in-out infinite;
+        }
+        @keyframes slide-up {
+          from { opacity: 0; transform: translate(-50%, 20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+        .interactive-map-popup .maplibregl-popup-content {
+          border-radius: 12px !important;
+          padding: 12px !important;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+        }
+        .interactive-map-popup .maplibregl-popup-tip {
+          border-top-color: white !important;
         }
       `}</style>
     </div>
