@@ -125,6 +125,9 @@ def create_app() -> FastAPI:
     dashboard_router = cast(APIRouter, import_module("api.routes.dashboard").router)
     app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
 
+    business_plan_router = cast(APIRouter, import_module("api.routes.business_plan").router)
+    app.include_router(business_plan_router, prefix="/api/v1", tags=["BusinessPlan"])
+
     return app
 
 
