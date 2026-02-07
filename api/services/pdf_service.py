@@ -137,35 +137,41 @@ class PDFService:
         }}
 
         .cover {{
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            padding: 140px 40px 80px 40px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             text-align: center;
             page-break-after: always;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }}
 
         .cover h1 {{
-            font-size: 48px;
+            font-size: 42px;
             font-weight: 700;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 16px;
+            color: #ffffff;
         }}
 
         .cover .subtitle {{
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 400;
             margin-bottom: 40px;
-            opacity: 0.95;
+            color: #ffffff;
+        }}
+
+        .cover p {{
+            color: #f0f0f0;
+            font-size: 16px;
         }}
 
         .cover .metadata {{
             font-size: 16px;
             font-weight: 300;
-            opacity: 0.9;
+            color: #f0f0f0;
+        }}
+
+        .cover .metadata p {{
+            color: #f0f0f0;
         }}
 
         .toc {{
@@ -346,42 +352,42 @@ class PDFService:
         .timeline-bar {{
             background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 4px 0;
         }}
 
         .timeline-bar .timeline-header {{
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #374151;
-            margin-bottom: 8px;
+            margin-bottom: 3px;
         }}
 
         .timeline-bar .timeline-track {{
             background: #f3f4f6;
-            height: 40px;
-            border-radius: 5px;
+            height: 28px;
+            border-radius: 4px;
             position: relative;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }}
 
         .timeline-bar .timeline-fill {{
             background: linear-gradient(90deg, #10b981, #059669);
             height: 100%;
-            border-radius: 5px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
         }}
 
         .timeline-bar .timeline-desc {{
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
-            margin-top: 5px;
+            margin-top: 1px;
         }}
 
         .footer {{
@@ -441,17 +447,21 @@ class PDFService:
         budget = context.get("budget", "")
         target = context.get("target", "")
 
+        budget_line = f'<p style="margin-bottom: 10px; color: #f0f0f0; font-size: 18px;">예산: {budget}</p>' if budget else ''
+        target_line = f'<p style="margin-bottom: 10px; color: #f0f0f0; font-size: 18px;">타겟: {target}</p>' if target else ''
+
         return f"""
     <div class="cover">
-        <div style="margin-bottom: 60px; padding: 30px; background: rgba(255,255,255,0.1); border-radius: 20px; backdrop-filter: blur(10px);">
-            <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; color: #667eea;">SP</div>
-            <h1 style="font-size: 56px; margin-bottom: 15px;">{industry_name} 창업 분석 리포트</h1>
-            <div class="subtitle" style="font-size: 28px;">{district} 상권 분석</div>
+        <div style="width: 80px; height: 80px; margin: 0 auto 30px; background: #ffffff; border-radius: 50%; text-align: center; line-height: 80px; font-size: 36px; font-weight: 700; color: #667eea;">SP</div>
+        <h1 style="color: #ffffff; font-size: 44px; margin-bottom: 16px;">{industry_name} 창업 분석 리포트</h1>
+        <p class="subtitle" style="color: #ffffff; font-size: 24px; margin-bottom: 50px;">{district} 상권 분석</p>
+        <div class="metadata" style="margin-top: 40px;">
+            <p style="margin-bottom: 10px; color: #f0f0f0; font-size: 18px;">{date} 생성</p>
+            {budget_line}
+            {target_line}
         </div>
-        <div class="metadata" style="font-size: 18px; line-height: 2;">
-            <p style="margin-bottom: 10px;">📅 {date} 생성</p>
-            {f'<p style="margin-bottom: 10px;">💰 예산: {budget}</p>' if budget else ''}
-            {f'<p style="margin-bottom: 10px;">🎯 타겟: {target}</p>' if target else ''}
+        <div style="margin-top: 80px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3);">
+            <p style="color: #e0e0e0; font-size: 13px;">SpotPick - AI가 골라주는 나만의 창업 자리</p>
         </div>
     </div>
 """
@@ -570,7 +580,7 @@ class PDFService:
 
         competitive_summary = ""
         if competitive:
-            total_cafes = competitive.get("total_competitors", 0)
+            total_cafes = competitive.get("total_nearby_cafes", competitive.get("total_competitors", 0))
             competitive_summary = f"""
         <div class="card">
             <h4>경쟁 현황</h4>
@@ -583,9 +593,6 @@ class PDFService:
         <h2>1. 시장 분석</h2>
         {charts_html}
         {competitive_summary}
-        <div class="footer">
-            <p>SpotPick AI 창업 분석 리포트 | {datetime.now().strftime("%Y년 %m월 %d일")}</p>
-        </div>
     </div>
 """
 
@@ -606,7 +613,8 @@ class PDFService:
             success_prob = rec.get("success_probability", 0)
             monthly_sales = rec.get("monthly_sales", 0)
             store_count = rec.get("store_count", 0)
-            closed_ratio = rec.get("closed_ratio", 0)
+            survival_rate = rec.get("survival_rate", 1.0)
+            closed_ratio = rec.get("closed_ratio", 1 - survival_rate)
             foot_traffic = rec.get("foot_traffic_total", 0)
             scorecard = rec.get("scorecard")
 
@@ -623,14 +631,26 @@ class PDFService:
             if scorecard:
                 total_score = scorecard.get("total_score", 0)
                 percentile = scorecard.get("percentile", 0)
-                categories = scorecard.get("categories", {})
+                categories = scorecard.get("categories", [])
 
                 scorecard_items = ""
-                for cat_name, cat_score in categories.items():
-                    scorecard_items += f"""
+                if isinstance(categories, list):
+                    for cat in categories:
+                        cat_name = cat.get("name", "")
+                        cat_score = cat.get("score", 0)
+                        scorecard_items += f"""
                     <div class="scorecard-item">
                         <div class="score-label">{cat_name}</div>
                         <div class="score-value">{cat_score:.1f}</div>
+                    </div>
+"""
+                elif isinstance(categories, dict):
+                    for cat_name, cat_score in categories.items():
+                        score_val = cat_score if isinstance(cat_score, (int, float)) else 0
+                        scorecard_items += f"""
+                    <div class="scorecard-item">
+                        <div class="score-label">{cat_name}</div>
+                        <div class="score-value">{score_val:.1f}</div>
                     </div>
 """
 
@@ -684,42 +704,50 @@ class PDFService:
         """시뮬레이션 섹션 - 중첩 구조 처리"""
         district_name = simulation.get("district_name", "")
 
-        # 중첩 구조 데이터 추출
+        # 중첩 구조 데이터 추출 (TypeScript SimulationData 구조)
         revenue = simulation.get("revenue", {})
         monthly_sales = revenue.get("monthly_sales_per_store", 0)
         daily_sales = revenue.get("daily_sales", 0)
-        daily_customers = revenue.get("daily_customers", 0)
-        avg_spending = revenue.get("average_spending_per_customer", 0)
+        avg_ticket = revenue.get("avg_ticket", 0)
+        pessimistic = revenue.get("pessimistic", 0)
+        optimistic = revenue.get("optimistic", 0)
+        peak_time = revenue.get("peak_time", "")
 
         startup = simulation.get("startup_cost", {})
         total_min = startup.get("total_min", 0)
         total_max = startup.get("total_max", 0)
+        deposit = startup.get("deposit", 0)
         interior = startup.get("interior", 0)
-        equipment = startup.get("equipment", 0)
-        initial_inventory = startup.get("initial_inventory", 0)
+        equipment_min = startup.get("equipment_min", 0)
+        equipment_max = startup.get("equipment_max", 0)
+        area_pyeong = startup.get("area_pyeong", 0)
 
         operating = simulation.get("operating_cost", {})
         rent = operating.get("rent", 0)
         labor = operating.get("labor", 0)
-        materials = operating.get("materials", 0)
+        cogs = operating.get("cogs", operating.get("materials", 0))
         utilities = operating.get("utilities", 0)
         other = operating.get("other", 0)
-        total_operating = rent + labor + materials + utilities + other
+        total_operating = operating.get("total", rent + labor + cogs + utilities + other)
 
         break_even_data = simulation.get("break_even", {})
-        break_even_months = break_even_data.get("months", 0)
+        break_even_months_min = break_even_data.get("break_even_months_min", 0)
+        break_even_months_max = break_even_data.get("break_even_months_max", 0)
+        monthly_net_profit = break_even_data.get("monthly_net_profit", 0)
+        net_profit_margin = break_even_data.get("net_profit_margin", 0)
 
         competition = simulation.get("competition", {})
-        competition_level = competition.get("level", "보통")
-        nearby_stores = competition.get("nearby_stores", 0)
+        store_count = competition.get("store_count", 0)
+        survival_rate = competition.get("survival_rate", 0)
+        franchise_ratio = competition.get("franchise_ratio", 0)
 
         menu_costs_data = simulation.get("menu_costs", {})
 
-        # 월 순이익 계산
-        monthly_profit = monthly_sales - total_operating
+        # 월 순이익 계산 (break_even에서 가져오거나 직접 계산)
+        monthly_profit = monthly_net_profit if monthly_net_profit else monthly_sales - total_operating
 
         # 수익률
-        profit_ratio = (monthly_profit / monthly_sales * 100) if monthly_sales > 0 else 0
+        profit_ratio = net_profit_margin if net_profit_margin else ((monthly_profit / monthly_sales * 100) if monthly_sales > 0 else 0)
 
         # 매출 구성 테이블
         revenue_table = f"""
@@ -737,13 +765,18 @@ class PDFService:
                 <td style="text-align: right;">{self._format_currency(daily_sales)}</td>
             </tr>
             <tr>
-                <td>일 평균 고객 수</td>
-                <td style="text-align: right;">{daily_customers:,}명</td>
+                <td>객단가</td>
+                <td style="text-align: right;">{self._format_currency(avg_ticket)}</td>
             </tr>
             <tr style="background: #f9fafb;">
-                <td>객단가</td>
-                <td style="text-align: right;">{self._format_currency(avg_spending)}</td>
+                <td>비관적 시나리오</td>
+                <td style="text-align: right; color: #ef4444;">{self._format_currency(pessimistic)}</td>
             </tr>
+            <tr>
+                <td>낙관적 시나리오</td>
+                <td style="text-align: right; color: #10b981;">{self._format_currency(optimistic)}</td>
+            </tr>
+            {f'<tr style="background: #f9fafb;"><td>피크 타임</td><td style="text-align: right;">{peak_time}</td></tr>' if peak_time else ''}
         </table>
 """
 
@@ -755,24 +788,20 @@ class PDFService:
                 <th style="text-align: right;">금액</th>
             </tr>
             <tr>
-                <td>총 초기 투자 (최소)</td>
-                <td style="text-align: right; font-weight: 700; color: #667eea;">{self._format_currency(total_min)}</td>
+                <td><strong>총 초기 투자 (최소~최대)</strong></td>
+                <td style="text-align: right; font-weight: 700; color: #667eea;">{self._format_currency(total_min)} ~ {self._format_currency(total_max)}</td>
             </tr>
             <tr style="background: #f9fafb;">
-                <td>총 초기 투자 (최대)</td>
-                <td style="text-align: right; font-weight: 700; color: #ef4444;">{self._format_currency(total_max)}</td>
+                <td>보증금</td>
+                <td style="text-align: right;">{self._format_currency(deposit)}</td>
             </tr>
             <tr>
-                <td>인테리어</td>
+                <td>인테리어 ({area_pyeong}평)</td>
                 <td style="text-align: right;">{self._format_currency(interior)}</td>
             </tr>
             <tr style="background: #f9fafb;">
                 <td>설비/장비</td>
-                <td style="text-align: right;">{self._format_currency(equipment)}</td>
-            </tr>
-            <tr>
-                <td>초기 재고</td>
-                <td style="text-align: right;">{self._format_currency(initial_inventory)}</td>
+                <td style="text-align: right;">{self._format_currency(equipment_min)} ~ {self._format_currency(equipment_max)}</td>
             </tr>
         </table>
 """
@@ -793,8 +822,8 @@ class PDFService:
                 <td style="text-align: right;">{self._format_currency(labor)}</td>
             </tr>
             <tr>
-                <td>재료비</td>
-                <td style="text-align: right;">{self._format_currency(materials)}</td>
+                <td>원재료비 (COGS)</td>
+                <td style="text-align: right;">{self._format_currency(cogs)}</td>
             </tr>
             <tr style="background: #f9fafb;">
                 <td>공과금</td>
@@ -814,21 +843,23 @@ class PDFService:
         # 메뉴 원가 테이블
         menu_table = ""
         if menu_costs_data:
-            menu_items = menu_costs_data.get("items", [])
+            menu_items = menu_costs_data.get("menu_costs", menu_costs_data.get("items", []))
+            avg_margin = menu_costs_data.get("avg_margin_rate", 0)
             if menu_items:
                 menu_rows = ""
                 for item in menu_items:
-                    item_name = item.get("name", "")
+                    item_name = item.get("menu", item.get("name", ""))
                     selling_price = item.get("selling_price", 0)
                     cost = item.get("cost", 0)
-                    margin = item.get("margin", 0)
+                    margin_rate = item.get("margin_rate", item.get("margin", 0))
+                    category = item.get("category", "")
 
                     menu_rows += f"""
                 <tr>
-                    <td>{item_name}</td>
-                    <td style="text-align: right;">{selling_price:,}원</td>
-                    <td style="text-align: right;">{cost:,}원</td>
-                    <td style="text-align: right; font-weight: 600; color: #10b981;">{margin:.1f}%</td>
+                    <td>{item_name} <small style="color:#9ca3af;">{category}</small></td>
+                    <td style="text-align: right;">{int(selling_price):,}원</td>
+                    <td style="text-align: right;">{int(cost):,}원</td>
+                    <td style="text-align: right; font-weight: 600; color: #10b981;">{margin_rate:.1f}%</td>
                 </tr>
 """
 
@@ -842,15 +873,28 @@ class PDFService:
                 <th style="text-align: right;">마진율</th>
             </tr>
             {menu_rows}
+            <tr style="background: #f3f4f6;">
+                <td colspan="3"><strong>평균 마진율</strong></td>
+                <td style="text-align: right; font-weight: 700; color: #667eea;">{avg_margin:.1f}%</td>
+            </tr>
         </table>
 """
 
         # 리스크 요약
+        risk_summary = simulation.get("risk_summary", [])
+        risk_items = ""
+        if risk_summary:
+            for risk in risk_summary:
+                risk_items += f'<li style="margin-bottom: 8px;">{risk}</li>'
+        else:
+            risk_items = f"""
+            <li style="margin-bottom: 8px;">주변 경쟁 매장: <strong>{store_count}개</strong> (프랜차이즈 비율: {franchise_ratio:.0f}%)</li>
+            <li style="margin-bottom: 8px;">손익분기점: <strong>{break_even_months_min:.1f}~{break_even_months_max:.1f}개월</strong> 예상</li>
+            <li style="margin-bottom: 8px;">2년 생존율: <strong>{survival_rate:.0f}%</strong></li>
+"""
         risk_bullets = f"""
         <ul style="list-style: disc; padding-left: 20px; margin: 15px 0;">
-            <li style="margin-bottom: 8px;">주변 경쟁 매장: <strong>{nearby_stores}개</strong> (경쟁 수준: <strong>{competition_level}</strong>)</li>
-            <li style="margin-bottom: 8px;">손익분기점: <strong>{break_even_months:.1f}개월</strong> 예상</li>
-            <li style="margin-bottom: 8px;">월 순이익률: <strong>{profit_ratio:.1f}%</strong></li>
+            {risk_items}
         </ul>
 """
 
@@ -895,6 +939,9 @@ class PDFService:
                 <div style="width: {max(0, min(100, profit_ratio)):.1f}%; height: 100%; background: linear-gradient(90deg, #10b981, #059669);"></div>
                 <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: 700; color: #1f2937; font-size: 15px;">{profit_ratio:.1f}%</span>
             </div>
+            <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <p style="font-size: 13px; color: #666;">손익분기점: <strong style="color: #667eea;">{break_even_months_min:.1f} ~ {break_even_months_max:.1f}개월</strong></p>
+            </div>
         </div>
 
         {menu_table}
@@ -924,7 +971,7 @@ class PDFService:
 
     def _render_competitive_analysis(self, competitive: dict[str, Any]) -> str:
         """경쟁 분석 섹션 - 리스트 구조 처리 + 번역"""
-        total = competitive.get("total_competitors", 0)
+        total = competitive.get("total_nearby_cafes", competitive.get("total_competitors", 0))
         cafe_types = competitive.get("cafe_types", [])  # LIST of dicts
         market_gaps = competitive.get("market_gaps", [])
         strategies = competitive.get("strategies", [])
@@ -953,16 +1000,22 @@ class PDFService:
         gaps_html = ""
         if market_gaps:
             for gap in market_gaps:
-                gaps_html += f"<li style='margin-bottom: 8px;'>{gap}</li>"
+                if isinstance(gap, dict):
+                    gap_type = gap.get("gap_type", "")
+                    desc = gap.get("description", "")
+                    score = gap.get("opportunity_score", 0)
+                    gaps_html += f"<li style='margin-bottom: 8px;'><strong>{gap_type}</strong>: {desc} (기회점수: {score})</li>"
+                else:
+                    gaps_html += f"<li style='margin-bottom: 8px;'>{gap}</li>"
         else:
             gap_text = competitive.get("market_gap", "")
             if gap_text:
                 gaps_html = f"<li>{gap_text}</li>"
 
         gaps_section = f"""
-        <div class="card" style="background: linear-gradient(135deg, #667eea10, #764ba210); border-left: 4px solid #667eea;">
-            <h4 style="color: #667eea; margin-bottom: 15px;">💡 시장 격차 분석</h4>
-            <ul style="list-style: disc; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+        <div class="card" style="background: linear-gradient(135deg, #667eea10, #764ba210); border-left: 4px solid #667eea; margin-bottom: 12px; padding: 15px 20px;">
+            <h4 style="color: #667eea; margin-bottom: 10px; font-size: 15px;">💡 시장 격차 분석</h4>
+            <ul style="list-style: disc; padding-left: 20px; font-size: 13px; line-height: 1.7;">
                 {gaps_html}
             </ul>
         </div>
@@ -971,17 +1024,25 @@ class PDFService:
         # 차별화 전략
         strategy_html = ""
         if strategies:
-            for strategy in strategies:
-                strategy_html += f"<li style='margin-bottom: 8px;'>{strategy}</li>"
+            for strat in strategies:
+                if isinstance(strat, dict):
+                    strat_name = strat.get("strategy", "")
+                    reason = strat.get("reason", "")
+                    priority = strat.get("priority", "")
+                    priority_kr = {"high": "높음", "medium": "중간", "low": "낮음"}.get(priority, priority)
+                    priority_badge = f' <span class="badge {"danger" if priority == "high" else "warning" if priority == "medium" else "info"}">{priority_kr}</span>' if priority else ""
+                    strategy_html += f"<li style='margin-bottom: 6px;'><strong>{strat_name}</strong>{priority_badge}<br/><small style='color:#6b7280;'>{reason}</small></li>"
+                else:
+                    strategy_html += f"<li style='margin-bottom: 6px;'>{strat}</li>"
         else:
             strategy_text = competitive.get("strategy", "")
             if strategy_text:
                 strategy_html = f"<li>{strategy_text}</li>"
 
         strategy_section = f"""
-        <div class="card" style="background: linear-gradient(135deg, #10b98110, #059f4610); border-left: 4px solid #10b981;">
-            <h4 style="color: #10b981; margin-bottom: 15px;">🎯 추천 차별화 전략</h4>
-            <ul style="list-style: disc; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+        <div class="card" style="background: linear-gradient(135deg, #10b98110, #059f4610); border-left: 4px solid #10b981; padding: 15px 20px;">
+            <h4 style="color: #10b981; margin-bottom: 10px; font-size: 15px;">🎯 추천 차별화 전략</h4>
+            <ul style="list-style: disc; padding-left: 20px; font-size: 13px; line-height: 1.7;">
                 {strategy_html}
             </ul>
         </div>
@@ -993,7 +1054,7 @@ class PDFService:
         <h3>🏪 주변 경쟁 현황</h3>
         <p style="font-size: 16px; margin-bottom: 20px;">총 <strong style="color: #667eea; font-size: 20px;">{total}개</strong> 경쟁 매장 확인</p>
 
-        <table style="border: 1px solid #e5e7eb;">
+        <table style="border: 1px solid #e5e7eb; margin: 10px 0 15px 0;">
             <tr style="background: #667eea; color: white;">
                 <th>카페 유형</th>
                 <th style="text-align: right;">매장 수</th>
@@ -1003,12 +1064,10 @@ class PDFService:
             {types_html}
         </table>
 
-        <h3 style="margin-top: 40px;">💡 시장 기회 및 전략</h3>
-        {gaps_section}
-        {strategy_section}
-
-        <div class="footer">
-            <p>SpotPick AI 창업 분석 리포트 | {datetime.now().strftime("%Y년 %m월 %d일")}</p>
+        <h3 style="margin-top: 20px; margin-bottom: 10px;">💡 시장 기회 및 전략</h3>
+        <div style="display: flex; gap: 12px;">
+            <div style="flex: 1;">{gaps_section}</div>
+            <div style="flex: 1;">{strategy_section}</div>
         </div>
     </div>
 """
@@ -1048,11 +1107,8 @@ class PDFService:
         return f"""
     <div class="section">
         <h2>5. 창업 타임라인</h2>
-        <p style="font-size: 16px; margin-bottom: 20px;">총 예상 기간: <strong style="color: #667eea; font-size: 20px;">{total_weeks}주</strong></p>
+        <p style="font-size: 15px; margin-bottom: 12px;">총 예상 기간: <strong style="color: #667eea; font-size: 18px;">{total_weeks}주</strong></p>
         {stages_html}
-        <div class="footer">
-            <p>SpotPick AI 창업 분석 리포트 | {datetime.now().strftime("%Y년 %m월 %d일")}</p>
-        </div>
     </div>
 """
 

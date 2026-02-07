@@ -51,16 +51,19 @@ async def generate_pdf_report(request: PDFReportRequest):
             industry_name=request.industry_name,
         )
 
-        # 파일명 생성
+        # 파일명 생성 (RFC 5987 인코딩으로 한글 지원)
         filename = request.filename or f"{request.industry_name}_창업_리포트.pdf"
         if not filename.endswith(".pdf"):
             filename += ".pdf"
+
+        from urllib.parse import quote
+        encoded_filename = quote(filename)
 
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
                 "Content-Type": "application/pdf",
             },
         )
