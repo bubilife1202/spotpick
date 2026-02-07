@@ -12,12 +12,16 @@ from fastapi.responses import StreamingResponse  # type: ignore[import-not-found
 from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 from typing import Optional
 
+import logging
+
 from api.services.chat_service import (
     ConversationContext,
     HistoryMessage,
     StructuredChatPayload,
     get_chat_service,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -51,7 +55,7 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., description="사용자 메시지")
+    message: str = Field(..., max_length=5000, description="사용자 메시지")
     history: Optional[list[ChatMessage]] = Field(None, description="이전 대화 히스토리")
     context: Optional[dict[str, object]] = Field(
         None,
@@ -173,7 +177,8 @@ async def chat(request: ChatRequest, req: Request):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Chat error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 
 @router.post("/chat/stream")
@@ -225,7 +230,8 @@ async def chat_stream(request: ChatRequest, req: Request):
             yield f"data: {json.dumps({'done': True})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            logger.error(f"Chat stream error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
     return StreamingResponse(
         generate(),

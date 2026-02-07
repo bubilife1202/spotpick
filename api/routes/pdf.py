@@ -5,6 +5,7 @@ PDF 리포트 내보내기 API 라우트
 from __future__ import annotations
 
 import logging
+import re
 from fastapi import APIRouter, HTTPException  # type: ignore[import-not-found]
 from fastapi.responses import Response  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field  # type: ignore[import-not-found]
@@ -51,8 +52,13 @@ async def generate_pdf_report(request: PDFReportRequest):
             industry_name=request.industry_name,
         )
 
-        # 파일명 생성 (RFC 5987 인코딩으로 한글 지원)
-        filename = request.filename or f"{request.industry_name}_창업_리포트.pdf"
+        # 파일명 산화 및 생성 (RFC 5987 인코딩으로 한글 지원)
+        if request.filename:
+            # Remove path separators and dangerous chars
+            safe_name = re.sub(r'[/\\<>:"|?*]', '', request.filename)[:50]
+            filename = safe_name if safe_name else f"{request.industry_name}_창업_리포트"
+        else:
+            filename = f"{request.industry_name}_창업_리포트"
         if not filename.endswith(".pdf"):
             filename += ".pdf"
 
@@ -70,7 +76,7 @@ async def generate_pdf_report(request: PDFReportRequest):
 
     except Exception as e:
         logger.error(f"PDF 생성 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"PDF 생성 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 
 @router.get("/pdf/health")

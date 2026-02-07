@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+import time
+from collections import defaultdict
 
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 from .routes.health import router as health_router
 from .routes.recommendations import router as recommendations_router
@@ -21,6 +24,30 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
 
+class RateLimitMiddleware:
+    def __init__(self, app, max_requests: int = 60, window_seconds: int = 60):
+        self.app = app
+        self.max_requests = max_requests
+        self.window = window_seconds
+        self.requests: dict[str, list[float]] = defaultdict(list)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            client_ip = scope.get("client", ("unknown", 0))[0]
+            now = time.time()
+            # Clean old entries
+            self.requests[client_ip] = [t for t in self.requests[client_ip] if now - t < self.window]
+            if len(self.requests[client_ip]) >= self.max_requests:
+                response = JSONResponse(
+                    {"detail": "Too many requests. Please try again later."},
+                    status_code=429,
+                )
+                await response(scope, receive, send)
+                return
+            self.requests[client_ip].append(now)
+        await self.app(scope, receive, send)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Builder Curation API",
@@ -31,11 +58,27 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        # Production: add your deployed frontend domain(s) here
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3000",
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
+
+    @app.middleware("http")
+    async def add_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+    app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
 
     app.include_router(health_router, tags=["Health"])
     app.include_router(recommendations_router, prefix="/api/v1", tags=["Recommendations"])

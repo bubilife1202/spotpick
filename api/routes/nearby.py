@@ -4,12 +4,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.services.kakao_local_service import get_kakao_local_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/nearby")
 
@@ -51,7 +54,8 @@ async def search_nearby_cafes(
             query=query, x=x, y=y, radius=radius, size=size, page=page,
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"카카오 API 호출 실패: {e}")
+        logger.error(f"카카오 API 호출 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return NearbyResponse(
         stores=[NearbyStoreItem(**s) for s in result["stores"]],
@@ -85,7 +89,8 @@ async def search_nearby_parking(
             size=size,
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"카카오 API 호출 실패: {e}")
+        logger.error(f"카카오 API 호출 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return NearbyResponse(
         stores=[NearbyStoreItem(**s) for s in result["stores"]],

@@ -3,12 +3,15 @@ Prediction Routes - ML 기반 창업 성공 예측 API
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from api.services.ml_service import get_ml_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/prediction")
 
@@ -122,7 +125,8 @@ async def predict_success(request: PredictionRequest) -> PredictionResponse:
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Prediction error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     # 상권 정보 추가 (district_code로 조회한 경우)
     district_info = None
@@ -160,7 +164,8 @@ async def get_feature_importance() -> FeatureImportanceResponse:
     try:
         result = ml_service.get_feature_importance()
     except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Feature importance error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return FeatureImportanceResponse(
         feature_importances=[FeatureImportanceItem(**f) for f in result["feature_importances"]],
@@ -186,7 +191,8 @@ async def predict_by_district(district_code: str) -> PredictionResponse:
     try:
         result = ml_service.predict_success({"district_code": district_code})
     except (ValueError, RuntimeError) as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"District prediction error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     district_info = {
         "district_code": district["district_code"],

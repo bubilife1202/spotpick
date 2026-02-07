@@ -1,8 +1,11 @@
 """Scorecard API — transparent, explainable district scoring."""
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -34,7 +37,8 @@ async def get_ranking(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Scorecard ranking error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 
 @router.get("/scorecard/{industry_code}/{district_code}")
@@ -64,4 +68,5 @@ async def get_district_scorecard(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Scorecard district error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")

@@ -8,12 +8,14 @@ Endpoints:
 """
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Any
 
 from ..services.trend_service import get_trend_service
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,7 +52,8 @@ async def get_search_trend(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch trend data: {str(e)}")
+        logger.error(f"Failed to fetch trend data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 
 @router.get("/trends/compare", response_model=TrendResponse)
@@ -90,7 +93,8 @@ async def compare_keywords(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to compare keywords: {str(e)}")
+        logger.error(f"Failed to compare keywords: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 
 @router.get("/trends/district", response_model=TrendResponse)
@@ -132,4 +136,5 @@ async def compare_districts(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to compare districts: {str(e)}")
+        logger.error(f"Failed to compare districts: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")

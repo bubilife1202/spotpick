@@ -7,7 +7,7 @@ router = APIRouter(prefix="/districts")
 
 @router.get("/search")
 def search_districts(
-    q: str = Query("", min_length=0, description="검색어 (상권명, 구, 역 등)"),
+    q: str = Query("", min_length=0, max_length=100, description="검색어 (상권명, 구, 역 등)"),
     limit: int = Query(20, ge=1, le=50),
     industry_code: str = Query("CS100010", description="업종 코드"),
 ):

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from api.services.competitive_analysis_service import (
     CompetitiveAnalysisService,
@@ -51,16 +54,17 @@ class CompetitiveAnalysisResponse(BaseModel):
 
 @router.get("/analyze", response_model=CompetitiveAnalysisResponse)
 async def analyze_competition(
-    query: Annotated[str, Query(description="검색 키워드(예: '강남역', '홍대입구역')")],
-    x: Annotated[float | None, Query(description="경도(lng)")] = None,
-    y: Annotated[float | None, Query(description="위도(lat)")] = None,
+    query: Annotated[str, Query(min_length=1, max_length=100, description="검색 키워드(예: '강남역', '홍대입구역')")],
+    x: Annotated[float | None, Query(ge=-180, le=180, description="경도(lng)")] = None,
+    y: Annotated[float | None, Query(ge=-90, le=90, description="위도(lat)")] = None,
     industry_code: str = Query("CS100010", description="업종 코드"),
 ) -> CompetitiveAnalysisResponse:
     service = get_competitive_analysis_service(industry_code=industry_code)
     try:
         result = await service.analyze_competition(query=query, x=x, y=y)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"경쟁 분석 실패: {e}")
+        logger.error(f"경쟁 분석 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return CompetitiveAnalysisResponse(
         total_nearby_cafes=int(result.get("total_nearby_cafes", 0)),
@@ -96,7 +100,8 @@ async def get_menu_costs(
         service = get_competitive_analysis_service(industry_code)
         result = service.get_menu_costs()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"원가 데이터 생성 실패: {e}")
+        logger.error(f"원가 데이터 생성 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return CostSimulationResponse(
         menu_costs=[MenuCostItemResponse(**i) for i in result.get("menu_costs", [])],
@@ -123,6 +128,7 @@ async def calculate_custom_menu_cost(payload: CustomMenuCostRequest) -> MenuCost
             ingredients=payload.ingredients,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"커스텀 원가 계산 실패: {e}")
+        logger.error(f"커스텀 원가 계산 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     return MenuCostItemResponse(**result)
