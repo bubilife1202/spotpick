@@ -25,6 +25,7 @@ class RecommendationRequestBody(BaseModel):
     has_takeout: Optional[bool] = Field(
         default=None, description="(호환성) 테이크아웃 여부. 현재는 추천 로직에 직접 반영하지 않습니다."
     )
+    industry_code: str = Field(default="CS100010", description="업종 코드")
 
 
 class AreaStats(BaseModel):
@@ -209,7 +210,7 @@ async def get_recommendations(body: RecommendationRequestBody):
     - **preferred_area_type**: 상권 유형 (골목상권, 발달상권, 전통시장, 관광특구)
     - **min_survival_rate**: 최소 생존율 필터 (0.5 = 50% 이상)
     """
-    service = get_data_service()
+    service = get_data_service(industry_code=body.industry_code)
 
     preferred = (body.preferred_district or "").strip() or None
     # UI 호환: "강남구" -> "강남" (단, "중구" 처럼 2글자+구는 제거하지 않음)
@@ -309,13 +310,14 @@ async def quick_recommendation(
     budget: int = Query(..., description="월 예산 (임대료)"),
     district: Optional[str] = Query(None, description="선호 지역구"),
     area_type: Optional[str] = Query(None, description="상권 유형"),
+    industry_code: str = Query("CS100010", description="업종 코드"),
 ):
     """
     간단한 조건으로 빠르게 추천받습니다.
 
     예: /recommendations/quick?budget=3000000&district=강남
     """
-    service = get_data_service()
+    service = get_data_service(industry_code=industry_code)
 
     budget_min = int(budget * 0.7)
     budget_max = int(budget * 1.3)
@@ -364,7 +366,9 @@ async def quick_recommendation(
 
 
 @router.get("/recommendations/summary")
-async def get_summary():
+async def get_summary(
+    industry_code: str = Query("CS100010", description="업종 코드"),
+):
     """전체 데이터 요약 통계를 반환합니다."""
-    service = get_data_service()
+    service = get_data_service(industry_code=industry_code)
     return service.get_summary()

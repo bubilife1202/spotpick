@@ -9,10 +9,11 @@ router = APIRouter(prefix="/districts")
 def search_districts(
     q: str = Query("", min_length=0, description="검색어 (상권명, 구, 역 등)"),
     limit: int = Query(20, ge=1, le=50),
+    industry_code: str = Query("CS100010", description="업종 코드"),
 ):
     from ..services.data_service import get_data_service
 
-    svc = get_data_service()
+    svc = get_data_service(industry_code=industry_code)
     q_clean = (q or "").strip()
     q_lower = q_clean.lower()
 
@@ -53,10 +54,11 @@ def list_districts(
     district_type: str | None = Query(None, description="상권유형 필터 (골목상권, 발달상권, 전통시장, 관광특구)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    industry_code: str = Query("CS100010", description="업종 코드"),
 ):
     from ..services.data_service import get_data_service
 
-    svc = get_data_service()
+    svc = get_data_service(industry_code=industry_code)
     filtered = svc.districts
 
     if district_type:

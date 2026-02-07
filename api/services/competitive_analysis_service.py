@@ -1,10 +1,14 @@
 """
 경쟁 차별점 분석 + 메뉴별 원가계산 서비스
+
+Multi-industry support: constants are loaded from config JSON files
+(data/industries/<code>.json) with fallback to module-level defaults
+for backward compatibility with CS100010 (카페).
 """
 
 from __future__ import annotations
 
-import re
+import logging
 from collections import Counter
 from typing import Any, TypedDict
 
@@ -14,10 +18,13 @@ from api.services.kakao_local_service import (
     NearbyStoresResult,
     get_kakao_local_service,
 )
+from config.industry_config import DEFAULT_INDUSTRY, load_industry_config
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# 메뉴별 원가 벤치마크 (2024-2025 업계 평균)
+# 메뉴별 원가 벤치마크 (2024-2025 업계 평균) — CS100010 카페 기본값
 # ---------------------------------------------------------------------------
 
 MENU_COSTS: dict[str, dict[str, Any]] = {
@@ -140,7 +147,7 @@ MENU_COSTS: dict[str, dict[str, Any]] = {
     },
 }
 
-RAW_MATERIAL_PRICES = {
+RAW_MATERIAL_PRICES: dict[str, dict[str, Any]] = {
     "원두 (kg)": {"price": 30000, "unit": "kg", "note": "스페셜티 기준, 상업용 15,000~20,000"},
     "우유 (L)": {"price": 2000, "unit": "L", "note": "서울우유 기준"},
     "종이컵 (개)": {"price": 100, "unit": "개", "note": "12oz 기준, 뚜껑 별도 50원"},
@@ -154,7 +161,7 @@ RAW_MATERIAL_PRICES = {
 
 
 # ---------------------------------------------------------------------------
-# 카페 유형 분류 키워드
+# 카페 유형 분류 키워드 — CS100010 기본값
 # ---------------------------------------------------------------------------
 
 CAFE_TYPE_KEYWORDS: dict[str, list[str]] = {
@@ -224,18 +231,68 @@ class CostSimulation(TypedDict):
 # ---------------------------------------------------------------------------
 
 class CompetitiveAnalysisService:
-    def __init__(self) -> None:
+    """Competitive analysis + menu cost service.
+
+    Loads industry-specific constants from config JSON with fallback to
+    module-level defaults (CS100010 / 카페).
+    """
+
+    def __init__(self, industry_code: str = DEFAULT_INDUSTRY) -> None:
+        self.industry_code = industry_code
         self.kakao = get_kakao_local_service()
 
-    def _classify_cafe(self, name: str, category: str) -> str:
+        # -- Load config with fallback to module-level defaults ------------
+        try:
+            cfg = load_industry_config(industry_code)
+        except Exception:
+            logger.warning(
+                "Failed to load industry config for %s; using module defaults",
+                industry_code,
+            )
+            cfg = {}
+
+        self._display_name: str = cfg.get("display_name", "카페")
+
+        # MENU_COSTS
+        try:
+            self._menu_costs: dict[str, dict[str, Any]] = cfg["MENU_COSTS"]
+        except KeyError:
+            self._menu_costs = MENU_COSTS
+
+        # STORE_TYPE_KEYWORDS (config key is CAFE_TYPE_KEYWORDS for backward compat)
+        try:
+            self._store_type_keywords: dict[str, list[str]] = cfg["CAFE_TYPE_KEYWORDS"]
+        except KeyError:
+            self._store_type_keywords = CAFE_TYPE_KEYWORDS
+
+        # RAW_MATERIAL_PRICES
+        try:
+            self._raw_material_prices: dict[str, dict[str, Any]] = cfg["RAW_MATERIAL_PRICES"]
+        except KeyError:
+            self._raw_material_prices = RAW_MATERIAL_PRICES
+
+        # DAILY_SCENARIO (industry-specific daily order scenario)
+        ds = cfg.get("DAILY_SCENARIO", {})
+        self._daily_orders: int = ds.get("daily_orders", 100)
+        self._main_ratio: float = ds.get("main_ratio", 0.70)
+        self._main_category: str = ds.get("main_category", "커피")
+        self._unit: str = ds.get("unit", "잔")
+        self._unit_name: str = ds.get("unit_name", "일 100잔")
+
+    # -------------------------------------------------------------------
+    # Store classification (renamed from _classify_cafe)
+    # -------------------------------------------------------------------
+
+    def _classify_store(self, name: str, category: str) -> str:
+        """Classify a store by matching name/category against keyword sets."""
         text = f"{name} {category}".lower()
-        for cafe_type, keywords in CAFE_TYPE_KEYWORDS.items():
+        for store_type, keywords in self._store_type_keywords.items():
             for kw in keywords:
                 if kw.lower() in text:
-                    return cafe_type
+                    return store_type
         if "카페" in category or "커피" in category:
             return "일반카페"
-        return "기타"
+        return f"일반{self._display_name}"
 
     async def analyze_competition(self, query: str, x: float | None = None, y: float | None = None) -> CompetitiveAnalysis:
         if not self.kakao.available:
@@ -257,11 +314,11 @@ class CompetitiveAnalysisService:
         type_counter: Counter[str] = Counter()
         type_examples: dict[str, list[str]] = {}
         for store in all_stores:
-            cafe_type = self._classify_cafe(store["name"], store["category"])
-            type_counter[cafe_type] += 1
-            type_examples.setdefault(cafe_type, [])
-            if len(type_examples[cafe_type]) < 3:
-                type_examples[cafe_type].append(store["name"])
+            store_type = self._classify_store(store["name"], store["category"])
+            type_counter[store_type] += 1
+            type_examples.setdefault(store_type, [])
+            if len(type_examples[store_type]) < 3:
+                type_examples[store_type].append(store["name"])
 
         total = max(1, len(all_stores))
         cafe_types: list[CafeTypeBreakdown] = []
@@ -381,10 +438,10 @@ class CompetitiveAnalysisService:
     # 원가계산
     # -----------------------------------------------------------------------
 
-    @staticmethod
-    def get_menu_costs() -> CostSimulation:
+    def get_menu_costs(self) -> CostSimulation:
+        """Build cost simulation using instance menu costs (config-driven)."""
         items: list[MenuCostItem] = []
-        for menu, data in MENU_COSTS.items():
+        for menu, data in self._menu_costs.items():
             selling = data["selling_price"]
             cost = data["total_cost"]
             items.append(MenuCostItem(
@@ -399,14 +456,47 @@ class CompetitiveAnalysisService:
 
         avg_margin = sum(i["margin_rate"] for i in items) / max(1, len(items))
 
-        daily_scenario = _build_daily_scenario(items)
+        daily_scenario = self._build_daily_scenario(items)
 
         return CostSimulation(
             menu_costs=items,
             avg_margin_rate=round(avg_margin, 3),
-            raw_material_prices=RAW_MATERIAL_PRICES,
+            raw_material_prices=self._raw_material_prices,
             daily_sales_scenario=daily_scenario,
         )
+
+    def _build_daily_scenario(self, items: list[MenuCostItem]) -> dict[str, Any]:
+        """Build daily sales scenario using industry-specific config."""
+        main_items = [i for i in items if i["category"] == self._main_category]
+        sub_items = [i for i in items if i["category"] != self._main_category]
+
+        daily_orders = self._daily_orders
+        main_ratio = self._main_ratio
+        main_orders = int(daily_orders * main_ratio)
+        sub_orders = daily_orders - main_orders
+
+        avg_main_price = sum(i["selling_price"] for i in main_items) // max(1, len(main_items)) if main_items else 8000
+        avg_main_cost = sum(i["cost"] for i in main_items) // max(1, len(main_items)) if main_items else 3000
+        avg_sub_price = sum(i["selling_price"] for i in sub_items) // max(1, len(sub_items)) if sub_items else 5000
+        avg_sub_cost = sum(i["cost"] for i in sub_items) // max(1, len(sub_items)) if sub_items else 1500
+
+        daily_revenue = (main_orders * avg_main_price) + (sub_orders * avg_sub_price)
+        daily_cogs = (main_orders * avg_main_cost) + (sub_orders * avg_sub_cost)
+
+        return {
+            "daily_orders": daily_orders,
+            "main_orders": main_orders,
+            "sub_orders": sub_orders,
+            "unit": self._unit,
+            "unit_name": self._unit_name,
+            "daily_revenue": daily_revenue,
+            "daily_cogs": daily_cogs,
+            "daily_gross_profit": daily_revenue - daily_cogs,
+            "gross_margin_rate": round((daily_revenue - daily_cogs) / max(1, daily_revenue), 3),
+            "monthly_revenue": daily_revenue * 30,
+            "monthly_cogs": daily_cogs * 30,
+            "monthly_gross_profit": (daily_revenue - daily_cogs) * 30,
+        }
 
     @staticmethod
     def calculate_custom_menu_cost(
@@ -425,42 +515,17 @@ class CompetitiveAnalysisService:
         )
 
 
-def _build_daily_scenario(items: list[MenuCostItem]) -> dict[str, Any]:
-    coffee_items = [i for i in items if i["category"] == "커피"]
-    non_coffee = [i for i in items if i["category"] != "커피"]
+# ---------------------------------------------------------------------------
+# Registry pattern — one instance per industry_code
+# ---------------------------------------------------------------------------
 
-    daily_cups = 100
-    coffee_ratio = 0.70
-    coffee_cups = int(daily_cups * coffee_ratio)
-    other_cups = daily_cups - coffee_cups
-
-    avg_coffee_price = sum(i["selling_price"] for i in coffee_items) // max(1, len(coffee_items))
-    avg_coffee_cost = sum(i["cost"] for i in coffee_items) // max(1, len(coffee_items))
-    avg_other_price = sum(i["selling_price"] for i in non_coffee) // max(1, len(non_coffee)) if non_coffee else 5000
-    avg_other_cost = sum(i["cost"] for i in non_coffee) // max(1, len(non_coffee)) if non_coffee else 1500
-
-    daily_revenue = (coffee_cups * avg_coffee_price) + (other_cups * avg_other_price)
-    daily_cogs = (coffee_cups * avg_coffee_cost) + (other_cups * avg_other_cost)
-
-    return {
-        "daily_cups": daily_cups,
-        "coffee_cups": coffee_cups,
-        "other_cups": other_cups,
-        "daily_revenue": daily_revenue,
-        "daily_cogs": daily_cogs,
-        "daily_gross_profit": daily_revenue - daily_cogs,
-        "gross_margin_rate": round((daily_revenue - daily_cogs) / max(1, daily_revenue), 3),
-        "monthly_revenue": daily_revenue * 30,
-        "monthly_cogs": daily_cogs * 30,
-        "monthly_gross_profit": (daily_revenue - daily_cogs) * 30,
-    }
+_registry: dict[str, CompetitiveAnalysisService] = {}
 
 
-_instance: CompetitiveAnalysisService | None = None
-
-
-def get_competitive_analysis_service() -> CompetitiveAnalysisService:
-    global _instance
-    if _instance is None:
-        _instance = CompetitiveAnalysisService()
-    return _instance
+def get_competitive_analysis_service(
+    industry_code: str = DEFAULT_INDUSTRY,
+) -> CompetitiveAnalysisService:
+    """Return a cached CompetitiveAnalysisService for the given industry."""
+    if industry_code not in _registry:
+        _registry[industry_code] = CompetitiveAnalysisService(industry_code)
+    return _registry[industry_code]

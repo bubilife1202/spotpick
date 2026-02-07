@@ -10,10 +10,11 @@ import math
 from typing import Any, Optional, TypedDict
 
 from api.services.data_service import DataService, estimate_rent, get_data_service
+from config.industry_config import load_industry_config, DEFAULT_INDUSTRY
 
 
 # ---------------------------------------------------------------------------
-# 업계 벤치마크 상수
+# 업계 벤치마크 상수 (기본값 — config 미로드 시 폴백)
 # ---------------------------------------------------------------------------
 
 DISTRICT_TYPE_FACTORS = {
@@ -125,9 +126,77 @@ class SimulationResult(TypedDict):
 # ---------------------------------------------------------------------------
 
 class SimulationService:
-    def __init__(self, data_service: DataService | None = None) -> None:
-        self.data_service = data_service or get_data_service()
+    def __init__(
+        self,
+        data_service: DataService | None = None,
+        industry_code: str = DEFAULT_INDUSTRY,
+    ) -> None:
+        self.industry_code = industry_code
+        self.data_service = data_service or get_data_service(industry_code)
+
+        # Load industry config and extract simulation constants
+        self._load_config()
+
         self._build_percentile_cache()
+
+    # -------------------------------------------------------------------
+    # Config loading with fallback to module-level defaults
+    # -------------------------------------------------------------------
+
+    def _load_config(self) -> None:
+        try:
+            cfg = load_industry_config(self.industry_code)
+        except FileNotFoundError:
+            cfg = {}
+
+        self.display_name: str = cfg.get("display_name", cfg.get("name", "카페"))
+
+        # DISTRICT_TYPE_FACTORS
+        try:
+            raw_dtf = cfg["DISTRICT_TYPE_FACTORS"]
+            # Ensure each sub-dict has required keys; keep as-is (values are plain dicts)
+            self._district_type_factors: dict[str, dict[str, Any]] = raw_dtf
+        except (KeyError, TypeError):
+            self._district_type_factors = DISTRICT_TYPE_FACTORS
+
+        # EQUIPMENT_COST — config stores [min, max] lists; convert to tuples
+        try:
+            raw_eq = cfg["EQUIPMENT_COST"]
+            self._equipment_cost: dict[str, tuple[int, int]] = {
+                k: (v[0], v[1]) for k, v in raw_eq.items()
+            }
+        except (KeyError, TypeError):
+            self._equipment_cost = EQUIPMENT_COST
+
+        # Scalar ratios
+        try:
+            self._cogs_ratio: float = float(cfg["COGS_RATIO"])
+        except (KeyError, TypeError, ValueError):
+            self._cogs_ratio = COGS_RATIO
+
+        try:
+            self._utilities_ratio: float = float(cfg["UTILITIES_RATIO"])
+        except (KeyError, TypeError, ValueError):
+            self._utilities_ratio = UTILITIES_RATIO
+
+        try:
+            self._other_ratio: float = float(cfg["OTHER_RATIO"])
+        except (KeyError, TypeError, ValueError):
+            self._other_ratio = OTHER_RATIO
+
+        # INITIAL_INVENTORY — config stores [min, max] list
+        try:
+            raw_inv = cfg["INITIAL_INVENTORY"]
+            self._initial_inventory: tuple[int, int] = (raw_inv[0], raw_inv[1])
+        except (KeyError, TypeError, IndexError):
+            self._initial_inventory = INITIAL_INVENTORY
+
+        # PERMITS_AND_MISC — config stores [min, max] list
+        try:
+            raw_pm = cfg["PERMITS_AND_MISC"]
+            self._permits_and_misc: tuple[int, int] = (raw_pm[0], raw_pm[1])
+        except (KeyError, TypeError, IndexError):
+            self._permits_and_misc = PERMITS_AND_MISC
 
     def _build_percentile_cache(self) -> None:
         type_sales: dict[str, list[int]] = {}
@@ -210,26 +279,28 @@ class SimulationService:
         district_type: str,
         area_pyeong: int = 10,
     ) -> StartupCost:
-        factors = DISTRICT_TYPE_FACTORS.get(district_type, DISTRICT_TYPE_FACTORS["골목상권"])
+        factors = self._district_type_factors.get(
+            district_type, self._district_type_factors.get("골목상권", DISTRICT_TYPE_FACTORS["골목상권"])
+        )
         deposit_mult = factors["deposit_mult"]
         deposit = int(monthly_rent * deposit_mult)
 
         interior = int(factors["interior_per_pyeong"] * area_pyeong)
 
-        eq_min = sum(lo for lo, _ in EQUIPMENT_COST.values())
-        eq_max = sum(hi for _, hi in EQUIPMENT_COST.values())
+        eq_min = sum(lo for lo, _ in self._equipment_cost.values())
+        eq_max = sum(hi for _, hi in self._equipment_cost.values())
 
         return StartupCost(
             deposit=deposit,
             interior=interior,
             equipment_min=eq_min,
             equipment_max=eq_max,
-            initial_inventory_min=INITIAL_INVENTORY[0],
-            initial_inventory_max=INITIAL_INVENTORY[1],
-            permits_misc_min=PERMITS_AND_MISC[0],
-            permits_misc_max=PERMITS_AND_MISC[1],
-            total_min=int(deposit + interior + eq_min + INITIAL_INVENTORY[0] + PERMITS_AND_MISC[0]),
-            total_max=int(deposit + interior + eq_max + INITIAL_INVENTORY[1] + PERMITS_AND_MISC[1]),
+            initial_inventory_min=self._initial_inventory[0],
+            initial_inventory_max=self._initial_inventory[1],
+            permits_misc_min=self._permits_and_misc[0],
+            permits_misc_max=self._permits_and_misc[1],
+            total_min=int(deposit + interior + eq_min + self._initial_inventory[0] + self._permits_and_misc[0]),
+            total_max=int(deposit + interior + eq_max + self._initial_inventory[1] + self._permits_and_misc[1]),
             interior_grade="mid",
             area_pyeong=area_pyeong,
         )
@@ -244,11 +315,13 @@ class SimulationService:
         monthly_rent: int,
         district_type: str,
     ) -> OperatingCost:
-        factors = DISTRICT_TYPE_FACTORS.get(district_type, DISTRICT_TYPE_FACTORS["골목상권"])
-        cogs = int(monthly_revenue * COGS_RATIO)
+        factors = self._district_type_factors.get(
+            district_type, self._district_type_factors.get("골목상권", DISTRICT_TYPE_FACTORS["골목상권"])
+        )
+        cogs = int(monthly_revenue * self._cogs_ratio)
         labor = int(monthly_revenue * factors["labor_ratio"])
-        utilities = int(monthly_revenue * UTILITIES_RATIO)
-        other = int(monthly_revenue * OTHER_RATIO)
+        utilities = int(monthly_revenue * self._utilities_ratio)
+        other = int(monthly_revenue * self._other_ratio)
         total = monthly_rent + cogs + labor + utilities + other
 
         return OperatingCost(
@@ -338,7 +411,7 @@ class SimulationService:
 
         risks: list[str] = []
         if district.get("store_count", 0) > 20:
-            risks.append(f"높은 경쟁 밀도 (카페 {district['store_count']}개)")
+            risks.append(f"높은 경쟁 밀도 ({self.display_name} {district['store_count']}개)")
         if district.get("survival_rate", 1) < 0.7:
             risks.append(f"낮은 생존율 ({district['survival_rate'] * 100:.0f}%)")
         if district.get("closed_stores", 0) > district.get("new_stores", 0):
@@ -384,14 +457,14 @@ class SimulationService:
 
 
 # ---------------------------------------------------------------------------
-# 싱글톤
+# 레지스트리 패턴 (업종별 인스턴스)
 # ---------------------------------------------------------------------------
 
-_instance: SimulationService | None = None
+_registry: dict[str, SimulationService] = {}
 
 
-def get_simulation_service() -> SimulationService:
-    global _instance
-    if _instance is None:
-        _instance = SimulationService()
-    return _instance
+def get_simulation_service(industry_code: str = DEFAULT_INDUSTRY) -> SimulationService:
+    """Get or create a SimulationService for the given industry code."""
+    if industry_code not in _registry:
+        _registry[industry_code] = SimulationService(industry_code=industry_code)
+    return _registry[industry_code]

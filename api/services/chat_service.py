@@ -22,6 +22,7 @@ from api.services.competitive_analysis_service import (
     get_competitive_analysis_service,
 )
 from api.services.simulation_service import SimulationService, get_simulation_service
+from api.services.timeline_service import TimelineService, get_timeline_service
 
 
 class _GeminiResponse(Protocol):
@@ -135,6 +136,15 @@ class StructuredRecommendation(TypedDict):
     survival_rate: float
     key_success_factors: list[str]
     coordinates: Optional[dict[str, float]]
+    foot_traffic_total: int
+    worker_total: int
+    facility_subway: int
+    change_indicator: str
+    transit_percentile: float
+    positioning: str
+    positioning_detail: str
+    purchasing_power: float
+    scorecard: Optional[dict[str, object]]
 
 
 class ChartDatum(TypedDict, total=False):
@@ -182,6 +192,8 @@ class StructuredChatPayload(TypedDict, total=False):
     context: ContextMeta
     competitive: dict[str, object]
     simulation: dict[str, object]
+    timeline: dict[str, object]
+    trademark: dict[str, object]
 
 
 @dataclass
@@ -194,6 +206,15 @@ class ConversationContext:
     age_target: Optional[str] = None
     gender_target: Optional[str] = None
     cafe_type: Optional[str] = None
+
+    # Alias: business_type == cafe_type (backward compat)
+    @property
+    def business_type(self) -> Optional[str]:
+        return self.cafe_type
+
+    @business_type.setter
+    def business_type(self, value: Optional[str]) -> None:
+        self.cafe_type = value
 
 
 class ChatService:
@@ -236,7 +257,17 @@ class ChatService:
         "광명",
     ]
 
-    def __init__(self):
+    def __init__(self, industry_code: str = "CS100010"):
+        self.industry_code = industry_code
+
+        # Load industry config
+        from config.industry_config import load_industry_config
+        try:
+            self.industry_config: dict[str, object] = load_industry_config(industry_code)
+        except FileNotFoundError:
+            self.industry_config = {}
+        self.display_name: str = str(self.industry_config.get("display_name", "카페"))
+
         self.client: object | None = None
         if GEMINI_API_KEY and genai is not None:
             try:
@@ -244,10 +275,12 @@ class ChatService:
             except Exception:
                 logger.exception("Failed to initialize Gemini client; falling back to data-only reply")
 
-        self.data_service: DataService = get_data_service()
-        self.simulation_service: SimulationService = get_simulation_service()
-        self.competitive_service: CompetitiveAnalysisService = get_competitive_analysis_service()
+        # Use industry-aware services
+        self.data_service: DataService = get_data_service(industry_code)
+        self.simulation_service: SimulationService = get_simulation_service(industry_code)
+        self.competitive_service: CompetitiveAnalysisService = get_competitive_analysis_service(industry_code)
         self.kakao_service: KakaoLocalService = get_kakao_local_service()
+        self.timeline_service: TimelineService = get_timeline_service(industry_code)
         self.model: str = "gemini-2.5-flash"
 
         # Broad district tokens (구 단위/대표 지역명) used for coarse context extraction.
@@ -564,14 +597,30 @@ class ChatService:
         return unique
 
     def _build_system_prompt(self) -> str:
-        """데이터 기반 시스템 프롬프트 생성"""
+        """데이터 기반 시스템 프롬프트 생성 (업종별 config 템플릿 우선)"""
         summary = cast(
             Summary,
             cast(object, self.data_service.get_summary()),  # pyright: ignore[reportUnknownMemberType]
         )
         avg_survival_rate = float(summary["avg_survival_rate"])
 
-        return f"""당신은 서울시 카페 창업 전문 AI 컨설턴트 "빌더"입니다.
+        # If the industry config supplies a SYSTEM_PROMPT_TEMPLATE, use it.
+        template = self.industry_config.get("SYSTEM_PROMPT_TEMPLATE")
+        if isinstance(template, str) and template:
+            try:
+                return template.format(
+                    total_districts=summary["total_districts"],
+                    total_stores=summary["total_stores"],
+                    avg_monthly_sales=f"{summary['avg_monthly_sales']:,.0f}",
+                    avg_survival_rate=f"{avg_survival_rate * 100:.1f}",
+                    display_name=self.display_name,
+                )
+            except (KeyError, IndexError, ValueError):
+                logger.warning("SYSTEM_PROMPT_TEMPLATE formatting failed; using default prompt")
+
+        # Fallback: hardcoded prompt with display_name substitution
+        dn = self.display_name
+        return f"""당신은 서울시 {dn} 창업 전문 AI 컨설턴트 "빌더"입니다.
 
 ## 역할
 - 예비 창업자의 질문에 친절하고 전문적으로 답변
@@ -580,7 +629,7 @@ class ChatService:
 
 ## 보유 데이터 (64개 필드, 6년 트렌드 분석)
 - 서울시 {summary["total_districts"]}개 상권 분석 완료
-- 카페 {summary["total_stores"]}개 점포 데이터
+- {dn} {summary["total_stores"]}개 점포 데이터
 - 평균 월 매출: {summary["avg_monthly_sales"]:,.0f}원
 - 평균 2년 생존율: {avg_survival_rate * 100:.1f}%
 - 상권 유형: 골목상권, 발달상권, 전통시장, 관광특구
@@ -613,18 +662,11 @@ class ChatService:
 - 낙관/비관 시나리오 = 같은 상권 유형 25%/75% 분위수
 - 평균 객단가 = 월매출 ÷ 월 거래수
 
-### 초기 투자비 (10평/약 33㎡/8~12석 기준, 상권유형별 차등)
-- 보증금: 월세 × 8~15배 (전통시장 ×8, 골목 ×10, 발달·관광특구 ×15)
-- 인테리어: 평당 150~280만원 (전통시장 150 < 골목 180 < 발달 250 < 관광특구 280)
-- 장비/설비: 2,700~4,600만원
-- 초기 재료비: 300~500만원
-- 기타(허가/간판): 500~1,000만원
+### 초기 투자비 (10평/약 33㎡ 기준, 상권유형별 차등)
+{self._build_investment_prompt()}
 
 ### 운영비 (상권유형별 차등)
-- 원가율: 32% (전 상권 동일 — 원두·우유 단가 차이 없음)
-- 인건비: 24~27% (전통시장 24% < 골목 25% < 관광특구 26% < 발달 27%)
-- 공과금: 3.5%
-- 기타 운영비: 7.5%
+{self._build_operating_cost_prompt()}
 - ⚠️ 업종 평균 추정치이며, 실제는 ±20% 차이 가능
 
 ### 손익분기점
@@ -633,10 +675,10 @@ class ChatService:
 - 일 손익분기 매출 = 월 운영비 ÷ 30
 
 ## 🧭 경쟁/차별화 · 원가/마진 · 주차 (카카오 로컬 + 벤치마크)
-"이 동네 카페 몇 개야?", "프랜차이즈가 많아?", "뭘로 차별화해야 해?", "주차는 편해?", "메뉴 원가/마진은?" 같은 질문에는 아래 데이터를 활용합니다.
+"이 동네 {dn} 몇 개야?", "프랜차이즈가 많아?", "뭘로 차별화해야 해?", "주차는 편해?", "메뉴 원가/마진은?" 같은 질문에는 아래 데이터를 활용합니다.
 
 ### 경쟁 분석 (카카오 로컬)
-- 주변 카페 검색(최대 45개 샘플) 기반으로 카페 유형 분포(프랜차이즈/디저트/브런치/로스터리/테이크아웃 등) 추정
+- 주변 {dn} 검색(최대 45개 샘플) 기반으로 유형 분포(프랜차이즈/디저트/브런치/로스터리/테이크아웃 등) 추정
 - 시장 공백(gap)과 차별화 전략(우선순위 포함) 제안
 
 ### 주차 (카카오 로컬 PK6)
@@ -644,7 +686,7 @@ class ChatService:
 
 ### 메뉴 원가/마진 벤치마크
 - 대표 메뉴별 재료비(원가)와 마진율 벤치마크 제공
-- 일 100잔 시나리오(매출/원가/매출총이익)로 감각적인 규모 추정
+- 일일 판매 시나리오(매출/원가/매출총이익)로 감각적인 규모 추정
 
 ## 시간대 질문 예시 응답
 "오전에 손님이 많은 곳" → 오전(06-11) 매출 비중 높은 상권 추천
@@ -661,7 +703,7 @@ class ChatService:
 - 데이터에 없는 상권명을 절대 생성하지 마세요 (예: 여의도 국제금융로, 을지로 카페거리 등 지어내기 금지).
 - 데이터에 없는 매출액·생존율·점포수를 절대 생성하지 마세요.
 - 추천 상권 데이터가 제공되지 않았다면, "현재 조건에 맞는 상권 데이터를 찾지 못했습니다"라고 솔직하게 답변하세요.
-- 일반적인 창업 팁이나 카페 운영 조언은 데이터 없이도 답변 가능하지만, **구체적 상권명·수치는 반드시 제공된 데이터에서만** 인용하세요.
+- 일반적인 창업 팁이나 {dn} 운영 조언은 데이터 없이도 답변 가능하지만, **구체적 상권명·수치는 반드시 제공된 데이터에서만** 인용하세요.
 
 ## 주의사항
 - 투자 결정은 본인 책임임을 언급
@@ -978,24 +1020,31 @@ class ChatService:
         """Decide whether to call external local APIs.
 
         We keep this conservative to bound latency/cost.
+        Uses KEYWORD_DETECTION from industry config when available.
         """
         text = (message or "").strip()
         if not text:
             return False
 
-        keywords = [
-            "경쟁",
-            "차별",
-            "프랜차이즈",
-            "주변 카페",
-            "카페 몇",
-            "카페가 몇",
-            "원가",
-            "마진",
-            "메뉴",
-            "주차",
-            "주차장",
-        ]
+        # Prefer config-driven keyword list; fall back to defaults with display_name.
+        config_keywords = self.industry_config.get("KEYWORD_DETECTION")
+        if isinstance(config_keywords, list) and config_keywords:
+            keywords: list[str] = [str(k) for k in config_keywords]
+        else:
+            dn = self.display_name
+            keywords = [
+                "경쟁",
+                "차별",
+                "프랜차이즈",
+                f"주변 {dn}",
+                f"{dn} 몇",
+                f"{dn}가 몇",
+                "원가",
+                "마진",
+                "메뉴",
+                "주차",
+                "주차장",
+            ]
         return any(k in text for k in keywords)
 
     async def _build_local_insights_with_data(
@@ -1071,7 +1120,7 @@ class ChatService:
 
         menu_costs = None
         try:
-            menu_costs = CompetitiveAnalysisService.get_menu_costs()
+            menu_costs = self.competitive_service.get_menu_costs()
         except Exception:
             menu_costs = None
 
@@ -1081,7 +1130,7 @@ class ChatService:
 
         if analysis:
             total = int(analysis.get("total_nearby_cafes", 0))
-            lines.append(f"- 주변 카페(샘플): {total}개")
+            lines.append(f"- 주변 {self.display_name}(샘플): {total}개")
 
             cafe_types = analysis.get("cafe_types", [])
             if isinstance(cafe_types, list) and cafe_types:
@@ -1154,7 +1203,7 @@ class ChatService:
                 daily_revenue = int(daily.get("daily_revenue", 0))
                 daily_cogs = int(daily.get("daily_cogs", 0))
                 lines.append(
-                    f"- 메뉴 원가/마진: 평균 마진율 {avg_margin_rate * 100:.1f}% | 일100잔 시나리오 매출 {daily_revenue:,}원 / 원가 {daily_cogs:,}원"
+                    f"- 메뉴 원가/마진: 평균 마진율 {avg_margin_rate * 100:.1f}% | {daily.get('unit_name', '일일')} 시나리오 매출 {daily_revenue:,}원 / 원가 {daily_cogs:,}원"
                 )
             except Exception:
                 pass
@@ -1164,6 +1213,50 @@ class ChatService:
             comp_dict = dict(analysis)
 
         return ("\n".join(lines).strip(), comp_dict)
+
+    def _build_investment_prompt(self) -> str:
+        """Build dynamic investment cost section from industry config."""
+        cfg = self.industry_config
+        dtf = cfg.get("DISTRICT_TYPE_FACTORS", {})
+        eq = cfg.get("EQUIPMENT_COST", {})
+        inv = cfg.get("INITIAL_INVENTORY", [3000000, 5000000])
+        pm = cfg.get("PERMITS_AND_MISC", [5000000, 10000000])
+
+        # Interior costs
+        interiors = []
+        for dt in ["전통시장", "골목상권", "발달상권", "관광특구"]:
+            f = dtf.get(dt, {})
+            ipp = f.get("interior_per_pyeong", 0)
+            dep = f.get("deposit_mult", 10)
+            if ipp:
+                interiors.append(f"{dt} {ipp // 10000}")
+
+        # Equipment total
+        eq_min = sum(v[0] if isinstance(v, list) else v for v in eq.values())
+        eq_max = sum(v[1] if isinstance(v, list) and len(v) > 1 else (v[0] if isinstance(v, list) else v) for v in eq.values())
+
+        lines = []
+        lines.append("- 보증금: 월세 × 8~15배 (전통시장 ×8, 골목 ×10, 발달·관광특구 ×15)")
+        if interiors:
+            lines.append(f"- 인테리어: 평당 {' < '.join(interiors)}만원")
+        lines.append(f"- 장비/설비: {eq_min // 10000:,}~{eq_max // 10000:,}만원")
+        lines.append(f"- 초기 재료비: {inv[0] // 10000:,}~{inv[1] // 10000:,}만원")
+        lines.append(f"- 기타(허가/간판): {pm[0] // 10000:,}~{pm[1] // 10000:,}만원")
+        return "\n".join(lines)
+
+    def _build_operating_cost_prompt(self) -> str:
+        """Build dynamic operating cost section from industry config."""
+        cfg = self.industry_config
+        cogs = cfg.get("COGS_RATIO", 0.32)
+        utilities = cfg.get("UTILITIES_RATIO", 0.035)
+        other = cfg.get("OTHER_RATIO", 0.075)
+
+        lines = []
+        lines.append(f"- 원가율: {cogs * 100:.0f}%")
+        lines.append("- 인건비: 24~27% (전통시장 24% < 골목 25% < 관광특구 26% < 발달 27%)")
+        lines.append(f"- 공과금: {utilities * 100:.1f}%")
+        lines.append(f"- 기타 운영비: {other * 100:.1f}%")
+        return "\n".join(lines)
 
     def _normalize_budget_value(self, value: int, unit: str) -> int:
         if "백만" in unit:
@@ -1257,17 +1350,22 @@ class ChatService:
             gender_target = "male"
 
         cafe_type = None
-        cafe_type_map = {
-            "테이크아웃": "takeout",
-            "브런치": "brunch",
-            "디저트": "dessert",
-            "베이커리": "bakery",
-            "작업": "work",
-            "스터디": "study",
-            "로스터리": "roastery",
-            "스페셜티": "specialty",
-        }
-        for key, value in cafe_type_map.items():
+        # Use config BUSINESS_TYPE_MAP when available; fall back to defaults.
+        config_type_map = self.industry_config.get("BUSINESS_TYPE_MAP")
+        if isinstance(config_type_map, dict) and config_type_map:
+            business_type_map: dict[str, str] = {str(k): str(v) for k, v in config_type_map.items()}
+        else:
+            business_type_map = {
+                "테이크아웃": "takeout",
+                "브런치": "brunch",
+                "디저트": "dessert",
+                "베이커리": "bakery",
+                "작업": "work",
+                "스터디": "study",
+                "로스터리": "roastery",
+                "스페셜티": "specialty",
+            }
+        for key, value in business_type_map.items():
             if key in text:
                 cafe_type = value
                 break
@@ -1450,10 +1548,17 @@ class ChatService:
         history: list[HistoryMessage] | None = None,
         seed_context: ConversationContext | None = None,
         merged_context: ConversationContext | None = None,
-    ) -> tuple[str, list[StructuredRecommendation], list[ChartData], ContextMeta]:
+    ) -> tuple[
+        str,
+        list[StructuredRecommendation],
+        list[ChartData],
+        ContextMeta,
+        Optional[dict[str, object]],
+    ]:
         context_parts: list[str] = []
         structured_recommendations: list[StructuredRecommendation] = []
         charts: list[ChartData] = []
+        timeline_data_for_response: Optional[dict[str, object]] = None
 
         merged_context = merged_context or self._compute_merged_context(query, history, seed_context)
 
@@ -1536,13 +1641,35 @@ class ChatService:
                         "store_count": int(comp.get("store_count", 0)),
                         "survival_rate": r["survival_rate_2y"],
                         "key_success_factors": r["key_success_factors"],
-                        "coordinates": None,
+                        "coordinates": {
+                            "lat": r.get("lat", 0),
+                            "lng": r.get("lng", 0),
+                        }
+                        if r.get("lat", 0) > 0
+                        else None,
                         "foot_traffic_total": r.get("foot_traffic_total", 0),
                         "worker_total": r.get("worker_total", 0),
                         "facility_subway": r.get("facility_subway", 0),
                         "change_indicator": r.get("change_indicator", ""),
+                        "transit_percentile": r.get("transit_percentile", 0.5),
+                        "positioning": r.get("positioning", ""),
+                        "positioning_detail": r.get("positioning_detail", ""),
+                        "purchasing_power": r.get("purchasing_power", 0),
+                        "scorecard": None,
                     }
                 )
+
+                # Attach scorecard if available
+                try:
+                    from api.services.scorecard_service import get_scorecard_service
+                    sc_svc = get_scorecard_service(self.industry_code)
+                    if not sc_svc._districts:
+                        sc_svc.set_districts(self.data_service.districts)
+                    district_raw = self.data_service.get_district(r["district_code"])
+                    if district_raw:
+                        structured_recommendations[-1]["scorecard"] = sc_svc.score_district(district_raw)
+                except Exception:
+                    pass
 
                 sim = self.simulation_service.simulate(r["district_code"])
                 sim_text = ""
@@ -1563,6 +1690,23 @@ class ChatService:
   - 투자 회수: {be["break_even_months_min"]}~{be["break_even_months_max"]}개월
   - 일 손익분기 매출: {be["daily_break_even_sales"]:,}원"""
 
+                timeline_result = self.timeline_service.calculate_timeline(
+                    cafe_type=merged_context.cafe_type or "일반",
+                    budget_range="3천만원 이하"
+                    if (merged_context.budget_max or 0) < 30000000
+                    else (
+                        "1억 이상"
+                        if (merged_context.budget_max or 0) >= 100000000
+                        else "3천~1억"
+                    ),
+                    area_pyeong=10,
+                    is_franchise=False,
+                    district_type=r["district_type"],
+                )
+                timeline_data = cast(dict[str, object], dict(timeline_result))
+                if timeline_data_for_response is None:
+                    timeline_data_for_response = timeline_data
+
                 rec_text = f"""
 ### {r["rank"]}. {r["district_name"]} ({r["district_type"]})
 - 주소: {r["address"]}
@@ -1579,6 +1723,16 @@ class ChatService:
 - ⚠️ 리스크: {", ".join(r["risk_factors"][:2]) if r["risk_factors"] else "특별한 리스크 없음"}
 - ✅ 성공요인: {", ".join(r["key_success_factors"][:3])}
 {sim_text}"""
+
+                positioning_name = r.get("positioning", "")
+                positioning_detail = r.get("positioning_detail", "")
+                transit_pctile = r.get("transit_percentile", 0.5)
+                transit_label = (
+                    "우수" if transit_pctile > 0.8 else ("양호" if transit_pctile > 0.4 else "보통")
+                )
+                if positioning_name:
+                    rec_text += f"\n- 💡 포지셔닝: {positioning_name} — {positioning_detail}"
+                    rec_text += f"\n- 🚇 교통 접근성: {transit_label} (상위 {transit_pctile*100:.0f}%)"
 
                 context_parts.append(rec_text)
 
@@ -1621,7 +1775,7 @@ class ChatService:
                         f"타겟 성별: {'여성' if merged_context.gender_target == 'female' else '남성'}"
                     )
                 if merged_context.cafe_type:
-                    tips.append(f"카페 유형: {merged_context.cafe_type}")
+                    tips.append(f"{self.display_name} 유형: {merged_context.cafe_type}")
 
                 context_parts.append(f"\n## 사용자 선호 분석\n- " + "\n- ".join(tips))
 
@@ -1630,9 +1784,9 @@ class ChatService:
                 Summary,
                 cast(object, self.data_service.get_summary()),  # pyright: ignore[reportUnknownMemberType]
             )
-            context_parts.append(f"""## 서울시 카페 상권 현황 (2019-2025 데이터)
+            context_parts.append(f"""## 서울시 {self.display_name} 상권 현황 (2019-2025 데이터)
 - 분석 상권 수: {summary["total_districts"]}개
-- 총 카페 수: {summary["total_stores"]}개
+- 총 {self.display_name} 수: {summary["total_stores"]}개
 - 평균 월 매출: {summary["avg_monthly_sales"]:,.0f}원
 - 평균 2년 생존율: {summary["avg_survival_rate"] * 100:.1f}%
 - 상권 유형별: 골목상권 {summary["district_types"].get("골목상권", 0)}개, 발달상권 {summary["district_types"].get("발달상권", 0)}개
@@ -1646,7 +1800,13 @@ class ChatService:
 - 6년 트렌드 분석
 """)
 
-        return "\n".join(context_parts), structured_recommendations, charts, context_meta
+        return (
+            "\n".join(context_parts),
+            structured_recommendations,
+            charts,
+            context_meta,
+            timeline_data_for_response,
+        )
 
     async def chat(
         self,
@@ -1670,7 +1830,7 @@ class ChatService:
                 "recommendations": [],
                 "charts": [],
                 "suggested_questions": [
-                    "서울 강남에서 월세 300만원대 카페 추천해줘",
+                    f"서울 강남에서 월세 300만원대 {self.display_name} 추천해줘",
                     "서울 홍대에서 20대 여성 타겟 상권 추천해줘",
                     "서울 성수 골목상권 추천해줘",
                     "서울에서 점심 피크 상권 알려줘",
@@ -1714,7 +1874,7 @@ class ChatService:
                     f"월세: {merged_context.budget_min // 10000:,}~{merged_context.budget_max // 10000:,}만원"
                 )
             if merged_context.cafe_type:
-                known_parts.append(f"카페 유형: {merged_context.cafe_type}")
+                known_parts.append(f"{self.display_name} 유형: {merged_context.cafe_type}")
 
             reply_lines: list[str] = []
             reply_lines.append("추천을 정확하게 하려면 몇 가지만 확인할게요.")
@@ -1768,7 +1928,7 @@ class ChatService:
                             bmin = int(rent * 0.8)
                             bmax = int(rent * 1.2)
                         suggested.append(
-                            f"서울 {name}에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘"
+                            f"서울 {name}에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘"
                         )
                 suggested.append(
                     f"서울 {broad_token}에서 월세 {base_bmin // 10000:,}~{base_bmax // 10000:,}만원으로 가능한 상권만 추천해줘"
@@ -1776,29 +1936,29 @@ class ChatService:
 
             elif missing_district and missing_budget:
                 suggested = [
-                    "서울 홍대에서 월세 300만원대 카페 추천해줘",
-                    "서울 강남에서 월세 200~400만원 카페 추천해줘",
-                    "서울 성수에서 월세 250만원대, 테이크아웃 위주 추천해줘",
-                    "서울 종로에서 월세 200~300만원, 직장인 점심 타겟 추천해줘",
+                    f"서울 홍대에서 월세 300만원대 {self.display_name} 추천해줘",
+                    f"서울 강남에서 월세 200~400만원 {self.display_name} 추천해줘",
+                    f"서울 성수에서 월세 250만원대, 테이크아웃 위주 추천해줘",
+                    f"서울 종로에서 월세 200~300만원, 직장인 점심 타겟 추천해줘",
                 ]
             elif missing_district and not missing_budget:
                 bmin = merged_context.budget_min or int((merged_context.budget_max or 3000000) * 0.7)
                 bmax = merged_context.budget_max or int((merged_context.budget_min or 3000000) * 1.3)
                 suggested = [
-                    f"서울 홍대에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
-                    f"서울 강남에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
-                    f"서울 성수에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 카페 추천해줘",
+                    f"서울 홍대에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘",
+                    f"서울 강남에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘",
+                    f"서울 성수에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘",
                 ]
             elif missing_budget and merged_context.district:
                 district = merged_context.district
                 suggested = [
-                    f"서울 {district}에서 월세 200~300만원대 카페 추천해줘",
-                    f"서울 {district}에서 월세 300~400만원대 카페 추천해줘",
+                    f"서울 {district}에서 월세 200~300만원대 {self.display_name} 추천해줘",
+                    f"서울 {district}에서 월세 300~400만원대 {self.display_name} 추천해줘",
                     f"서울 {district}에서 월세 400~600만원대, 발달상권 추천해줘",
                 ]
             else:
                 suggested = [
-                    "서울 강남에서 월세 300만원대 카페 추천해줘",
+                    f"서울 강남에서 월세 300만원대 {self.display_name} 추천해줘",
                     "서울 홍대에서 20대 여성 타겟 상권 추천해줘",
                     "서울 성수 골목상권 추천해줘",
                 ]
@@ -1829,7 +1989,13 @@ class ChatService:
                 },
             }
 
-        context_text, recommendations, charts, context_meta = self._get_relevant_data(
+        (
+            context_text,
+            recommendations,
+            charts,
+            context_meta,
+            timeline_data_for_response,
+        ) = self._get_relevant_data(
             message,
             history,
             seed_context=seed_context,
@@ -1842,7 +2008,7 @@ class ChatService:
             district_label = merged_context.district or "해당 지역"
 
             no_result_lines = [
-                f"**{district_label}** 주변에서 월세 **{budget_min_man:,}~{budget_max_man:,}만원** 범위에 맞는 카페 상권을 찾지 못했습니다.",
+                f"**{district_label}** 주변에서 월세 **{budget_min_man:,}~{budget_max_man:,}만원** 범위에 맞는 {self.display_name} 상권을 찾지 못했습니다.",
                 "",
                 "조건을 조금 조정해보시겠어요?",
             ]
@@ -1850,10 +2016,10 @@ class ChatService:
             if budget_max_man > 0:
                 wider = int(budget_max_man * 1.5)
                 suggested.append(
-                    f"서울 {district_label}에서 월세 {budget_min_man:,}~{wider:,}만원 카페 추천해줘"
+                    f"서울 {district_label}에서 월세 {budget_min_man:,}~{wider:,}만원 {self.display_name} 추천해줘"
                 )
-            suggested.append(f"서울 {district_label} 골목상권 카페 추천해줘")
-            suggested.append("서울 전체에서 월세 저렴한 카페 상권 추천해줘")
+            suggested.append(f"서울 {district_label} 골목상권 {self.display_name} 추천해줘")
+            suggested.append(f"서울 전체에서 월세 저렴한 {self.display_name} 상권 추천해줘")
 
             return {
                 "reply": "\n".join(no_result_lines),
@@ -1884,7 +2050,7 @@ class ChatService:
                     # Also attach menu costs
                     menu_costs_data = None
                     try:
-                        menu_costs_data = CompetitiveAnalysisService.get_menu_costs()
+                        menu_costs_data = self.competitive_service.get_menu_costs()
                     except Exception:
                         pass
                     simulation_data = dict(sim)
@@ -1966,10 +2132,37 @@ class ChatService:
             "suggested_questions": suggested_questions,
             "context": context_meta,
         }
+        if timeline_data_for_response:
+            payload["timeline"] = timeline_data_for_response
         if competitive_data:
             payload["competitive"] = competitive_data
         if simulation_data:
             payload["simulation"] = simulation_data
+
+        # Trademark conflict detection
+        try:
+            trademark_pattern = re.compile(
+                r"상호명|상호|간판|이름.*등록|브랜드명|상표"
+            )
+            if trademark_pattern.search(message):
+                # Extract the proposed name — look for quoted text or "상호명 X" pattern
+                name_match = re.search(
+                    r"['\"](.+?)['\"]|상호명?\s*[은는이가]?\s*(\S+)|간판\s*[은는이가]?\s*(\S+)|브랜드명?\s*[은는이가]?\s*(\S+)",
+                    message,
+                )
+                proposed_name = None
+                if name_match:
+                    proposed_name = next(
+                        (g for g in name_match.groups() if g), None
+                    )
+                if proposed_name:
+                    from api.services.trademark_service import get_trademark_service
+                    tm_svc = get_trademark_service(self.industry_code)
+                    trademark_result = tm_svc.check(proposed_name)
+                    payload["trademark"] = trademark_result
+        except Exception:
+            pass
+
         return payload
 
     def chat_sync(
@@ -1981,12 +2174,12 @@ class ChatService:
         return asyncio.run(self.chat(message, history))
 
 
-# 싱글톤
-_chat_service = None
+# Registry: one ChatService per industry_code
+_registry: dict[str, ChatService] = {}
 
 
-def get_chat_service() -> ChatService:
-    global _chat_service
-    if _chat_service is None:
-        _chat_service = ChatService()
-    return _chat_service
+def get_chat_service(industry_code: str = "CS100010") -> ChatService:
+    """Get or create a ChatService for the given industry code."""
+    if industry_code not in _registry:
+        _registry[industry_code] = ChatService(industry_code)
+    return _registry[industry_code]

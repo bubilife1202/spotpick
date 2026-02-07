@@ -57,6 +57,7 @@ class ChatRequest(BaseModel):
         None,
         description="클라이언트에서 제공하는 추가 컨텍스트(온보딩 등). 예: budget_min/budget_max/district/cafe_type",
     )
+    industry_code: str = Field(default="CS100010", description="업종 코드")
 
 
 class ChatResponse(BaseModel):
@@ -95,6 +96,10 @@ class RecommendationCardData(BaseModel):
     worker_total: Optional[int] = Field(None)
     facility_subway: Optional[int] = Field(None)
     change_indicator: Optional[str] = Field(None)
+    transit_percentile: Optional[float] = Field(None)
+    positioning: Optional[str] = Field(None)
+    positioning_detail: Optional[str] = Field(None)
+    purchasing_power: Optional[float] = Field(None)
 
 
 class StructuredChatResponse(BaseModel):
@@ -105,6 +110,7 @@ class StructuredChatResponse(BaseModel):
     context: dict[str, object] = Field(default_factory=dict)
     competitive: Optional[dict[str, object]] = Field(None, description="경쟁 분석 데이터")
     simulation: Optional[dict[str, object]] = Field(None, description="창업 시뮬레이션 데이터")
+    timeline: Optional[dict[str, object]] = Field(None, description="창업 타임라인 데이터")
 
 
 @router.post("/chat", response_model=StructuredChatResponse)
@@ -116,7 +122,7 @@ async def chat(request: ChatRequest, req: Request):
         )
 
     try:
-        service = get_chat_service()
+        service = get_chat_service(industry_code=request.industry_code)
 
         history: list[HistoryMessage] | None = None
         if request.history:
@@ -157,6 +163,7 @@ async def chat(request: ChatRequest, req: Request):
             context=dict(response.get("context") or {}),
             competitive=response.get("competitive"),  # type: ignore[arg-type]
             simulation=response.get("simulation"),  # type: ignore[arg-type]
+            timeline=response.get("timeline"),  # type: ignore[arg-type]
         )
 
     except Exception as e:
@@ -178,7 +185,7 @@ async def chat_stream(request: ChatRequest, req: Request):
 
     async def generate():
         try:
-            service = get_chat_service()
+            service = get_chat_service(industry_code=request.industry_code)
 
             history: list[HistoryMessage] | None = None
             if request.history:
@@ -228,7 +235,7 @@ async def chat_stream(request: ChatRequest, req: Request):
 async def health_check():
     """채팅 서비스 상태 확인"""
     try:
-        service = get_chat_service()
+        service = get_chat_service(industry_code="CS100010")
         return {
             "status": "healthy",
             "model": service.model,

@@ -1,6 +1,6 @@
 """
-Data Service - 서울시 상권 데이터 기반 추천 서비스 (풀버전)
-64개 필드 전체 활용
+Data Service - 서울시 상권 데이터 기반 추천 서비스 (멀티업종 지원)
+64개 필드 전체 활용, 업종별 레지스트리 패턴
 """
 from __future__ import annotations
 
@@ -10,10 +10,9 @@ import re
 from pathlib import Path
 from typing import Any, Optional, Tuple, List, cast
 
-_RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
-    # (min, p25, median, p75, max) in 원
-    # 한국부동산원 2024 서울 소규모상가 1층 기준 보정
-    # 카페 업종 월세/매출 적정비율 10~15% 기준 크로스체크 완료
+from config.industry_config import load_industry_config, DEFAULT_INDUSTRY
+
+_DEFAULT_RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
     "골목상권": (800_000, 1_200_000, 1_800_000, 2_800_000, 4_500_000),
     "발달상권": (2_500_000, 4_000_000, 5_500_000, 7_500_000, 12_000_000),
     "전통시장": (500_000, 1_000_000, 1_800_000, 2_800_000, 4_500_000),
@@ -21,9 +20,27 @@ _RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
 }
 
 
-def estimate_rent(district_type: str, sales_per_store: int, percentile_rank: float) -> int:
+def _parse_rent_ranges(config: dict[str, Any]) -> dict[str, tuple[int, int, int, int, int]]:
+    """Parse RENT_RANGES from config (list format) to tuple format."""
+    raw = config.get("RENT_RANGES")
+    if not raw or not isinstance(raw, dict):
+        return _DEFAULT_RENT_RANGES
+    result: dict[str, tuple[int, int, int, int, int]] = {}
+    for key, vals in raw.items():
+        if isinstance(vals, (list, tuple)) and len(vals) == 5:
+            result[key] = tuple(vals)  # type: ignore[arg-type]
+    return result or _DEFAULT_RENT_RANGES
+
+
+def estimate_rent(
+    district_type: str,
+    sales_per_store: int,
+    percentile_rank: float,
+    rent_ranges: dict[str, tuple[int, int, int, int, int]] | None = None,
+) -> int:
     """Estimate monthly rent based on district type and sales percentile rank (0.0-1.0)."""
-    r = _RENT_RANGES.get(district_type, _RENT_RANGES["골목상권"])
+    ranges = rent_ranges or _DEFAULT_RENT_RANGES
+    r = ranges.get(district_type, ranges.get("골목상권", _DEFAULT_RENT_RANGES["골목상권"]))
     if percentile_rank <= 0.25:
         t = percentile_rank / 0.25
         rent = r[0] + t * (r[1] - r[0])
@@ -40,32 +57,66 @@ def estimate_rent(district_type: str, sales_per_store: int, percentile_rank: flo
 
 
 class DataService:
-    _instance = None
+    """서울시 상권 데이터 서비스 — 업종별 인스턴스."""
 
-    # Initialized in _load_data() (singleton). These defaults keep type-checkers happy.
-    districts: list[dict[str, Any]] = []
-    summary: dict[str, Any] = {}
-    _district_by_code: dict[str, dict[str, Any]] = {}
-    _district_by_name: dict[str, dict[str, Any]] = {}
-    _sales_percentile: dict[str, float] = {}
-    _avg_foot_traffic: float = 0.0
-    _avg_facility_score: float = 0.0
+    def __init__(self, industry_code: str = DEFAULT_INDUSTRY):
+        self.industry_code = industry_code
+        self.config: dict[str, Any] = {}
+        self.display_name: str = "카페"
+        self._rent_ranges = _DEFAULT_RENT_RANGES
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load_data()
-        return cls._instance
+        # Data
+        self.districts: list[dict[str, Any]] = []
+        self.summary: dict[str, Any] = {}
+        self._district_by_code: dict[str, dict[str, Any]] = {}
+        self._district_by_name: dict[str, dict[str, Any]] = {}
+        self._sales_percentile: dict[str, float] = {}
+        self._avg_foot_traffic: float = 0.0
+        self._avg_facility_score: float = 0.0
+        self._transit_percentiles: dict[str, float] = {}
+
+        self._load_config()
+        self._load_data()
+
+    def _load_config(self):
+        """Load industry config."""
+        try:
+            self.config = load_industry_config(self.industry_code)
+            self.display_name = self.config.get("display_name", self.config.get("name", "카페"))
+            self._rent_ranges = _parse_rent_ranges(self.config)
+        except FileNotFoundError:
+            # Fallback for industries without config
+            self.config = {}
+            self.display_name = "카페" if self.industry_code == DEFAULT_INDUSTRY else self.industry_code
 
     def _load_data(self):
         """데이터 로드"""
         data_dir = Path(__file__).parent.parent.parent / "data" / "processed"
 
-        with open(data_dir / "coffee_districts.json", encoding="utf-8") as f:
+        # Try industry-specific file, then fallback
+        districts_file = data_dir / f"{self.industry_code}_districts.json"
+        if not districts_file.exists():
+            districts_file = data_dir / "coffee_districts.json"
+
+        if not districts_file.exists():
+            print(f"[DataService:{self.industry_code}] 데이터 파일 없음: {districts_file}")
+            self.districts = []
+            self.summary = {"total_districts": 0, "total_stores": 0, "avg_monthly_sales": 0, "avg_survival_rate": 0, "district_types": {}}
+            return
+
+        with open(districts_file, encoding="utf-8") as f:
             self.districts = cast(list[dict[str, Any]], json.load(f))
 
-        with open(data_dir / "summary.json", encoding="utf-8") as f:
-            self.summary = cast(dict[str, Any], json.load(f))
+        # Try industry-specific summary, then fallback
+        summary_file = data_dir / f"{self.industry_code}_summary.json"
+        if not summary_file.exists():
+            summary_file = data_dir / "summary.json"
+        if summary_file.exists():
+            with open(summary_file, encoding="utf-8") as f:
+                self.summary = cast(dict[str, Any], json.load(f))
+        else:
+            # Auto-generate summary from districts
+            self.summary = self._generate_summary()
 
         # 상권 인덱싱
         self._district_by_code = {
@@ -98,9 +149,41 @@ class DataService:
         fac_values = [d.get("facility_score", 0) for d in self.districts if d.get("facility_score", 0) > 0]
         self._avg_facility_score = sum(fac_values) / max(1, len(fac_values)) if fac_values else 0
 
+        transit_values = sorted(d.get("transit_raw", 0) for d in self.districts)
+        self._transit_percentiles = {}
+        n = max(1, len(transit_values))
+        for d in self.districts:
+            raw = d.get("transit_raw", 0)
+            rank = sum(1 for v in transit_values if v <= raw)
+            self._transit_percentiles[d["district_code"]] = round(rank / n, 4)
+
         print(
-            f"[DataService] 로드 완료: {len(self.districts)}개 상권, {len(self.districts[0].keys())}개 필드"
+            f"[DataService:{self.industry_code}] 로드 완료: {len(self.districts)}개 상권"
+            + (f", {len(self.districts[0].keys())}개 필드" if self.districts else "")
         )
+
+    def _generate_summary(self) -> dict[str, Any]:
+        """Generate summary from district data."""
+        if not self.districts:
+            return {"total_districts": 0, "total_stores": 0, "avg_monthly_sales": 0, "avg_survival_rate": 0, "district_types": {}}
+
+        total_stores = sum(d.get("store_count", 0) for d in self.districts)
+        total_sales = sum(d.get("monthly_sales", 0) for d in self.districts)
+        total_survival = sum(d.get("survival_rate", 0) for d in self.districts)
+        n = len(self.districts)
+
+        district_types: dict[str, int] = {}
+        for d in self.districts:
+            dt = d.get("district_type", "기타")
+            district_types[dt] = district_types.get(dt, 0) + 1
+
+        return {
+            "total_districts": n,
+            "total_stores": total_stores,
+            "avg_monthly_sales": total_sales / max(1, n),
+            "avg_survival_rate": total_survival / max(1, n),
+            "district_types": district_types,
+        }
 
     def get_districts(
         self,
@@ -185,7 +268,6 @@ class DataService:
             contains = 1 if q in name_lower else 0
             dtype_contains = 1 if q in dtype_lower else 0
             sales = as_int(d.get("monthly_sales"))
-            # Slight preference for shorter names when relevance is otherwise equal.
             shortness = -len(name)
             return (exact, prefer_station, prefix, contains, dtype_contains, sales, shortness)
 
@@ -206,30 +288,22 @@ class DataService:
         candidates = []
 
         for d in self.districts:
-            # 예상 임대료 계산 (신규 점포 관점에서 "점포당 평균 매출"의 7% 추정)
-            # - district.monthly_sales 는 상권 내 전체 점포 합산 매출이라 그대로 쓰면 월세가 과대 추정됨
             sales_per_store = int(d["monthly_sales"] / max(1, d.get("store_count", 1)))
             pctile = self._sales_percentile.get(d["district_code"], 0.5)
-            estimated_rent = estimate_rent(d["district_type"], sales_per_store, pctile)
+            estimated_rent = estimate_rent(d["district_type"], sales_per_store, pctile, self._rent_ranges)
 
-            # 예산 필터: "최대 예산"은 하드 필터, "최소 예산"은 소프트 선호로만 사용
-            # - 실제 사용자는 보통 "OO만원 이하"처럼 상한을 기준으로 판단하는 경우가 많음
             if estimated_rent > budget_max:
                 continue
 
-            # 지역 필터
             if preferred_district and preferred_district not in d["district_name"]:
                 continue
 
-            # 상권 유형 필터
             if preferred_area_type and d["district_type"] != preferred_area_type:
                 continue
 
-            # 생존율 필터
             if d["survival_rate"] < min_survival_rate:
                 continue
 
-            # 성공 확률 계산
             success_prob = self._calculate_success_probability(d)
             risk_factors = self._identify_risks(d)
             recommendations = self._generate_recommendations(d)
@@ -254,14 +328,14 @@ class DataService:
                 }
             )
 
-        # 성공 확률 + 예산 적합도(소프트) 순 정렬
         candidates.sort(key=lambda c: (c["score"], c["success_probability"]), reverse=True)
 
-        # 결과 포맷팅
         results = []
         for rank, c in enumerate(candidates[:top_n], 1):
             d = c["district"]
             sales_per_store = int(d["monthly_sales"] / max(1, d.get("store_count", 1)))
+            positioning_name, positioning_detail, _ = self._determine_positioning(d)
+            purchasing_power_score = self._calculate_purchasing_power(d)
             results.append(
                 {
                     "rank": rank,
@@ -269,35 +343,19 @@ class DataService:
                     "district_name": d["district_name"],
                     "district_type": d["district_type"],
                     "address": f"서울특별시 {d['district_name']}",
-                    # 핵심 지표
                     "success_probability": c["success_probability"],
                     "estimated_monthly_rent": c["estimated_rent"],
-                    # 점포당 평균 매출(신규 점포 기준)로 제공
                     "estimated_monthly_sales": sales_per_store,
                     "survival_rate_2y": d["survival_rate"],
-                    # 시간대 분석
                     "time_analysis": {
                         "peak_time": d["peak_time"],
-                        "time_00_06": round(
-                            d["time_00_06_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
-                        "time_06_11": round(
-                            d["time_06_11_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
-                        "time_11_14": round(
-                            d["time_11_14_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
-                        "time_14_17": round(
-                            d["time_14_17_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
-                        "time_17_21": round(
-                            d["time_17_21_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
-                        "time_21_24": round(
-                            d["time_21_24_sales"] / max(1, d["monthly_sales"]) * 100, 1
-                        ),
+                        "time_00_06": round(d["time_00_06_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_06_11": round(d["time_06_11_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_11_14": round(d["time_11_14_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_14_17": round(d["time_14_17_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_17_21": round(d["time_17_21_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_21_24": round(d["time_21_24_sales"] / max(1, d["monthly_sales"]) * 100, 1),
                     },
-                    # 요일 분석
                     "day_analysis": {
                         "peak_day": d["peak_day"],
                         "weekday_ratio": round(d["weekday_ratio"] * 100, 1),
@@ -310,7 +368,6 @@ class DataService:
                         "sat": round(d["sat_sales"] / max(1, d["monthly_sales"]) * 100, 1),
                         "sun": round(d["sun_sales"] / max(1, d["monthly_sales"]) * 100, 1),
                     },
-                    # 고객 분석
                     "customer_analysis": {
                         "main_age_group": d["main_age_group"],
                         "male_ratio": round(d["male_ratio"] * 100, 1),
@@ -322,7 +379,6 @@ class DataService:
                         "age_50": round(d["age_50_sales"] / max(1, d["monthly_sales"]) * 100, 1),
                         "age_60": round(d["age_60_sales"] / max(1, d["monthly_sales"]) * 100, 1),
                     },
-                    # 경쟁 현황
                     "competition": {
                         "store_count": d["store_count"],
                         "new_stores": d["new_stores"],
@@ -342,19 +398,40 @@ class DataService:
                     "facility_subway": d.get("facility_subway", 0),
                     "change_indicator": d.get("change_indicator", ""),
                     "avg_operation_months": d.get("avg_operation_months", 0),
+                    "transit_raw": d.get("transit_raw", 0),
+                    "transit_percentile": self._transit_percentiles.get(d["district_code"], 0.5),
+                    "positioning": positioning_name,
+                    "positioning_detail": positioning_detail,
+                    "purchasing_power": purchasing_power_score,
+                    "lat": d.get("lat", 0.0),
+                    "lng": d.get("lng", 0.0),
                 }
             )
 
         return results
 
     def _calculate_success_probability(self, d: dict[str, Any]) -> float:
+        # Use scorecard if available, otherwise rule-based fallback
+        try:
+            from api.services.scorecard_service import get_scorecard_service
+            svc = get_scorecard_service(self.industry_code)
+            if not svc._districts:
+                svc.set_districts(self.districts)
+            score = svc._quick_score(d)
+            # Convert 0-100 score to 0-1 probability
+            return round(max(0.1, min(0.95, score / 100)), 2)
+        except Exception:
+            pass
+
+        # Fallback: rule-based
         base = d["survival_rate"]
 
-        avg_sales = self.summary["avg_monthly_sales"]
-        if d["monthly_sales"] > avg_sales * 1.5:
-            base += 0.05
-        elif d["monthly_sales"] < avg_sales * 0.5:
-            base -= 0.05
+        avg_sales = self.summary.get("avg_monthly_sales", 0)
+        if avg_sales > 0:
+            if d["monthly_sales"] > avg_sales * 1.5:
+                base += 0.05
+            elif d["monthly_sales"] < avg_sales * 0.5:
+                base -= 0.05
 
         if d["store_count"] > 20:
             base -= 0.1
@@ -370,19 +447,17 @@ class DataService:
             base += 0.02
 
         foot_traffic = d.get("foot_traffic_total", 0)
-        if foot_traffic > 0:
-            avg_ft = self._avg_foot_traffic
-            if foot_traffic > avg_ft * 1.5:
+        if foot_traffic > 0 and self._avg_foot_traffic > 0:
+            if foot_traffic > self._avg_foot_traffic * 1.5:
                 base += 0.04
-            elif foot_traffic < avg_ft * 0.3:
+            elif foot_traffic < self._avg_foot_traffic * 0.3:
                 base -= 0.03
 
         facility_score = d.get("facility_score", 0)
-        if facility_score > 0:
-            avg_fac = self._avg_facility_score
-            if facility_score > avg_fac * 2:
+        if facility_score > 0 and self._avg_facility_score > 0:
+            if facility_score > self._avg_facility_score * 2:
                 base += 0.03
-            elif facility_score < avg_fac * 0.3:
+            elif facility_score < self._avg_facility_score * 0.3:
                 base -= 0.02
 
         change_code = d.get("change_indicator_code", "")
@@ -399,13 +474,20 @@ class DataService:
         if worker_pop > 5000:
             base += 0.02
 
+        transit_pctile = self._transit_percentiles.get(d["district_code"], 0.5)
+        if transit_pctile > 0.8:
+            base += 0.02
+        elif transit_pctile < 0.2:
+            base -= 0.02
+
         return round(max(0.1, min(0.95, base)), 2)
 
     def _identify_risks(self, d: dict[str, Any]) -> list[str]:
         risks = []
+        display = self.display_name
 
         if d["store_count"] > 20:
-            risks.append(f"높은 경쟁 밀도 (카페 {d['store_count']}개)")
+            risks.append(f"높은 경쟁 밀도 ({display} {d['store_count']}개)")
 
         if d["survival_rate"] < 0.7:
             risks.append(f"평균 이하 생존율 ({d['survival_rate'] * 100:.0f}%)")
@@ -430,45 +512,168 @@ class DataService:
         if ft > 0 and self._avg_foot_traffic > 0 and ft < self._avg_foot_traffic * 0.3:
             risks.append("유동인구 매우 적음")
 
+        transit_pctile = self._transit_percentiles.get(d["district_code"], 0.5)
+        if transit_pctile < 0.2:
+            risks.append("대중교통 접근성 낮음 (주차 확보 필요)")
+
         return risks
 
     def _generate_recommendations(self, d: dict[str, Any]) -> list[str]:
-        """맞춤 추천 생성"""
+        """맞춤 추천 생성 — config의 RECOMMENDATION_TEXT 활용"""
         recs = []
+        rec_text = self.config.get("RECOMMENDATION_TEXT", {})
 
-        # 시간대 기반 추천
+        # 시간대 기반
         peak = d["peak_time"]
-        if peak == "11-14":
+        by_peak = rec_text.get("by_peak_time") or rec_text.get("time_based", {})
+        if peak in by_peak:
+            recs.append(by_peak[peak])
+        elif peak == "11-14":
             recs.append("점심 피크 상권 → 오전 10시 오픈, 빠른 회전율 전략")
         elif peak == "14-17":
             recs.append("오후 피크 상권 → 디저트/음료 세트 메뉴 강화")
         elif peak == "17-21":
-            recs.append("저녁 피크 상권 → 저녁 시간대 특화 (와인/맥주 등)")
+            recs.append("저녁 피크 상권 → 저녁 시간대 특화")
 
-        # 요일 기반 추천
+        # 요일 기반
+        by_day = rec_text.get("by_sales_ratio") or rec_text.get("day_based", {})
         if d["weekday_ratio"] > 0.75:
-            recs.append("주중 매출 집중 → 평일 런치 세트, 직장인 타겟")
+            recs.append(by_day.get("weekday_ratio_gt_0.75", by_day.get("weekday", "주중 매출 집중 → 평일 전략 강화")))
         elif d["weekend_ratio"] > 0.35:
-            recs.append("주말 매출 비중 높음 → 브런치 메뉴, 가족 고객 공략")
+            recs.append(by_day.get("weekend_ratio_gt_0.35", by_day.get("weekend", "주말 매출 비중 높음 → 주말 집중 전략")))
 
-        # 고객층 기반 추천
+        # 고객층 기반
         main_age = d["main_age_group"]
+        by_age = rec_text.get("by_main_age_group") or rec_text.get("age_based", {})
         if "20" in main_age:
-            recs.append("20대 주요 고객 → SNS 마케팅, 트렌디한 인테리어")
+            recs.append(by_age.get("contains_20", by_age.get("20s", "20대 주요 고객 → SNS 마케팅")))
         elif "30" in main_age:
-            recs.append("30대 주요 고객 → 프리미엄 원두, 작업 공간 제공")
+            recs.append(by_age.get("contains_30", by_age.get("30s", "30대 주요 고객 → 품질 중심")))
         elif "40" in main_age or "50" in main_age:
-            recs.append("40-50대 주요 고객 → 편안한 분위기, 품질 중심")
+            recs.append(by_age.get("contains_40_or_50", by_age.get("40s_plus", "40-50대 주요 고객 → 편안한 분위기")))
 
-        # 경쟁 기반 추천
+        # 경쟁 기반
+        by_comp = rec_text.get("by_competition") or rec_text.get("competition", {})
         if d["store_count"] > 15:
-            recs.append("경쟁 과다 → 시그니처 메뉴, 차별화 필수")
+            recs.append(by_comp.get("store_count_gt_15", by_comp.get("high", "경쟁 과다 → 차별화 필수")))
 
-        # 상권 유형 기반 추천
-        if d["district_type"] == "골목상권":
-            recs.append("골목상권 특성 → 단골 확보, 지역 커뮤니티 연계")
+        # 상권 유형 기반
+        by_area = rec_text.get("by_district_type") or rec_text.get("area", {})
+        dt = d["district_type"]
+        if dt in by_area:
+            recs.append(by_area[dt])
 
         return recs[:5]
+
+    def _calculate_purchasing_power(self, d: dict[str, Any]) -> float:
+        """Purchasing power score 0-100."""
+        sc = max(1, d.get("store_count", 1))
+        sales_per_store = d["monthly_sales"] / sc
+        tx_per_store = d.get("monthly_transactions", 0) / sc
+        avg_ticket = sales_per_store / max(1, tx_per_store) if tx_per_store > 0 else 0
+
+        sps_pctile = self._sales_percentile.get(d["district_code"], 0.5)
+        ticket_score = min(1.0, max(0.0, (avg_ticket - 3000) / 5000))
+
+        worker_total = d.get("worker_total", 0)
+        w30 = d.get("worker_age_30", 0)
+        w40 = d.get("worker_age_40", 0)
+        worker_prime_ratio = (w30 + w40) / max(1, worker_total) if worker_total > 0 else 0
+
+        resident_total = d.get("resident_total", 0)
+        resident_score = min(1.0, resident_total / 2000)
+
+        score = (
+            sps_pctile * 30
+            + ticket_score * 35
+            + worker_prime_ratio * 20
+            + resident_score * 15
+        )
+        return round(score, 1)
+
+    def _determine_positioning(self, d: dict[str, Any]) -> tuple[str, str, float]:
+        """Returns (positioning_name, positioning_detail, score)."""
+        worker_total = d.get("worker_total", 0)
+        ft_total = d.get("foot_traffic_total", 0)
+        resident_total = d.get("resident_total", 0)
+
+        sc = max(1, d.get("store_count", 1))
+        tx_per_store = d.get("monthly_transactions", 0) / sc
+        avg_ticket = (d["monthly_sales"] / sc) / max(1, tx_per_store) if tx_per_store > 0 else 0
+
+        ft_20 = d.get("foot_traffic_age_20", 0)
+        ft_30 = d.get("foot_traffic_age_30", 0)
+        ft_40 = d.get("foot_traffic_age_40", 0)
+        ft_denom = max(1, ft_total)
+        ratio_20 = ft_20 / ft_denom
+        ratio_30_40 = (ft_30 + ft_40) / ft_denom
+
+        university = d.get("facility_university", 0)
+        total_households = d.get("total_households", 0)
+
+        purchasing_power = self._calculate_purchasing_power(d)
+
+        # Use config positioning if available
+        config_pos = self.config.get("POSITIONING_TYPES", {})
+        if config_pos and isinstance(config_pos, dict):
+            # Simple scoring for config-defined positioning types
+            scores: dict[str, float] = {}
+            for pos_name, pos_info in config_pos.items():
+                if isinstance(pos_info, dict) and "weights" in pos_info:
+                    score = 0.0
+                    for feat, w in pos_info["weights"].items():
+                        val = d.get(feat, 0)
+                        if isinstance(val, (int, float)):
+                            score += float(val) * float(w)
+                    scores[pos_name] = score
+            if scores:
+                best, best_score = max(scores.items(), key=lambda item: item[1])
+                desc = ""
+                if isinstance(config_pos.get(best), dict):
+                    desc = config_pos[best].get("desc", "")
+                return (best, desc, round(best_score, 1))
+
+        # Default positioning (카페 전용)
+        scores_default: dict[str, float] = {}
+        scores_default["프리미엄/감성"] = (
+            (1.0 if purchasing_power > 60 else purchasing_power / 60) * 40
+            + (1.0 if avg_ticket > 6000 else avg_ticket / 6000) * 35
+            + ratio_30_40 * 25
+        )
+        peak_time = d.get("peak_time", "")
+        scores_default["직장인 효율"] = (
+            min(1.0, worker_total / 8000) * 45
+            + (1.0 if peak_time in ("11-14", "06-11") else 0.3) * 30
+            + ratio_30_40 * 25
+        )
+        scores_default["테이크아웃/저가"] = (
+            min(1.0, ft_total / 800000) * 40
+            + (1.0 if purchasing_power < 40 else max(0, (70 - purchasing_power) / 30)) * 35
+            + (1.0 if d.get("facility_subway", 0) >= 1 else 0.3) * 25
+        )
+        scores_default["동네 커뮤니티"] = (
+            min(1.0, resident_total / 1500) * 35
+            + min(1.0, total_households / 800) * 30
+            + ratio_30_40 * 20
+            + (0.3 if d.get("district_type") == "골목상권" else 0.0) * 15
+        )
+        scores_default["학생/스터디"] = (
+            ratio_20 * 40
+            + min(1.0, university) * 35
+            + (1.0 if purchasing_power < 50 else max(0, (70 - purchasing_power) / 20)) * 25
+        )
+
+        best, best_score = max(scores_default.items(), key=lambda item: item[1])
+
+        details = {
+            "프리미엄/감성": f"구매력 상위, 객단가 {avg_ticket:,.0f}원 → 시그니처 메뉴 차별화 유리",
+            "직장인 효율": f"직장인 {worker_total:,}명, 피크 {peak_time} → 빠른 회전, 런치세트 추천",
+            "테이크아웃/저가": f"유동인구 {ft_total:,}명, 교통 요지 → 속도·가격 경쟁력 필요",
+            "동네 커뮤니티": f"상주인구 {resident_total:,}명, 가구 {total_households}세대 → 단골 전략, 편안한 분위기",
+            "학생/스터디": f"20대 비율 {ratio_20*100:.0f}%, 대학 인접 → 공간 제공, 합리적 가격",
+        }
+
+        return (best, details.get(best, ""), round(best_score, 1))
 
     def _extract_key_factors(self, d: dict[str, Any]) -> list[str]:
         factors = []
@@ -476,7 +681,7 @@ class DataService:
         if d["survival_rate"] > 0.9:
             factors.append(f"높은 생존율 ({d['survival_rate'] * 100:.0f}%)")
 
-        if d["monthly_sales"] > self.summary["avg_monthly_sales"]:
+        if d["monthly_sales"] > self.summary.get("avg_monthly_sales", 0):
             factors.append("평균 이상 매출")
 
         if d["store_count"] < 10:
@@ -513,6 +718,15 @@ class DataService:
         if worker > 5000:
             factors.append("직장인구 밀집")
 
+        transit_pctile = self._transit_percentiles.get(d["district_code"], 0.5)
+        if transit_pctile > 0.8:
+            subway = d.get("facility_subway", 0)
+            bus = d.get("facility_bus_stop", 0)
+            factors.append(f"교통 우수 (지하철 {subway}개역, 버스 {bus}개)")
+
+        positioning, _, _ = self._determine_positioning(d)
+        factors.append(f"포지셔닝: {positioning}")
+
         return factors[:6]
 
     def get_district_detail(self, code: str) -> Optional[dict[str, Any]]:
@@ -533,30 +747,12 @@ class DataService:
                 "avg_ticket": int(d["monthly_sales"] / max(1, d["monthly_transactions"])),
             },
             "time_breakdown": {
-                "새벽(0-6시)": {
-                    "sales": d["time_00_06_sales"],
-                    "transactions": d["time_00_06_transactions"],
-                },
-                "아침(6-11시)": {
-                    "sales": d["time_06_11_sales"],
-                    "transactions": d["time_06_11_transactions"],
-                },
-                "점심(11-14시)": {
-                    "sales": d["time_11_14_sales"],
-                    "transactions": d["time_11_14_transactions"],
-                },
-                "오후(14-17시)": {
-                    "sales": d["time_14_17_sales"],
-                    "transactions": d["time_14_17_transactions"],
-                },
-                "저녁(17-21시)": {
-                    "sales": d["time_17_21_sales"],
-                    "transactions": d["time_17_21_transactions"],
-                },
-                "밤(21-24시)": {
-                    "sales": d["time_21_24_sales"],
-                    "transactions": d["time_21_24_transactions"],
-                },
+                "새벽(0-6시)": {"sales": d["time_00_06_sales"], "transactions": d["time_00_06_transactions"]},
+                "아침(6-11시)": {"sales": d["time_06_11_sales"], "transactions": d["time_06_11_transactions"]},
+                "점심(11-14시)": {"sales": d["time_11_14_sales"], "transactions": d["time_11_14_transactions"]},
+                "오후(14-17시)": {"sales": d["time_14_17_sales"], "transactions": d["time_14_17_transactions"]},
+                "저녁(17-21시)": {"sales": d["time_17_21_sales"], "transactions": d["time_17_21_transactions"]},
+                "밤(21-24시)": {"sales": d["time_21_24_sales"], "transactions": d["time_21_24_transactions"]},
             },
             "day_breakdown": {
                 "월": {"sales": d["mon_sales"], "transactions": d["mon_transactions"]},
@@ -570,10 +766,7 @@ class DataService:
             "customer_breakdown": {
                 "gender": {
                     "male": {"sales": d["male_sales"], "transactions": d["male_transactions"]},
-                    "female": {
-                        "sales": d["female_sales"],
-                        "transactions": d["female_transactions"],
-                    },
+                    "female": {"sales": d["female_sales"], "transactions": d["female_transactions"]},
                 },
                 "age": {
                     "10대": {"sales": d["age_10_sales"], "transactions": d["age_10_transactions"]},
@@ -609,5 +802,12 @@ class DataService:
         return self.summary.get("yearly_trends", [])
 
 
-def get_data_service() -> DataService:
-    return DataService()
+# ─── Registry Pattern ──────────────────────────────────────────────────────
+_registry: dict[str, DataService] = {}
+
+
+def get_data_service(industry_code: str = DEFAULT_INDUSTRY) -> DataService:
+    """Get or create a DataService for the given industry code."""
+    if industry_code not in _registry:
+        _registry[industry_code] = DataService(industry_code)
+    return _registry[industry_code]

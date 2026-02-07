@@ -1,6 +1,11 @@
 """
 ML Service - sklearn 기반 커피숍 창업 성공 예측 서비스
 GradientBoostingRegressor를 사용한 survival_rate 예측
+
+NOTE: This service is for **offline** weight-discovery only
+(see scripts/build_scorecard_weights.py).  Runtime prediction is handled by
+ScorecardService.  The model is NOT trained on import; call
+MLService.train_offline() explicitly when you need it.
 """
 from __future__ import annotations
 
@@ -15,9 +20,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 class MLService:
-    """커피숍 창업 성공 예측 ML 서비스 (싱글톤)"""
-
-    _instance: "MLService | None" = None
+    """커피숍 창업 성공 예측 ML 서비스 (offline 전용)"""
 
     # 학습에 사용할 피처 목록 (15개 이상)
     FEATURE_COLUMNS = [
@@ -69,17 +72,7 @@ class MLService:
         "time_17_21_ratio": "저녁(17-21시) 비율",
     }
 
-    def __new__(cls) -> "MLService":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
     def __init__(self) -> None:
-        if self._initialized:
-            return
-        self._initialized = True
-
         self.model: GradientBoostingRegressor | None = None
         self.scaler: StandardScaler | None = None
         self.feature_importances: dict[str, float] = {}
@@ -87,8 +80,25 @@ class MLService:
         self.districts: list[dict[str, Any]] = []
         self._district_by_code: dict[str, dict[str, Any]] = {}
 
-        self._load_data()
-        self._train_model()
+    # ------------------------------------------------------------------
+    # Offline entry-point
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def train_offline(cls) -> "MLService":
+        """Load data and train the model.  Intended for offline /
+        script usage only (e.g. scripts/build_scorecard_weights.py).
+
+        Returns a fully-initialised MLService instance with a trained model.
+        """
+        svc = cls()
+        svc._load_data()
+        svc._train_model()
+        return svc
+
+    # ------------------------------------------------------------------
+    # Data loading & training (available but NOT called automatically)
+    # ------------------------------------------------------------------
 
     def _load_data(self) -> None:
         """coffee_districts.json 데이터 로드"""
@@ -191,6 +201,22 @@ class MLService:
             f"[MLService] 모델 학습 완료 - R² Score: {self.model_metrics['r2_mean']:.4f} (±{self.model_metrics['r2_std']:.4f})"
         )
 
+    # ------------------------------------------------------------------
+    # Guard helper
+    # ------------------------------------------------------------------
+
+    def _require_trained(self) -> None:
+        """Raise RuntimeError if the model has not been trained."""
+        if self.model is None or self.scaler is None:
+            raise RuntimeError(
+                "모델이 학습되지 않았습니다. "
+                "MLService.train_offline()을 먼저 호출하세요."
+            )
+
+    # ------------------------------------------------------------------
+    # Public query methods (require a trained model)
+    # ------------------------------------------------------------------
+
     def predict_success(self, features: dict[str, Any]) -> dict[str, Any]:
         """
         성공 확률 예측
@@ -203,8 +229,7 @@ class MLService:
             - confidence_interval: 신뢰구간 [lower, upper]
             - key_factors: 주요 영향 요인 리스트
         """
-        if self.model is None or self.scaler is None:
-            raise RuntimeError("모델이 학습되지 않았습니다")
+        self._require_trained()
 
         # district_code로 조회하는 경우
         if "district_code" in features:
@@ -312,8 +337,7 @@ class MLService:
 
     def get_feature_importance(self) -> dict[str, Any]:
         """피처 중요도 반환"""
-        if not self.feature_importances:
-            raise RuntimeError("모델이 학습되지 않았습니다")
+        self._require_trained()
 
         sorted_importance = sorted(
             self.feature_importances.items(), key=lambda x: x[1], reverse=True
@@ -336,9 +360,15 @@ class MLService:
 
     def get_district(self, district_code: str) -> dict[str, Any] | None:
         """상권 코드로 상권 데이터 조회"""
+        self._require_trained()
         return self._district_by_code.get(district_code)
 
 
 def get_ml_service() -> MLService:
-    """MLService 싱글톤 인스턴스 반환"""
+    """MLService 인스턴스 반환 (모델 미학습 상태).
+
+    Prediction routes still call this; they will receive RuntimeError
+    from any query method, which is caught and returned as HTTP 500.
+    Runtime prediction should use ScorecardService instead.
+    """
     return MLService()

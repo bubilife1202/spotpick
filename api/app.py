@@ -53,6 +53,15 @@ def create_app() -> FastAPI:
     competitive_router = cast(APIRouter, import_module("api.routes.competitive").router)
     app.include_router(competitive_router, prefix="/api/v1", tags=["Competitive"])
 
+    scorecard_router = cast(APIRouter, import_module("api.routes.scorecard").router)
+    app.include_router(scorecard_router, prefix="/api/v1", tags=["Scorecard"])
+
+    industries_router = cast(APIRouter, import_module("api.routes.industries").router)
+    app.include_router(industries_router, prefix="/api/v1", tags=["Industries"])
+
+    trademark_router = cast(APIRouter, import_module("api.routes.trademark").router)
+    app.include_router(trademark_router, prefix="/api/v1", tags=["Trademark"])
+
     return app
 
 

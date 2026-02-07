@@ -54,8 +54,9 @@ async def analyze_competition(
     query: Annotated[str, Query(description="검색 키워드(예: '강남역', '홍대입구역')")],
     x: Annotated[float | None, Query(description="경도(lng)")] = None,
     y: Annotated[float | None, Query(description="위도(lat)")] = None,
+    industry_code: str = Query("CS100010", description="업종 코드"),
 ) -> CompetitiveAnalysisResponse:
-    service = get_competitive_analysis_service()
+    service = get_competitive_analysis_service(industry_code=industry_code)
     try:
         result = await service.analyze_competition(query=query, x=x, y=y)
     except Exception as e:
@@ -88,9 +89,12 @@ class CostSimulationResponse(BaseModel):
 
 
 @router.get("/menu-costs", response_model=CostSimulationResponse)
-async def get_menu_costs() -> CostSimulationResponse:
+async def get_menu_costs(
+    industry_code: str = Query("CS100010", description="업종 코드"),
+) -> CostSimulationResponse:
     try:
-        result = CompetitiveAnalysisService.get_menu_costs()
+        service = get_competitive_analysis_service(industry_code)
+        result = service.get_menu_costs()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"원가 데이터 생성 실패: {e}")
 

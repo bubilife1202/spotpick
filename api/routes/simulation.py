@@ -22,6 +22,7 @@ class SimulationRequest(BaseModel):
         pattern="^(basic|mid|premium)$",
         description="인테리어 등급: basic / mid / premium",
     )
+    industry_code: str = Field(default="CS100010", description="업종 코드")
 
 
 class RevenueResponse(BaseModel):
@@ -101,7 +102,7 @@ async def simulate(request: SimulationRequest) -> SimulationResponse:
 
     매출 예측 · 초기 투자비용 · 운영비 · 손익분기점을 종합 산출합니다.
     """
-    service = get_simulation_service()
+    service = get_simulation_service(industry_code=request.industry_code)
     result = service.simulate(
         district_code=request.district_code,
         area_pyeong=request.area_pyeong,
@@ -132,11 +133,13 @@ async def simulate_by_code(
     district_code: str,
     area_pyeong: int = 10,
     interior_grade: str = "mid",
+    industry_code: str = "CS100010",
 ) -> SimulationResponse:
     """GET 방식 시뮬레이션 (간편 호출용)"""
     request = SimulationRequest(
         district_code=district_code,
         area_pyeong=area_pyeong,
         interior_grade=interior_grade,
+        industry_code=industry_code,
     )
     return await simulate(request)
