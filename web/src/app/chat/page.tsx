@@ -1,42 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays } from "lucide-react";
 import { ChatMessage, StructuredChatResponse, RecommendationCardData } from "@/types/chat";
 import { SuggestedQuestions } from "@/components/SuggestedQuestions";
 import { ChatChartSection } from "@/components/ChatChart";
 import type { ChartData } from "@/types/chat";
-
 import { sendStructuredChatMessage, GLOSSARY } from "@/lib/chat-api";
-
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import SearchMode from "@/components/SearchMode";
-import { Onboarding, OnboardingData } from "@/components/Onboarding";
 import type { MapMarker } from "@/components/MiniMap";
 import { ScorecardCard } from "@/components/ScorecardCard";
+import { getStoredIndustry } from "@/lib/onboarding-utils";
 
-const INDUSTRY_NAMES: Record<string, string> = {
-  CS100001: "한식", CS100002: "중식", CS100003: "일식", CS100004: "양식",
-  CS100005: "베이커리", CS100006: "패스트푸드", CS100007: "치킨",
-  CS100008: "분식", CS100009: "호프/주점", CS100010: "카페",
-};
-
-const INDUSTRY_ICONS: Record<string, string> = {
-  CS100001: "🍚", CS100002: "🥟", CS100003: "🍣", CS100004: "🍝",
-  CS100005: "🍞", CS100006: "🍔", CS100007: "🍗",
-  CS100008: "🍜", CS100009: "🍺", CS100010: "☕",
-};
-
-function getStoredIndustry(): { code: string; name: string; icon: string } {
-  if (typeof window === "undefined") return { code: "CS100010", name: "카페", icon: "☕" };
-  const code = window.localStorage.getItem("builder_curation_industry_code") || "CS100010";
-  return {
-    code,
-    name: INDUSTRY_NAMES[code] || "카페",
-    icon: INDUSTRY_ICONS[code] || "☕",
-  };
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
 
 interface DistrictSearchResult {
   code: string;
@@ -52,21 +30,12 @@ interface DistrictSearchResponse {
   total: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api/v1";
-
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
-  
   return debouncedValue;
 }
 
@@ -85,6 +54,30 @@ const MiniMap = dynamic(
   }
 );
 
+export default function ChatPage() {
+  const router = useRouter();
+  const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // Read initial query from localStorage (set by onboarding/landing)
+    try {
+      const q = window.localStorage.getItem("builder_curation_initial_query");
+      if (q) {
+        setInitialQuery(q);
+        window.localStorage.removeItem("builder_curation_initial_query");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  return (
+    <ChatHome
+      onSwitchToSearch={() => router.push("/search")}
+      onGoHome={() => router.push("/")}
+      initialQuery={initialQuery}
+    />
+  );
+}
+
 function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSearch: () => void; onGoHome: () => void; initialQuery?: string }) {
   const [industry] = useState(() => getStoredIndustry());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -93,44 +86,23 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
   const initialQuerySent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const [districtResults, setDistrictResults] = useState<DistrictSearchResult[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
   const autocompleteRef = useRef<HTMLDivElement>(null);
-  
+
   const debouncedInput = useDebounce(input, 450);
-  
+
   const extractKoreanLocation = useCallback((text: string): string | null => {
     const raw = (text || "").trim();
     if (!raw) return null;
 
     const stopwords = new Set([
-      "추천",
-      "추천해줘",
-      "추천좀",
-      "카페", "한식", "중식", "일식", "양식", "치킨", "분식", "베이커리", "패스트푸드", "호프", "주점",
-      "창업",
-      "예산",
-      "월세",
-      "타겟",
-      "직장인",
-      "여성",
-      "남성",
-      "점심",
-      "오전",
-      "오후",
-      "저녁",
-      "심야",
-      "골목",
-      "발달",
-      "전통",
-      "시장",
-      "관광",
-      "비교",
-      "분석",
-      "알려줘",
-      "자세히",
+      "추천", "추천해줘", "추천좀", "카페", "한식", "중식", "일식", "양식", "치킨", "분식", "베이커리", "패스트푸드", "호프", "주점", "창업", "예산", "월세",
+      "타겟", "직장인", "여성", "남성", "점심", "오전", "오후",
+      "저녁", "심야", "골목", "발달", "전통", "시장", "관광",
+      "비교", "분석", "알려줘", "자세히",
     ]);
 
     const stripParticles = (token: string) =>
@@ -143,17 +115,14 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
       return t;
     };
 
-    // Prefer "서울 <지역>" pattern if present.
     const seoulMatch = raw.match(/서울\s+([\uAC00-\uD7A30-9]+(?:역|구|동|로|길|시장|관광특구)?)/);
     if (seoulMatch && seoulMatch[1]) {
       const tok = cleanToken(seoulMatch[1]);
       if (tok) return tok;
     }
 
-    // Otherwise, scan tokens from the end.
     const tokens = raw.split(/[\s,]+/g).filter(Boolean);
     for (let i = tokens.length - 1; i >= 0; i--) {
-      // Keep only Korean letters + digits (drop punctuation)
       const t = tokens[i].replace(/[^\uAC00-\uD7A30-9]/g, "");
       const tok = cleanToken(t);
       if (tok) return tok;
@@ -161,9 +130,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     return null;
   }, []);
-  
+
   const lastSearchRef = useRef("");
-  
+
   useEffect(() => {
     const locationQuery = extractKoreanLocation(debouncedInput);
     if (!locationQuery || locationQuery.length < 2) {
@@ -171,12 +140,12 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
       setShowAutocomplete(false);
       return;
     }
-    
+
     if (locationQuery === lastSearchRef.current) return;
     lastSearchRef.current = locationQuery;
 
     let cancelled = false;
-    
+
     fetch(`${API_BASE}/districts/search?q=${encodeURIComponent(locationQuery)}&limit=10`)
       .then(r => r.ok ? r.json() : null)
       .then((data: DistrictSearchResponse | null) => {
@@ -194,7 +163,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     return () => { cancelled = true; };
   }, [debouncedInput, extractKoreanLocation]);
-  
+
   const handleDistrictSelect = useCallback((district: DistrictSearchResult) => {
     const locationQuery = extractKoreanLocation(input);
     const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -211,15 +180,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     setDistrictResults([]);
     inputRef.current?.focus();
   }, [input, extractKoreanLocation]);
-  
+
   const handleAutocompleteKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!showAutocomplete || districtResults.length === 0) return;
-    
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setAutocompleteIndex(prev => 
-        prev < districtResults.length - 1 ? prev + 1 : prev
-      );
+      setAutocompleteIndex(prev => prev < districtResults.length - 1 ? prev + 1 : prev);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setAutocompleteIndex(prev => prev > 0 ? prev - 1 : -1);
@@ -236,12 +203,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
   const formatKRWCompact = useCallback((value: number) => {
     if (!Number.isFinite(value) || value <= 0) return "-";
-    // 억 단위
     if (value >= 100_000_000) {
       const eok = value / 100_000_000;
       return `${eok >= 100 ? eok.toFixed(0) : eok.toFixed(1)}억`;
     }
-    // 만 단위
     if (value >= 10_000) {
       const man = value / 10_000;
       return `${man >= 1000 ? man.toFixed(0) : man.toFixed(0)}만`;
@@ -249,7 +214,6 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     return `${Math.round(value)}원`;
   }, []);
 
-  // Initialize welcome message
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([{
@@ -272,7 +236,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
         timestamp: new Date(),
       }]);
     }
-  }, [messages.length]);
+  }, [messages.length, industry.name]);
 
   useEffect(() => {
     if (initialQuery && !initialQuerySent.current && messages.length > 0) {
@@ -288,13 +252,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length, scrollToBottom]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { scrollToBottom(); }, [messages.length, scrollToBottom]);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   const convertToMapMarkers = useCallback((recommendations: RecommendationCardData[]): MapMarker[] => {
     return recommendations
@@ -308,7 +267,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
         successProbability: rec.success_probability,
       }));
   }, []);
-  
+
   const hasStructuredData = useCallback((message: ChatMessage) => {
     return (
       (message.structured?.recommendations && message.structured.recommendations.length > 0) ||
@@ -334,10 +293,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
 
     try {
       const response: StructuredChatResponse = await sendStructuredChatMessage(messageText, messages);
-      
+
       const isIntake = Boolean(
-        response.context?.intake_needs && 
-        Array.isArray(response.context.intake_needs) && 
+        response.context?.intake_needs &&
+        Array.isArray(response.context.intake_needs) &&
         response.context.intake_needs.length > 0
       );
 
@@ -378,19 +337,18 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
       if (["ArrowDown", "ArrowUp"].includes(e.key)) return;
       if (e.key === "Enter" && autocompleteIndex >= 0) return;
     }
-    
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // Process content with glossary terms and markdown
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
 
   const renderMessageContent = (content: string, messageIndex?: number) => {
     let processedContent = content;
-    
+
     Object.keys(GLOSSARY).forEach((term) => {
       const regex = new RegExp(`(${term})`, "g");
       processedContent = processedContent.replace(
@@ -441,9 +399,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     );
   };
 
+  const formatCompactWon = (value: number) => {
+    const compact = formatKRWCompact(value);
+    return compact.endsWith("원") ? compact : `${compact}원`;
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <button onClick={onGoHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -469,11 +431,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
         </div>
       </header>
 
-      {/* Main content */}
       <div className="relative max-w-3xl mx-auto px-4">
         {(
           <div className="flex flex-col h-[calc(100vh-73px)]">
-            {/* Messages area */}
             <div className="flex-1 overflow-y-auto py-6 space-y-5">
               {messages.map((message, msgIdx) => (
                 <div key={message.id} className="space-y-4">
@@ -490,7 +450,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                         </div>
                       </div>
                     )}
-                    
+
                     <div
                       className={cn(
                         "max-w-[85%] sm:max-w-[75%]",
@@ -499,7 +459,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                           : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-4 shadow-md"
                       )}
                     >
-                      {message.role === "assistant" 
+                      {message.role === "assistant"
                         ? renderMessageContent(message.content, msgIdx)
                         : <p className="text-sm leading-relaxed">{message.content}</p>
                       }
@@ -513,7 +473,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                       </div>
                     )}
                   </div>
-                  
+
                   {message.role === "assistant" && hasStructuredData(message) && (
                     <div className="ml-12 animate-fade-in">
                       <div className={cn(
@@ -523,7 +483,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                         "shadow-lg shadow-slate-200/40"
                       )}>
                         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/20 via-transparent to-transparent pointer-events-none" />
-                        
+
                         <div className="relative px-4 py-3 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
@@ -532,13 +492,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             <span className="text-sm font-semibold text-slate-700">상권 분석 결과</span>
                           </div>
                         </div>
-                        
+
                         <div className="relative p-4 space-y-5">
                           {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
                             const recommendations = message.structured!.recommendations.slice(0, 3);
                             const markers = convertToMapMarkers(recommendations);
                             const hasCoordinates = markers.length > 0;
-                            
+
                             return (
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <div className="space-y-3">
@@ -548,14 +508,14 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   </div>
                                   <div className="space-y-2.5">
                                     {recommendations.map((rec, i) => {
-                                      const probColor = rec.success_probability >= 0.7 
-                                        ? "text-emerald-600 bg-emerald-50" 
-                                        : rec.success_probability >= 0.5 
-                                          ? "text-amber-600 bg-amber-50" 
+                                      const probColor = rec.success_probability >= 0.7
+                                        ? "text-emerald-600 bg-emerald-50"
+                                        : rec.success_probability >= 0.5
+                                          ? "text-amber-600 bg-amber-50"
                                           : "text-rose-600 bg-rose-50";
-                                      
+
                                       return (
-                                        <div 
+                                        <div
                                           key={i}
                                           className={cn(
                                             "group relative p-3 rounded-xl",
@@ -586,7 +546,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               {Math.round(rec.success_probability * 100)}%
                                             </div>
                                           </div>
-                                          
+
                                           <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-slate-50">
                                             {(rec.monthly_sales_total || rec.monthly_sales) && (
                                               <div className="flex items-center gap-2 text-[11px] text-slate-600 min-w-0">
@@ -680,7 +640,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     })}
                                   </div>
                                 </div>
-                                
+
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                     <MapPin size={12} className="text-blue-500" />
@@ -688,11 +648,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   </div>
                                   {hasCoordinates ? (
                                     <div className="rounded-xl overflow-hidden border border-slate-100">
-                                      <MiniMap 
-                                        markers={markers} 
-                                        height={240}
-                                        zoom={12}
-                                      />
+                                      <MiniMap markers={markers} height={240} zoom={12} />
                                     </div>
                                   ) : (
                                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
@@ -724,7 +680,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               </div>
                             );
                           })()}
-                          
+
                           {message.structured?.charts && message.structured.charts.length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -758,11 +714,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                           )}
 
                           {message.structured?.competitive && (
-                            <div className={cn(
-                              "mt-3 p-3 rounded-xl",
-                              "bg-white/70 border border-slate-200/60",
-                              "space-y-2.5"
-                            )}>
+                            <div className={cn("mt-3 p-3 rounded-xl", "bg-white/70 border border-slate-200/60", "space-y-2.5")}>
                               <div className="flex items-center gap-2">
                                 <Store size={14} className="text-amber-600" />
                                 <span className="text-xs font-semibold text-slate-700">주변 경쟁 분석</span>
@@ -770,25 +722,18 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   {message.structured.competitive.total_nearby_cafes}개 {industry.name} 분석
                                 </span>
                               </div>
-                              
                               {message.structured.competitive.cafe_types.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                   {message.structured.competitive.cafe_types.slice(0, 4).map((ct, i) => (
-                                    <span 
-                                      key={i}
-                                      className={cn(
-                                        "px-2 py-0.5 rounded-full text-[10px] font-medium",
-                                        i === 0 ? "bg-amber-100 text-amber-700" :
-                                        i === 1 ? "bg-blue-100 text-blue-700" :
-                                        "bg-slate-100 text-slate-600"
-                                      )}
-                                    >
+                                    <span key={i} className={cn(
+                                      "px-2 py-0.5 rounded-full text-[10px] font-medium",
+                                      i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                                    )}>
                                       {ct.type} {ct.ratio}%
                                     </span>
                                   ))}
                                 </div>
                               )}
-
                               {message.structured.competitive.market_gaps.length > 0 && (
                                 <div className="space-y-1">
                                   <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">시장 기회</p>
@@ -796,15 +741,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     <div key={i} className="flex items-start gap-2 text-[11px]">
                                       <span className={cn(
                                         "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
-                                        gap.opportunity_score >= 0.7 ? "bg-emerald-500" :
-                                        gap.opportunity_score >= 0.4 ? "bg-amber-500" : "bg-slate-400"
+                                        gap.opportunity_score >= 0.7 ? "bg-emerald-500" : gap.opportunity_score >= 0.4 ? "bg-amber-500" : "bg-slate-400"
                                       )} />
                                       <span className="text-slate-600 leading-snug">{gap.description}</span>
                                     </div>
                                   ))}
                                 </div>
                               )}
-
                               {message.structured.competitive.strategies.length > 0 && (
                                 <div className="space-y-1">
                                   <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">차별화 전략</p>
@@ -812,9 +755,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     <div key={i} className="flex items-start gap-2 text-[11px]">
                                       <span className={cn(
                                         "px-1.5 py-0.5 rounded text-[9px] font-semibold flex-shrink-0 mt-0.5",
-                                        s.priority === "high" ? "bg-rose-100 text-rose-700" :
-                                        s.priority === "medium" ? "bg-amber-100 text-amber-700" :
-                                        "bg-emerald-100 text-emerald-700"
+                                        s.priority === "high" ? "bg-rose-100 text-rose-700" : s.priority === "medium" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
                                       )}>
                                         {s.priority === "high" ? "높음" : s.priority === "medium" ? "중간" : "낮음"}
                                       </span>
@@ -834,25 +775,15 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                             const menuCosts = sim.menu_costs;
                             const formatMan = (value: number) => `${Math.round(value / 10000).toLocaleString()}만원`;
                             const formatManRange = (min: number, max: number) => `${formatMan(min)} ~ ${formatMan(max)}`;
-                            const formatCompactWon = (value: number) => {
-                              const compact = formatKRWCompact(value);
-                              return compact.endsWith("원") ? compact : `${compact}원`;
-                            };
                             const operatingPercent = (value: number) =>
                               operating.total > 0 ? Math.round((value / operating.total) * 100) : 0;
 
                             return (
-                              <div className={cn(
-                                "mt-3 p-3 rounded-xl",
-                                "bg-white/70 border border-slate-200/60",
-                                "space-y-3"
-                              )}>
+                              <div className={cn("mt-3 p-3 rounded-xl", "bg-white/70 border border-slate-200/60", "space-y-3")}>
                                 <div className="flex items-center gap-2">
                                   <LayoutDashboard size={14} className="text-slate-600" />
                                   <span className="text-xs font-semibold text-slate-700">창업 시뮬레이션</span>
-                                  <span className="text-[10px] text-slate-400 ml-auto">
-                                    {sim.district_name}
-                                  </span>
+                                  <span className="text-[10px] text-slate-400 ml-auto">{sim.district_name}</span>
                                 </div>
                                 {sim.assumptions && (
                                   <div className="text-[10px] text-slate-400 -mt-1.5">
@@ -867,23 +798,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   </div>
                                   <div className="flex items-center justify-between text-[12px]">
                                     <span className="text-slate-500">총 투자</span>
-                                    <span className="font-semibold text-slate-800">
-                                      {formatManRange(startup.total_min, startup.total_max)}
-                                    </span>
+                                    <span className="font-semibold text-slate-800">{formatManRange(startup.total_min, startup.total_max)}</span>
                                   </div>
                                   <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                                      보증금 {formatMan(startup.deposit)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      인테리어 {formatMan(startup.interior)} ({startup.area_pyeong}평/{startup.interior_grade})
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}
-                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">보증금 {formatMan(startup.deposit)}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">인테리어 {formatMan(startup.interior)} ({startup.area_pyeong}평/{startup.interior_grade})</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}</span>
                                   </div>
                                 </div>
 
@@ -897,21 +818,11 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     <span className="font-semibold text-slate-800">{formatMan(operating.total)}/월</span>
                                   </div>
                                   <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      월세 {formatMan(operating.rent)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                      재료비 {operatingPercent(operating.cogs)}%
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                      인건비 {operatingPercent(operating.labor)}%
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      공과금 {formatMan(operating.utilities)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      기타 {formatMan(operating.other)}
-                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">월세 {formatMan(operating.rent)}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">재료비 {operatingPercent(operating.cogs)}%</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">인건비 {operatingPercent(operating.labor)}%</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">공과금 {formatMan(operating.utilities)}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">기타 {formatMan(operating.other)}</span>
                                   </div>
                                 </div>
 
@@ -922,23 +833,15 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2 text-[11px]">
                                     <span className="text-slate-500">월 순이익</span>
-                                    <span className="font-semibold text-emerald-700">
-                                      {formatMan(breakEven.monthly_net_profit)}
-                                    </span>
+                                    <span className="font-semibold text-emerald-700">{formatMan(breakEven.monthly_net_profit)}</span>
                                     <span className="text-slate-500">마진</span>
-                                    <span className="font-semibold text-emerald-700">
-                                      {(breakEven.net_profit_margin * 100).toFixed(1)}%
-                                    </span>
+                                    <span className="font-semibold text-emerald-700">{(breakEven.net_profit_margin * 100).toFixed(1)}%</span>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2 text-[11px]">
                                     <span className="text-slate-500">투자 회수</span>
-                                    <span className="font-semibold text-slate-700">
-                                      {breakEven.break_even_months_min}~{breakEven.break_even_months_max}개월
-                                    </span>
+                                    <span className="font-semibold text-slate-700">{breakEven.break_even_months_min}~{breakEven.break_even_months_max}개월</span>
                                     <span className="text-slate-500">일 손익분기</span>
-                                    <span className="font-semibold text-amber-700">
-                                      {formatMan(breakEven.daily_break_even_sales)}
-                                    </span>
+                                    <span className="font-semibold text-amber-700">{formatMan(breakEven.daily_break_even_sales)}</span>
                                   </div>
                                 </div>
 
@@ -951,12 +854,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     <div className="grid gap-1 text-[10px] text-slate-600">
                                       {menuCosts.menu_costs.slice(0, 4).map((item) => (
                                         <div key={item.menu} className="flex items-center justify-between">
-                                          <span className="truncate">
-                                            {item.menu} {item.cost.toLocaleString()}원 → {item.selling_price.toLocaleString()}원
-                                          </span>
-                                          <span className="text-emerald-700 font-semibold">
-                                            마진 {(item.margin_rate * 100).toFixed(0)}%
-                                          </span>
+                                          <span className="truncate">{item.menu} {item.cost.toLocaleString()}원 → {item.selling_price.toLocaleString()}원</span>
+                                          <span className="text-emerald-700 font-semibold">마진 {(item.margin_rate * 100).toFixed(0)}%</span>
                                         </div>
                                       ))}
                                     </div>
@@ -974,32 +873,20 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                                 <CalendarDays size={16} className="text-teal-500" />
                                 예상 창업 일정
-                                <span className="text-xs font-normal text-slate-400">
-                                  약 {message.structured.timeline.total_months}개월
-                                </span>
+                                <span className="text-xs font-normal text-slate-400">약 {message.structured.timeline.total_months}개월</span>
                               </h4>
                               <div className="space-y-1.5">
                                 {message.structured.timeline.stages.map((stage, idx) => {
                                   const maxWeek = message.structured!.timeline!.total_weeks;
                                   const leftPct = (stage.start_week / maxWeek) * 100;
                                   const widthPct = Math.max(4, ((stage.end_week - stage.start_week) / maxWeek) * 100);
-                                  const colors = [
-                                    'bg-blue-400', 'bg-emerald-400', 'bg-amber-400',
-                                    'bg-purple-400', 'bg-rose-400', 'bg-teal-400'
-                                  ];
+                                  const colors = ['bg-blue-400', 'bg-emerald-400', 'bg-amber-400', 'bg-purple-400', 'bg-rose-400', 'bg-teal-400'];
                                   return (
                                     <div key={idx} className="flex items-center gap-2">
-                                      <span className="text-[10px] text-slate-500 w-20 text-right flex-shrink-0 truncate">
-                                        {stage.name}
-                                      </span>
+                                      <span className="text-[10px] text-slate-500 w-20 text-right flex-shrink-0 truncate">{stage.name}</span>
                                       <div className="flex-1 h-5 bg-slate-100 rounded-full relative overflow-hidden">
-                                        <div
-                                          className={`absolute h-full rounded-full ${colors[idx % colors.length]} opacity-80`}
-                                          style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                                        />
-                                        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-slate-600 font-medium">
-                                          {stage.duration_weeks}주
-                                        </span>
+                                        <div className={`absolute h-full rounded-full ${colors[idx % colors.length]} opacity-80`} style={{ left: `${leftPct}%`, width: `${widthPct}%` }} />
+                                        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-slate-600 font-medium">{stage.duration_weeks}주</span>
                                       </div>
                                     </div>
                                   );
@@ -1009,12 +896,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                 <span>⚡ 빠르게 ~{message.structured.timeline.fast_estimate_months}개월</span>
                                 <span>여유있게 ~{message.structured.timeline.slow_estimate_months}개월</span>
                               </div>
-                              <p className="text-[10px] text-slate-400 italic">
-                                {message.structured.timeline.summary}
-                              </p>
+                              <p className="text-[10px] text-slate-400 italic">{message.structured.timeline.summary}</p>
                             </div>
                           )}
-                          
+
                           {message.structured?.trademark && (
                             <div className={cn(
                               "mt-3 p-3 rounded-xl border space-y-2",
@@ -1091,7 +976,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               </div>
                             ) : (
                               <div className="pt-3 border-t border-slate-100">
-                                <SuggestedQuestions 
+                                <SuggestedQuestions
                                   questions={message.structured.suggestedQuestions}
                                   onSelect={handleSend}
                                   variant="minimal"
@@ -1105,8 +990,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   )}
                 </div>
               ))}
-              
-              {/* Loading indicator */}
+
               {isLoading && (
                 <div className="flex gap-3 justify-start">
                   <div className="flex-shrink-0">
@@ -1123,10 +1007,10 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
-            
+
             <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-6">
               <div className="relative">
                 <input
@@ -1164,9 +1048,9 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                 >
                   <Send size={18} />
                 </button>
-                
+
                 {showAutocomplete && districtResults.length > 0 && (
-                  <div 
+                  <div
                     ref={autocompleteRef}
                     className={cn(
                       "absolute bottom-full left-0 right-0 mb-2",
@@ -1177,9 +1061,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                     )}
                   >
                     <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        상권 자동완성
-                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">상권 자동완성</span>
                     </div>
                     <div className="p-1">
                       {districtResults.map((district, index) => (
@@ -1189,33 +1071,22 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                           className={cn(
                             "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg",
                             "text-left transition-colors",
-                            index === autocompleteIndex
-                              ? "bg-blue-50 text-blue-700"
-                              : "hover:bg-slate-50 text-slate-700"
+                            index === autocompleteIndex ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50 text-slate-700"
                           )}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <MapPin size={14} className={cn(
-                              index === autocompleteIndex ? "text-blue-500" : "text-slate-400"
-                            )} />
+                            <MapPin size={14} className={cn(index === autocompleteIndex ? "text-blue-500" : "text-slate-400")} />
                             <div className="min-w-0">
-                              <span className="font-medium text-sm block truncate">
-                                {district.name}
-                              </span>
-                              <span className="text-[11px] text-slate-500">
-                                {district.type}
-                              </span>
+                              <span className="font-medium text-sm block truncate">{district.name}</span>
+                              <span className="text-[11px] text-slate-500">{district.type}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {district.survival_rate > 0 && (
                               <span className={cn(
                                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                                district.survival_rate >= 0.8 
-                                  ? "bg-emerald-50 text-emerald-600" 
-                                  : district.survival_rate >= 0.6 
-                                    ? "bg-amber-50 text-amber-600"
-                                    : "bg-rose-50 text-rose-600"
+                                district.survival_rate >= 0.8 ? "bg-emerald-50 text-emerald-600" :
+                                district.survival_rate >= 0.6 ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
                               )}>
                                 생존율 {Math.round(district.survival_rate * 100)}%
                               </span>
@@ -1227,266 +1098,14 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   </div>
                 )}
               </div>
-              
+
               <p className="mt-2 text-center text-xs text-gray-400">
                 Enter로 전송 · 지역명 입력시 자동완성
               </p>
             </div>
-           </div>
-         )}
-       </div>
-     </main>
-   );
- }
-
-type Mode = "landing" | "onboarding" | "search" | "chat";
-
-const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
-const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
-
-const CAFE_TYPE_LABELS: Record<string, string> = {
-  takeout: "테이크아웃 카페",
-  brunch: "브런치 카페",
-  aesthetic: "감성 카페",
-  study: "스터디 카페",
-};
-
-const BUDGET_RENT_LABELS: Record<string, string> = {
-  low: "월세 150~300만원",
-  mid: "월세 200~500만원",
-  high: "월세 300~800만원",
-};
-
-const TARGET_LABELS: Record<string, string> = {
-  office: "직장인",
-  "20s_female": "20대 여성",
-  "30s": "30~40대",
-  student: "대학생",
-  local: "동네 주민",
-  tourist: "관광객",
-};
-
-function buildAutoQuery(data: OnboardingData): string {
-  const location = data.district ? `서울 ${data.district}` : "서울";
-  const rent = BUDGET_RENT_LABELS[data.budget];
-  const rentPart = rent ? ` ${rent}으로` : "";
-  const industryName = INDUSTRY_NAMES[data.industryCode] || "카페";
-  const cafeLabel = data.industryCode === "CS100010"
-    ? (CAFE_TYPE_LABELS[data.cafeType] || industryName)
-    : industryName;
-  const targetLabel = TARGET_LABELS[data.target];
-  const targetPart = targetLabel ? `, ${targetLabel} 타겟` : "";
-
-  return `${location}에서${rentPart}${targetPart} ${cafeLabel} 창업 추천해줘`;
-}
-
-function rentDefaultsFromOnboarding(budgetId: OnboardingData["budget"]): {
-  budgetMin: number;
-  budgetMax: number;
-} {
-  switch (budgetId) {
-    case "low":
-      return { budgetMin: 1500000, budgetMax: 3000000 };
-    case "mid":
-      return { budgetMin: 2000000, budgetMax: 5000000 };
-    case "high":
-      return { budgetMin: 3000000, budgetMax: 8000000 };
-    default:
-      return { budgetMin: 2000000, budgetMax: 5000000 };
-  }
-}
-
-function LandingPage({ onStart, hasSaved, onResume, onClear }: {
-  onStart: () => void;
-  hasSaved: boolean;
-  onResume: () => void;
-  onClear: () => void;
-}) {
-  const [savedLabel, setSavedLabel] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hasSaved || typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem("builder_curation_onboarding_context");
-      if (raw) {
-        const ctx = JSON.parse(raw);
-        const parts: string[] = [];
-        if (ctx.district) parts.push(ctx.district);
-        if (ctx.cafe_type) parts.push(ctx.cafe_type);
-        setSavedLabel(parts.length ? parts.join(" · ") : null);
-      }
-    } catch { /* ignore */ }
-  }, [hasSaved]);
-
-  return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30 flex flex-col items-center justify-center px-4">
-      <div className="relative mb-8">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
-          <Store className="text-white" size={36} />
-        </div>
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full border-[3px] border-white" />
-      </div>
-
-      <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight text-center">
-        창업,<br className="sm:hidden" /> 어디서 해야 성공할까?
-      </h1>
-      <p className="text-gray-500 max-w-sm mx-auto text-center mb-2 text-sm leading-relaxed">
-        서울시 1,077개 상권 · 6년간 데이터를<br />AI가 분석해 맞춤 추천합니다.
-      </p>
-      <p className="text-xs text-gray-400 mb-10">몇 가지 질문에 답하면 바로 시작됩니다</p>
-
-      <div className="flex flex-col items-center gap-3">
-        <button
-          onClick={onStart}
-          className={cn(
-            "px-10 py-4 rounded-2xl text-base font-semibold",
-            "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
-            "shadow-xl shadow-blue-500/30",
-            "hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-[1.02]",
-            "active:scale-[0.98]",
-            "transition-all duration-200"
-          )}
-        >
-          {hasSaved ? "새로 시작하기" : "시작하기"}
-        </button>
-
-        {hasSaved && (
-          <div className="flex flex-col items-center gap-2 mt-2">
-            <button
-              onClick={onResume}
-              className={cn(
-                "px-8 py-3 rounded-xl text-sm font-medium",
-                "bg-white border border-slate-200 text-slate-700",
-                "shadow-sm hover:shadow-md hover:border-blue-300 hover:text-blue-600",
-                "active:scale-[0.98] transition-all duration-200"
-              )}
-            >
-              이전 분석 이어하기
-              {savedLabel && (
-                <span className="ml-2 text-xs text-slate-400">{savedLabel}</span>
-              )}
-            </button>
-            <button
-              onClick={onClear}
-              className="text-xs text-slate-400 hover:text-rose-500 transition-colors"
-            >
-              이전 데이터 삭제
-            </button>
           </div>
         )}
       </div>
     </main>
   );
-}
-
-export default function Page() {
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
-  const [initialSearchParams, setInitialSearchParams] = useState<{
-    budgetMin: number;
-    budgetMax: number;
-    district?: string;
-  } | undefined>(undefined);
-
-  const [hasSavedSession, setHasSavedSession] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setHasSavedSession(!!window.localStorage.getItem(ONBOARDING_DONE_KEY));
-    setMode("landing");
-  }, []);
-
-  const completeOnboarding = (data: OnboardingData) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
-      if (data.industryCode) {
-        window.localStorage.setItem("builder_curation_industry_code", data.industryCode);
-      }
-      const { budgetMin, budgetMax } = rentDefaultsFromOnboarding(data.budget);
-      window.localStorage.setItem(
-        ONBOARDING_CONTEXT_KEY,
-        JSON.stringify({
-          district: data.district,
-          budget_min: budgetMin,
-          budget_max: budgetMax,
-          cafe_type: data.cafeType,
-          target: data.target,
-          industry_code: data.industryCode || "CS100010",
-        })
-      );
-      setInitialSearchParams({
-        budgetMin,
-        budgetMax,
-        district: data.district || undefined,
-      });
-      setInitialQuery(buildAutoQuery(data));
-    }
-    setMode("chat");
-  };
-
-  if (mode === null) {
-    // Hydration: waiting for localStorage check — render nothing to prevent flash
-    return null;
-  }
-
-  if (mode === "landing") {
-    return (
-      <LandingPage
-        onStart={() => setMode("onboarding")}
-        hasSaved={hasSavedSession}
-        onResume={() => {
-          if (typeof window !== "undefined") {
-            try {
-              const raw = window.localStorage.getItem(ONBOARDING_CONTEXT_KEY);
-              if (raw) {
-                const ctx = JSON.parse(raw);
-                setInitialSearchParams({
-                  budgetMin: ctx.budget_min ?? 2000000,
-                  budgetMax: ctx.budget_max ?? 5000000,
-                  district: ctx.district || undefined,
-                });
-                setInitialQuery(
-                  `서울 ${ctx.district || ""}에서 월세 ${Math.round((ctx.budget_min ?? 2000000) / 10000)}~${Math.round((ctx.budget_max ?? 5000000) / 10000)}만원 ${ctx.industry_code ? (INDUSTRY_NAMES[ctx.industry_code] || "창업") : "창업"} 추천해줘`.trim()
-                );
-              }
-            } catch { /* parse error */ }
-          }
-          setMode("chat");
-        }}
-        onClear={() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem(ONBOARDING_DONE_KEY);
-            window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
-          }
-          setHasSavedSession(false);
-        }}
-      />
-    );
-  }
-
-  if (mode === "onboarding") {
-    return (
-      <Onboarding
-        onComplete={completeOnboarding}
-        onSkip={() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
-            window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
-          }
-          setMode("chat");
-        }}
-      />
-    );
-  }
-
-  if (mode === "search") {
-    return (
-      <SearchMode
-        initialSearchParams={initialSearchParams}
-        onSwitchToChat={() => setMode("chat")}
-      />
-    );
-  }
-
-  return <ChatHome onSwitchToSearch={() => setMode("search")} onGoHome={() => setMode("landing")} initialQuery={initialQuery} />;
 }
