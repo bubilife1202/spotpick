@@ -102,8 +102,8 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
               <Coffee className="text-white" size={18} />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-gray-900">Builder Curation</h1>
-              <p className="text-xs text-gray-500 hidden sm:block">AI 창업 컨설턴트</p>
+              <h1 className="text-base sm:text-lg font-bold text-gray-900">SpotPick</h1>
+              <p className="text-xs text-gray-500 hidden sm:block">AI가 골라주는 나만의 창업 자리</p>
             </div>
           </div>
           <nav className="flex items-center gap-2 sm:gap-4">

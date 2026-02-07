@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Builder Curation - 창업 위치 추천",
-  description: "데이터 기반 창업 위치 분석 및 추천 서비스",
+  title: "SpotPick - AI 창업 입지 분석",
+  description: "AI가 골라주는 나만의 창업 자리",
 };
 
 export default function RootLayout({

@@ -43,7 +43,7 @@ export function ShareSave({ districtName, districtData }: ShareSaveProps) {
   };
 
   const handleShare = async (platform: "kakao" | "twitter") => {
-    const text = `${districtName} 상권 분석 결과 - Builder Curation`;
+    const text = `${districtName} 상권 분석 결과 - SpotPick`;
     const url = `${window.location.origin}?district=${encodeURIComponent(districtName)}`;
 
     if (platform === "twitter") {

@@ -132,7 +132,7 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
     {
       id: "welcome",
       role: "assistant",
-      content: "안녕하세요! 창업 AI 컨설턴트 **빌더**입니다. 🏪\n\n서울시 1,077개 상권 데이터를 기반으로 최적의 창업 위치를 추천해드려요.\n\n무엇이 궁금하세요?",
+      content: "안녕하세요! 창업 AI 컨설턴트 **SpotPick**입니다. 🏪\n\n서울시 1,077개 상권 데이터를 기반으로 최적의 창업 위치를 추천해드려요.\n\n무엇이 궁금하세요?",
       timestamp: new Date(),
     },
   ]);
@@ -271,8 +271,8 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
               <Bot size={18} />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">빌더 AI</h3>
-              <p className="text-xs text-blue-100">창업 상담 전문</p>
+              <h3 className="font-semibold text-sm">SpotPick AI</h3>
+              <p className="text-xs text-blue-100">창업 입지 전문</p>
             </div>
           </div>
           <button

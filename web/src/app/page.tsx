@@ -260,7 +260,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
         id: "welcome",
         role: "assistant",
         content: [
-          `안녕하세요! ${industry.name} 창업 AI 컨설턴트 **빌더**입니다.`,
+          `안녕하세요! ${industry.name} 창업 AI 컨설턴트 **SpotPick**입니다.`,
           "",
           "현재 베타 서비스는 **서울 지역 데이터만** 지원합니다.",
           "",
@@ -458,11 +458,11 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
               <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 rounded-full border-2 border-white" />
             </div>
             <div className="text-left hidden sm:block">
-              <h1 className="text-lg font-bold text-gray-900 tracking-tight">Builder Curation</h1>
-              <p className="text-xs text-gray-500">AI 창업 컨설턴트</p>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">SpotPick</h1>
+              <p className="text-xs text-gray-500">AI가 골라주는 나만의 창업 자리</p>
             </div>
             <div className="text-left sm:hidden">
-              <h1 className="text-base font-bold text-gray-900 tracking-tight">Builder</h1>
+              <h1 className="text-base font-bold text-gray-900 tracking-tight">SpotPick</h1>
             </div>
           </button>
 
