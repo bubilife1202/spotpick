@@ -1094,27 +1094,36 @@ function BusinessPlanPageInner() {
     { label: "완료", done: false },
   ]);
 
+  const [lastBusinessName, setLastBusinessName] = useState("");
+
   const handleGenerate = async (businessName: string) => {
     setStage("loading");
     setError(null);
+    setLastBusinessName(businessName);
 
     const steps = [
-      { label: "상권 데이터 수집", done: false },
+      { label: "데이터 수집 중...", done: false },
+      { label: "AI 분석 중...", done: false },
+      { label: "보고서 생성 중...", done: false },
       { label: "경쟁 분석", done: false },
-      { label: "재무 시뮬레이션", done: false },
-      { label: "분석 & 작성", done: false },
       { label: "완료", done: false },
     ];
     setLoadingSteps([...steps]);
 
-    const stepDelays = [600, 1200, 1800, 2400];
+    const stepDelays = [800, 3000, 8000, 15000];
+    const timers: ReturnType<typeof setTimeout>[] = [];
     for (let i = 0; i < stepDelays.length; i++) {
-      setTimeout(() => {
-        setLoadingSteps((prev) =>
-          prev.map((s, j) => (j <= i ? { ...s, done: true } : s)),
-        );
-      }, stepDelays[i]);
+      timers.push(
+        setTimeout(() => {
+          setLoadingSteps((prev) =>
+            prev.map((s, j) => (j <= i ? { ...s, done: true } : s)),
+          );
+        }, stepDelays[i]),
+      );
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
       const res = await fetch(`${API_BASE}/business-plan/generate`, {
@@ -1127,11 +1136,14 @@ function BusinessPlanPageInner() {
           area_pyeong: areaPyeong,
           business_name: businessName || undefined,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        throw new Error(errData?.detail || `HTTP ${res.status}`);
+        throw new Error(errData?.detail || `서버 오류가 발생했습니다 (${res.status})`);
       }
 
       const data: BusinessPlanData = await res.json();
@@ -1141,9 +1153,25 @@ function BusinessPlanPageInner() {
 
       setTimeout(() => setStage("preview"), 600);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "알 수 없는 오류";
+      timers.forEach(clearTimeout);
+      clearTimeout(timeoutId);
+
+      let msg: string;
+      if (e instanceof DOMException && e.name === "AbortError") {
+        msg = "요청 시간이 초과되었습니다. 네트워크 상태를 확인 후 다시 시도해주세요.";
+      } else if (e instanceof TypeError && e.message === "Failed to fetch") {
+        msg = "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+      } else {
+        msg = e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.";
+      }
       setError(msg);
       setStage("confirm");
+    }
+  };
+
+  const handleRetry = () => {
+    if (lastBusinessName !== undefined) {
+      handleGenerate(lastBusinessName);
     }
   };
 
@@ -1183,8 +1211,21 @@ function BusinessPlanPageInner() {
   return (
     <>
       {error && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm animate-fade-in">
-          {error}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-4 rounded-xl shadow-lg text-sm animate-fade-in max-w-md">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium mb-1">생성에 실패했습니다</p>
+              <p className="text-red-100 text-xs">{error}</p>
+            </div>
+            <button
+              onClick={handleRetry}
+              className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              다시 시도
+            </button>
+          </div>
         </div>
       )}
       <ConfirmScreen
