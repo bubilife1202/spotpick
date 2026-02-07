@@ -15,6 +15,10 @@ import SearchMode from "@/components/SearchMode";
 import { Onboarding, OnboardingData } from "@/components/Onboarding";
 import type { MapMarker } from "@/components/MiniMap";
 import { ScorecardCard } from "@/components/ScorecardCard";
+import TrendChart from "@/components/TrendChart";
+import { SupportProgramList } from "@/components/SupportProgramCard";
+import { PDFExportButton } from "@/components/PDFExportButton";
+
 
 const INDUSTRY_NAMES: Record<string, string> = {
   CS100001: "한식", CS100002: "중식", CS100003: "일식", CS100004: "양식",
@@ -445,70 +449,81 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={onGoHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
+          <button onClick={onGoHome} className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <span className="text-lg">{industry.icon}</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <span className="text-base sm:text-lg">{industry.icon}</span>
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 rounded-full border-2 border-white" />
             </div>
-            <div className="text-left">
+            <div className="text-left hidden sm:block">
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">Builder Curation</h1>
               <p className="text-xs text-gray-500">AI 창업 컨설턴트</p>
             </div>
+            <div className="text-left sm:hidden">
+              <h1 className="text-base font-bold text-gray-900 tracking-tight">Builder</h1>
+            </div>
           </button>
 
-          <button
-            onClick={onSwitchToSearch}
-            className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            title="고급 기능: 조건 검색, 지도/카드 비교"
-          >
-            검색/비교
-          </button>
+          <div className="flex items-center gap-2">
+            <PDFExportButton
+              messages={messages}
+              industryName={industry.name}
+              className="hidden sm:block"
+            />
+            <button
+              onClick={onSwitchToSearch}
+              className="text-xs sm:text-sm font-medium text-gray-700 hover:text-gray-900 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              title="고급 기능: 조건 검색, 지도/카드 비교"
+            >
+              <span className="hidden sm:inline">검색/비교</span>
+              <span className="sm:hidden">검색</span>
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="relative max-w-3xl mx-auto px-4">
+      <div className="relative max-w-3xl mx-auto px-3 sm:px-4">
         {(
-          <div className="flex flex-col h-[calc(100vh-73px)]">
+          <div className="flex flex-col h-[calc(100vh-60px)] sm:h-[calc(100vh-73px)]">
             {/* Messages area */}
-            <div className="flex-1 overflow-y-auto py-6 space-y-5">
+            <div className="flex-1 overflow-y-auto py-4 sm:py-6 space-y-4 sm:space-y-5">
               {messages.map((message, msgIdx) => (
                 <div key={message.id} className="space-y-4">
                   <div
                     className={cn(
-                      "flex gap-3",
+                      "flex gap-2 sm:gap-3",
                       message.role === "user" ? "justify-end" : "justify-start"
                     )}
                   >
                     {message.role === "assistant" && (
                       <div className="flex-shrink-0">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                          <Bot size={18} className="text-white" />
+                        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                          <Bot size={16} className="text-white sm:w-[18px] sm:h-[18px]" />
                         </div>
                       </div>
                     )}
-                    
+
                     <div
                       className={cn(
-                        "max-w-[85%] sm:max-w-[75%]",
+                        "max-w-[82%] sm:max-w-[85%] md:max-w-[75%]",
                         message.role === "user"
-                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 shadow-lg shadow-blue-500/20"
-                          : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-4 shadow-md"
+                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-lg shadow-blue-500/20"
+                          : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-3 sm:p-4 shadow-md"
                       )}
                     >
-                      {message.role === "assistant" 
+                      {message.role === "assistant"
                         ? renderMessageContent(message.content, msgIdx)
-                        : <p className="text-sm leading-relaxed">{message.content}</p>
+                        : <p className="text-xs sm:text-sm leading-relaxed">{message.content}</p>
                       }
                     </div>
 
                     {message.role === "user" && (
                       <div className="flex-shrink-0">
-                        <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-                          <User size={18} className="text-gray-500" />
+                        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                          <User size={16} className="text-gray-500 sm:w-[18px] sm:h-[18px]" />
                         </div>
                       </div>
                     )}
@@ -545,8 +560,11 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                     <TrendingUp size={12} className="text-blue-500" />
                                     추천 상권 TOP {recommendations.length}
+                                    <span className="text-[10px] text-slate-400 font-normal ml-auto lg:hidden">← 스와이프</span>
                                   </div>
-                                  <div className="space-y-2.5">
+                                  {/* 모바일: 가로 스크롤 / 데스크톱: 세로 스택 */}
+                                  <div className="lg:space-y-2.5">
+                                    <div className="flex lg:flex-col gap-2.5 overflow-x-auto lg:overflow-x-visible snap-x snap-mandatory scrollbar-hide pb-2 lg:pb-0 -mx-1 px-1">
                                     {recommendations.map((rec, i) => {
                                       const probColor = rec.success_probability >= 0.7 
                                         ? "text-emerald-600 bg-emerald-50" 
@@ -555,13 +573,14 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                           : "text-rose-600 bg-rose-50";
                                       
                                       return (
-                                        <div 
+                                        <div
                                           key={i}
                                           className={cn(
-                                            "group relative p-3 rounded-xl",
+                                            "group relative p-3 rounded-xl flex-shrink-0",
                                             "bg-white border border-slate-100",
                                             "hover:border-blue-200 hover:shadow-md",
-                                            "transition-all duration-200 cursor-pointer"
+                                            "transition-all duration-200 cursor-pointer",
+                                            "w-[85%] sm:w-[70%] lg:w-full snap-center"
                                           )}
                                           onClick={() => handleSend(`${rec.district_name} 상권에 대해 자세히 알려줘`)}
                                         >
@@ -678,6 +697,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                         </div>
                                       );
                                     })}
+                                    </div>
                                   </div>
                                 </div>
                                 
@@ -1014,7 +1034,13 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                               </p>
                             </div>
                           )}
-                          
+
+                          {message.structured?.trend && (
+                            <div className="mt-4">
+                              <TrendChart data={message.structured.trend} />
+                            </div>
+                          )}
+
                           {message.structured?.trademark && (
                             <div className={cn(
                               "mt-3 p-3 rounded-xl border space-y-2",
@@ -1057,6 +1083,18 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                   ))}
                                 </ul>
                               )}
+                            </div>
+                          )}
+
+                          {message.structured?.support_programs && message.structured.support_programs.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                신청 가능한 창업 지원사업
+                              </h4>
+                              <SupportProgramList programs={message.structured.support_programs} />
                             </div>
                           )}
 
@@ -1127,7 +1165,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
               <div ref={messagesEndRef} />
             </div>
             
-            <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-6">
+            <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 sm:pt-4 sm:pb-6">
               <div className="relative">
                 <input
                   ref={inputRef}
@@ -1140,7 +1178,7 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   placeholder="메시지를 입력하세요..."
                   disabled={isLoading}
                   className={cn(
-                    "w-full pl-5 pr-14 py-4 text-sm",
+                    "w-full pl-4 pr-12 py-3 text-sm sm:pl-5 sm:pr-14 sm:py-4",
                     "bg-white border-2 border-gray-100 rounded-2xl",
                     "focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100",
                     "shadow-lg shadow-gray-200/50",
@@ -1153,16 +1191,16 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                   onClick={() => handleSend()}
                   disabled={isLoading || !input.trim()}
                   className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2",
-                    "w-10 h-10 rounded-xl",
+                    "absolute right-1.5 top-1/2 -translate-y-1/2",
+                    "w-9 h-9 rounded-xl sm:w-10 sm:h-10 sm:right-2",
                     "flex items-center justify-center",
                     "transition-all duration-200",
                     !isLoading && input.trim()
-                      ? "bg-blue-500 text-white hover:bg-blue-600 shadow-md"
+                      ? "bg-blue-500 text-white hover:bg-blue-600 shadow-md active:scale-95"
                       : "bg-gray-100 text-gray-400"
                   )}
                 >
-                  <Send size={18} />
+                  <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
                 
                 {showAutocomplete && districtResults.length > 0 && (

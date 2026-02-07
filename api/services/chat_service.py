@@ -194,6 +194,7 @@ class StructuredChatPayload(TypedDict, total=False):
     simulation: dict[str, object]
     timeline: dict[str, object]
     trademark: dict[str, object]
+    support_programs: list[dict[str, object]]
 
 
 @dataclass
@@ -595,6 +596,281 @@ class ChatService:
             if m not in unique:
                 unique.append(m)
         return unique
+
+    def _detect_comparison_request(self, message: str) -> dict[str, list[str]] | None:
+        """
+        비교 요청 패턴 감지: "A vs B 비교해줘", "강남 성수 비교", "홍대랑 이태원 비교"
+        Returns: {"districts": ["강남", "성수"]} or None
+        """
+        msg_lower = message.lower()
+
+        # Pattern 1: "A vs B"
+        vs_pattern = re.search(r"(\S+)\s*vs\s*(\S+)", msg_lower)
+        if vs_pattern:
+            return {"districts": [vs_pattern.group(1), vs_pattern.group(2)]}
+
+        # Pattern 2: "비교해줘" with multiple districts
+        if "비교" in message:
+            # Extract potential district names
+            districts = []
+            for district_name in self.data_service._district_by_name.keys():
+                if district_name in message:
+                    districts.append(district_name)
+
+            if len(districts) >= 2:
+                return {"districts": districts[:3]}  # Max 3 districts
+
+            # Try broader tokens (강남, 홍대, etc.)
+            for token in self._broad_district_token_set:
+                if token in message:
+                    districts.append(token)
+
+            if len(districts) >= 2:
+                return {"districts": districts[:3]}
+
+        return None
+
+    def _detect_trend_request(self, message: str) -> dict[str, object] | None:
+        """
+        트렌드 분석 요청 패턴 감지:
+        - "강남 카페 트렌드", "홍대 카페 검색량", "카페 인기도"
+        - "강남 홍대 트렌드 비교", "강남vs홍대 검색 트렌드"
+
+        Returns: {"keyword": str, "districts": list[str]} or None
+        """
+        msg_lower = message.lower()
+
+        # Trigger keywords
+        trend_keywords = ["트렌드", "검색량", "인기도", "검색 추이", "관심도"]
+        if not any(kw in message for kw in trend_keywords):
+            return None
+
+        # Extract base keyword (업종 이름)
+        keyword = self.display_name  # Default to industry name
+
+        # Extract districts
+        districts = []
+
+        # Check for district names in the message
+        for district_name in self.data_service._district_by_name.keys():
+            if district_name in message:
+                districts.append(district_name)
+
+        # If no specific district, try broader tokens
+        if not districts:
+            for token in self._broad_district_token_set:
+                if token in message:
+                    districts.append(token)
+
+        # If we have districts, this is a trend request
+        if districts:
+            return {
+                "keyword": keyword,
+                "districts": districts[:5]  # Max 5 districts for Naver API
+            }
+
+        # If no districts but trend keywords present, use default districts
+        if any(kw in message for kw in trend_keywords):
+            # Use top 5 popular districts as default
+            return {
+                "keyword": keyword,
+                "districts": ["강남", "홍대", "성수", "이태원", "종로"]
+            }
+
+        return None
+
+    async def _handle_comparison(self, district_names: list[str]) -> StructuredChatPayload:
+        """
+        상권 비교 응답 생성
+        district_names: 비교할 상권명 리스트 (2-3개)
+        """
+        from api.services.scorecard_service import get_scorecard_service
+
+        # 상권 데이터 조회
+        districts_data = []
+        for name in district_names[:3]:
+            district = self.data_service.get_district_by_name(name)
+            if not district:
+                # Try searching
+                search_results = self.data_service.search_districts(name, limit=1)
+                if search_results:
+                    district = search_results[0]
+
+            if district:
+                districts_data.append(district)
+
+        if len(districts_data) < 2:
+            return {
+                "reply": f"'{', '.join(district_names)}' 상권을 찾을 수 없어요. 정확한 상권명을 알려주시면 비교해드릴게요.",
+                "recommendations": [],
+                "charts": [],
+                "suggested_questions": [
+                    "홍대입구역 vs 신사역 비교해줘",
+                    "강남역 성수동 비교해줘",
+                    "이태원역 vs 명동역 비교",
+                ],
+                "context": {"comparison_failed": True},
+            }
+
+        # Scorecard 서비스로 점수 계산
+        sc_svc = get_scorecard_service(self.industry_code)
+        if not sc_svc._districts:
+            sc_svc.set_districts(self.data_service.districts)
+
+        # 추천 카드 생성 (scorecard 포함)
+        recommendations = []
+        for idx, d in enumerate(districts_data, 1):
+            sc = d.get("store_count", 1)
+            monthly_sales_per_store = int(d["monthly_sales"] / max(1, sc))
+            sales_pct = self.data_service._sales_percentile.get(d["district_code"], 0.5)
+            estimated_rent = estimate_rent(
+                d["district_type"], monthly_sales_per_store, sales_pct, self.data_service._rent_ranges
+            )
+
+            scorecard_result = sc_svc.score_district(d)
+
+            recommendations.append({
+                "rank": idx,
+                "district_code": d["district_code"],
+                "district_name": d["district_name"],
+                "district_type": d["district_type"],
+                "success_probability": d.get("survival_rate", 0.85),
+                "estimated_rent": estimated_rent,
+                "peak_time": self._get_peak_time_slot(d),
+                "main_age_group": self._get_main_age_group(d),
+                "risk_factors": [],
+                "recommendations": [],
+                "monthly_sales": monthly_sales_per_store,
+                "store_count": d.get("store_count", 0),
+                "survival_rate": d.get("survival_rate", 0),
+                "scorecard": scorecard_result,
+            })
+
+        # 비교 텍스트 생성
+        d1 = districts_data[0]
+        d2 = districts_data[1]
+        d1_name = d1["district_name"]
+        d2_name = d2["district_name"]
+
+        comparison_lines = [
+            f"**{d1_name}** vs **{d2_name}** 비교 분석입니다.\n",
+        ]
+
+        # 5개 카테고리 비교
+        if len(recommendations) >= 2 and recommendations[0].get("scorecard") and recommendations[1].get("scorecard"):
+            sc1 = recommendations[0]["scorecard"]
+            sc2 = recommendations[1]["scorecard"]
+
+            comparison_lines.append("**종합 점수**")
+            comparison_lines.append(f"- {d1_name}: {sc1['total_score']:.1f}점 (상위 {100 - sc1['percentile']:.0f}%)")
+            comparison_lines.append(f"- {d2_name}: {sc2['total_score']:.1f}점 (상위 {100 - sc2['percentile']:.0f}%)")
+            comparison_lines.append("")
+
+            # 카테고리별 차이 분석
+            cat1 = {c["name"]: c["score"] for c in sc1["categories"]}
+            cat2 = {c["name"]: c["score"] for c in sc2["categories"]}
+
+            max_diff_cat = None
+            max_diff_val = 0
+            for cat_name in cat1.keys():
+                diff = abs(cat1[cat_name] - cat2[cat_name])
+                if diff > max_diff_val:
+                    max_diff_val = diff
+                    max_diff_cat = cat_name
+
+            if max_diff_cat:
+                winner = d1_name if cat1[max_diff_cat] > cat2[max_diff_cat] else d2_name
+                comparison_lines.append(f"**가장 큰 차이: {max_diff_cat}** - {winner}이(가) 우세합니다.")
+
+        comparison_lines.append("\n레이더 차트와 상세 비교 테이블을 확인하세요.")
+
+        reply = "\n".join(comparison_lines)
+
+        return {
+            "reply": reply,
+            "recommendations": recommendations,
+            "charts": [],
+            "suggested_questions": [
+                f"{d1_name}에서 {self.display_name} 시뮬레이션 보여줘",
+                f"{d2_name} 경쟁 분석 해줘",
+                "다른 상권도 비교해줘",
+            ],
+            "context": {"comparison": True, "districts": [d["district_name"] for d in districts_data]},
+        }
+
+    async def _handle_trend_request(
+        self,
+        keyword: str,
+        districts: list[str] | None,
+        message: str
+    ) -> StructuredChatPayload:
+        """
+        트렌드 분석 요청 처리
+        Naver DataLab API를 사용하여 검색 트렌드 조회 및 차트 생성
+
+        Args:
+            keyword: 기본 키워드 (업종명)
+            districts: 비교할 지역 리스트
+            message: 원본 메시지
+        """
+        from api.services.trend_service import get_trend_service
+
+        try:
+            trend_service = get_trend_service()
+
+            # Use districts if provided, otherwise default top 5
+            target_districts = districts or ["강남", "홍대", "성수", "이태원", "종로"]
+
+            # Call Naver DataLab API
+            trend_data = await trend_service.get_district_trend(
+                base_keyword=keyword,
+                districts=target_districts[:5],  # Max 5
+                months=12
+            )
+
+            # Build reply text
+            reply_lines = [
+                f"**{keyword} 검색 트렌드 분석** (최근 12개월)\n",
+            ]
+
+            if trend_data.get("summary"):
+                top = trend_data["summary"].get("top_keyword")
+                avg = trend_data["summary"].get("top_average", 0)
+                reply_lines.append(f"가장 높은 검색량: **{top}** (평균 {avg:.1f})")
+
+            reply_lines.append("\n지역별 검색량 추이를 차트로 확인하세요.")
+            reply_lines.append("높은 검색량은 높은 관심도를 의미하지만, 경쟁도 함께 높을 수 있습니다.")
+
+            reply = "\n".join(reply_lines)
+
+            # Suggested questions
+            suggested = [
+                f"{target_districts[0]}에서 {keyword} 추천해줘",
+                f"{keyword} 경쟁 분석 보여줘",
+                "다른 지역 트렌드도 비교해줘",
+            ]
+
+            return {
+                "reply": reply,
+                "recommendations": [],
+                "charts": [],
+                "trend": trend_data,
+                "suggested_questions": suggested,
+                "context": {"trend_request": True, "keyword": keyword, "districts": target_districts},
+            }
+
+        except Exception as e:
+            logger.exception("Failed to fetch trend data")
+            return {
+                "reply": f"트렌드 데이터를 가져오는 중 오류가 발생했어요.\n\n{str(e)}\n\n다시 시도해주시거나, 다른 질문을 해주세요.",
+                "recommendations": [],
+                "charts": [],
+                "suggested_questions": [
+                    f"서울 강남에서 {self.display_name} 추천해줘",
+                    "서울 홍대 상권 분석해줘",
+                ],
+                "context": {"trend_error": True},
+            }
 
     def _build_system_prompt(self) -> str:
         """데이터 기반 시스템 프롬프트 생성 (업종별 config 템플릿 우선)"""
@@ -1838,6 +2114,20 @@ class ChatService:
                 "context": {"unsupported_regions": out_of_scope},
             }
 
+        # District comparison detection (A vs B 비교해줘)
+        comparison_result = self._detect_comparison_request(message)
+        if comparison_result:
+            return await self._handle_comparison(comparison_result["districts"])
+
+        # Trend analysis detection (트렌드, 검색량, 인기도)
+        trend_result = self._detect_trend_request(message)
+        if trend_result:
+            return await self._handle_trend_request(
+                keyword=trend_result["keyword"],
+                districts=trend_result.get("districts"),
+                message=message
+            )
+
         merged_context = self._compute_merged_context(message, history, seed_context)
         missing_district = merged_context.district is None
         missing_budget = merged_context.budget_max is None
@@ -1963,7 +2253,7 @@ class ChatService:
                     "서울 성수 골목상권 추천해줘",
                 ]
 
-            return {
+            intake_payload: StructuredChatPayload = {
                 "reply": "\n".join(reply_lines).strip(),
                 "recommendations": [],
                 "charts": [],
@@ -1988,6 +2278,36 @@ class ChatService:
                     ],
                 },
             }
+
+            # Check for support program request even during intake
+            try:
+                support_pattern = re.compile(
+                    r"지원사업|정부지원|정부 지원|창업 지원|보조금|지원금|창업지원|지원 사업"
+                )
+                if support_pattern.search(message):
+                    from api.services.support_program_service import get_support_program_service
+                    support_svc = get_support_program_service(self.industry_code)
+
+                    district = merged_context.district if merged_context else None
+                    target_age = None
+                    if re.search(r"청년|39세|청년창업", message):
+                        target_age = "청년"
+
+                    programs = support_svc.get_matched_programs(
+                        district=district,
+                        budget_min=None,
+                        budget_max=None,
+                        target_age=target_age,
+                    )
+
+                    if programs:
+                        intake_payload["support_programs"] = [dict(p) for p in programs]
+                        program_count = len(programs)
+                        intake_payload["reply"] += f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
+            except Exception:
+                pass
+
+            return intake_payload
 
         (
             context_text,
@@ -2160,6 +2480,43 @@ class ChatService:
                     tm_svc = get_trademark_service(self.industry_code)
                     trademark_result = tm_svc.check(proposed_name)
                     payload["trademark"] = trademark_result
+        except Exception:
+            pass
+
+        # Support program matching detection
+        try:
+            support_pattern = re.compile(
+                r"지원사업|정부지원|정부 지원|창업 지원|보조금|지원금|창업지원|지원 사업"
+            )
+            if support_pattern.search(message):
+                from api.services.support_program_service import get_support_program_service
+                support_svc = get_support_program_service(self.industry_code)
+
+                # Extract context for matching
+                district = merged_context.district if merged_context else None
+                budget_min = merged_context.budget_min if merged_context else None
+                budget_max = merged_context.budget_max if merged_context else None
+
+                # Detect age target from message
+                target_age = None
+                if re.search(r"청년|39세|청년창업", message):
+                    target_age = "청년"
+
+                # Get matched programs
+                programs = support_svc.get_matched_programs(
+                    district=district,
+                    budget_min=budget_min,
+                    budget_max=budget_max,
+                    target_age=target_age,
+                )
+
+                if programs:
+                    payload["support_programs"] = [dict(p) for p in programs]
+
+                    # Add to reply if not already mentioned
+                    if not any(kw in reply for kw in ["지원사업", "정부지원"]):
+                        program_count = len(programs)
+                        reply += f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
         except Exception:
             pass
 

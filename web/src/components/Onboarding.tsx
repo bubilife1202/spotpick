@@ -109,7 +109,7 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
       <style jsx>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
@@ -118,19 +118,19 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
         }
         .animate-shake { animation: shake 0.4s ease-in-out; }
       `}</style>
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
           <div className="flex items-center justify-between text-white">
             <div className="flex items-center gap-2">
-              <Sparkles size={20} />
-              <span className="font-semibold">시작하기</span>
+              <Sparkles size={18} className="sm:w-5 sm:h-5" />
+              <span className="font-semibold text-sm sm:text-base">시작하기</span>
             </div>
             <div className="flex gap-1">
               {Array.from({ length: TOTAL_STEPS }, (_, i) => i).map((s) => (
                 <div
                   key={s}
                   className={cn(
-                    "w-8 h-1 rounded-full transition-colors",
+                    "w-6 h-1 rounded-full transition-colors sm:w-8",
                     s <= step ? "bg-white" : "bg-white/30"
                   )}
                 />
@@ -139,12 +139,12 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {step === 0 && (
             <div className="space-y-4">
-              <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">어떤 업종을 준비하세요?</h2>
-                <p className="text-sm text-gray-500 mt-1">업종에 따라 분석 기준이 달라져요</p>
+              <div className="text-center mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">어떤 업종을 준비하세요?</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">업종에 따라 분석 기준이 달라져요</p>
               </div>
               <IndustrySelector
                 value={data.industryCode}
@@ -167,21 +167,21 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
                       key={type.id}
                       onClick={() => setData({ ...data, cafeType: type.id })}
                       className={cn(
-                        "p-4 rounded-xl border-2 text-left transition-all",
+                        "p-3 sm:p-4 rounded-xl border-2 text-left transition-all active:scale-95",
                         data.cafeType === type.id
                           ? "border-blue-500 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                     >
                       <Icon
-                        size={24}
+                        size={20}
                         className={cn(
-                          "mb-2",
+                          "mb-2 sm:w-6 sm:h-6",
                           data.cafeType === type.id ? "text-blue-600" : "text-gray-400"
                         )}
                       />
-                      <p className="font-medium text-gray-900">{type.label}</p>
-                      <p className="text-xs text-gray-500">{type.desc}</p>
+                      <p className="font-medium text-sm sm:text-base text-gray-900">{type.label}</p>
+                      <p className="text-[11px] sm:text-xs text-gray-500">{type.desc}</p>
                     </button>
                   );
                 })}
@@ -201,16 +201,16 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
                     key={budget.id}
                     onClick={() => setData({ ...data, budget: budget.id })}
                     className={cn(
-                      "p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3",
+                      "p-3 sm:p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 active:scale-98",
                       data.budget === budget.id
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <span className="text-2xl">{budget.emoji}</span>
+                    <span className="text-xl sm:text-2xl">{budget.emoji}</span>
                     <div>
-                      <p className="font-medium text-gray-900">{budget.label}</p>
-                      <p className="text-xs text-gray-500">{budget.desc}</p>
+                      <p className="font-medium text-sm sm:text-base text-gray-900">{budget.label}</p>
+                      <p className="text-[11px] sm:text-xs text-gray-500">{budget.desc}</p>
                     </div>
                   </button>
                 ))}
@@ -251,13 +251,13 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
                 <h2 className="text-xl font-bold text-gray-900">선호하는 지역이 있으세요?</h2>
                 <p className="text-sm text-gray-500 mt-1">선택 안 해도 분석 가능해요</p>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {DISTRICTS.map((district) => (
                   <button
                     key={district}
                     onClick={() => setData({ ...data, district: data.district === district ? null : district })}
                     className={cn(
-                      "py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                      "py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95",
                       data.district === district
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -278,16 +278,16 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
             </p>
           </div>
         )}
-        <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gray-50 flex items-center justify-between">
           <button
             onClick={step === 0 ? onSkip : handleBack}
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 active:scale-95 transition-transform"
           >
             {step === 0 ? (
               "건너뛰기"
             ) : (
               <>
-                <ArrowLeft size={16} />
+                <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
                 이전
               </>
             )}
@@ -302,12 +302,12 @@ export function Onboarding({ onComplete, onSkip }: OnboardingProps) {
               handleNext();
             }}
             className={cn(
-              "px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2",
+              "px-5 py-2 sm:px-6 bg-blue-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 active:scale-95 flex items-center gap-2 transition-all",
               shakeStep && "animate-shake"
             )}
           >
             {step === TOTAL_STEPS - 1 ? "분석 시작!" : "다음"}
-            <ArrowRight size={16} />
+            <ArrowRight size={14} className="sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>

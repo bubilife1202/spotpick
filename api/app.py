@@ -62,6 +62,15 @@ def create_app() -> FastAPI:
     trademark_router = cast(APIRouter, import_module("api.routes.trademark").router)
     app.include_router(trademark_router, prefix="/api/v1", tags=["Trademark"])
 
+    pdf_router = cast(APIRouter, import_module("api.routes.pdf").router)
+    app.include_router(pdf_router, prefix="/api/v1", tags=["PDF"])
+
+    support_router = cast(APIRouter, import_module("api.routes.support").router)
+    app.include_router(support_router, prefix="/api/v1", tags=["Support"])
+
+    trends_router = cast(APIRouter, import_module("api.routes.trends").router)
+    app.include_router(trends_router, prefix="/api/v1", tags=["Trends"])
+
     return app
 
 

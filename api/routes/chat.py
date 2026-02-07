@@ -111,6 +111,9 @@ class StructuredChatResponse(BaseModel):
     competitive: Optional[dict[str, object]] = Field(None, description="경쟁 분석 데이터")
     simulation: Optional[dict[str, object]] = Field(None, description="창업 시뮬레이션 데이터")
     timeline: Optional[dict[str, object]] = Field(None, description="창업 타임라인 데이터")
+    trademark: Optional[dict[str, object]] = Field(None, description="상표 충돌 확인 결과")
+    support_programs: Optional[list[dict[str, object]]] = Field(None, description="창업 지원사업 목록")
+    trend: Optional[dict[str, object]] = Field(None, description="검색 트렌드 데이터")
 
 
 @router.post("/chat", response_model=StructuredChatResponse)
@@ -164,6 +167,9 @@ async def chat(request: ChatRequest, req: Request):
             competitive=response.get("competitive"),  # type: ignore[arg-type]
             simulation=response.get("simulation"),  # type: ignore[arg-type]
             timeline=response.get("timeline"),  # type: ignore[arg-type]
+            trademark=response.get("trademark"),  # type: ignore[arg-type]
+            support_programs=response.get("support_programs"),  # type: ignore[arg-type]
+            trend=response.get("trend"),  # type: ignore[arg-type]
         )
 
     except Exception as e:

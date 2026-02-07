@@ -341,6 +341,66 @@ export interface TrademarkCheckResult {
   suggestions: string[];
 }
 
+export interface SupportProgramData {
+  program_id: string;
+  program_name: string;
+  category: string;
+  support_target: string;
+  support_amount: string;
+  application_start_date: string;
+  application_end_date: string;
+  managing_org: string;
+  executing_org: string;
+  detail_url: string;
+  days_until_deadline: number;
+}
+
+// ============================================================================
+// Trend Data Types (Naver DataLab)
+// ============================================================================
+
+/**
+ * Single data point in a trend timeline
+ */
+export interface TrendDataPoint {
+  /** Period in YYYY-MM-DD format */
+  period: string;
+  /** Search volume ratio (normalized 0-100) */
+  ratio: number;
+}
+
+/**
+ * Trend data for a single keyword
+ */
+export interface TrendKeywordData {
+  /** Keyword name */
+  keyword: string;
+  /** Average search ratio over the period */
+  average_ratio: number;
+  /** Time series data points */
+  data: TrendDataPoint[];
+}
+
+/**
+ * Complete trend analysis result
+ */
+export interface TrendData {
+  /** Keywords analyzed */
+  keywords: string[];
+  /** Date range */
+  period: {
+    start: string;
+    end: string;
+  };
+  /** Trend data for each keyword */
+  trends: TrendKeywordData[];
+  /** Summary insights */
+  summary?: {
+    top_keyword: string;
+    top_average: number;
+  };
+}
+
 export interface MessageStructuredData {
   recommendations?: RecommendationCardData[];
   charts?: ChartData[];
@@ -352,6 +412,8 @@ export interface MessageStructuredData {
   simulation?: SimulationData;
   timeline?: TimelineData;
   trademark?: TrademarkCheckResult;
+  support_programs?: SupportProgramData[];
+  trend?: TrendData;
 }
 
 /**

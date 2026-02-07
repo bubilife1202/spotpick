@@ -96,29 +96,30 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Coffee className="text-white" size={20} />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+              <Coffee className="text-white" size={18} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Builder Curation</h1>
+              <h1 className="text-base sm:text-lg font-bold text-gray-900">Builder Curation</h1>
               <p className="text-xs text-gray-500 hidden sm:block">AI 창업 컨설턴트</p>
             </div>
           </div>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={onSwitchToChat}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2"
             >
-              <MessageCircle size={16} />
+              <MessageCircle size={14} className="sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">대화 모드</span>
+              <span className="sm:hidden">대화</span>
             </button>
           </nav>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {!searchParams && (
           <section className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-4">
@@ -144,18 +145,18 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
         )}
 
         {data && data.recommendations.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">
+          <div className="mt-6 sm:mt-8">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900">
                 추천 위치 TOP {data.recommendations.length}
               </h3>
-              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+              <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2.5 py-1 sm:px-3 rounded-full">
                 {data.total_candidates}개 후보 중 분석
               </span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-3 sm:space-y-4 max-h-[600px] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin">
                 {data.recommendations.map((rec) => {
                   const isCompared = compareList.some(d => d.name === rec.area_name);
                   return (
@@ -167,27 +168,27 @@ export default function SearchMode({ onSwitchToChat, initialSearchParams }: Sear
                       />
                       <button
                         onClick={(e) => toggleCompare(rec, e)}
-                        className={`absolute top-4 right-4 p-2 rounded-full shadow-md transition-all z-10 ${
-                          isCompared 
-                            ? "bg-indigo-600 text-white hover:bg-indigo-700" 
-                            : "bg-white text-gray-400 hover:text-indigo-600 hover:bg-gray-50 opacity-0 group-hover:opacity-100"
+                        className={`absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 sm:p-2 rounded-full shadow-md transition-all z-10 active:scale-90 ${
+                          isCompared
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                            : "bg-white text-gray-400 hover:text-indigo-600 hover:bg-gray-50 opacity-0 group-hover:opacity-100 sm:opacity-100 lg:opacity-0"
                         }`}
                         title={isCompared ? "비교 목록에서 제거" : "비교 목록에 추가"}
                       >
-                        {isCompared ? <Check size={16} /> : <Plus size={16} />}
+                        {isCompared ? <Check size={14} className="sm:w-4 sm:h-4" /> : <Plus size={14} className="sm:w-4 sm:h-4" />}
                       </button>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="bg-white rounded-2xl shadow-lg p-4 h-[600px] border">
+              <div className="bg-white rounded-2xl shadow-lg p-3 sm:p-4 h-[400px] sm:h-[600px] border">
                 {selectedLocation ? (
                   <div className="h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-bold flex items-center gap-2">
-                        <MapPin className="text-blue-600" size={20} />
-                        {selectedLocation.area_name} 상세 분석
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h4 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                        <MapPin className="text-blue-600" size={18} />
+                        <span className="truncate">{selectedLocation.area_name} 상세 분석</span>
                       </h4>
                       <ShareSave 
                         districtName={selectedLocation.area_name} 

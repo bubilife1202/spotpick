@@ -801,6 +801,23 @@ class DataService:
         """6년 트렌드"""
         return self.summary.get("yearly_trends", [])
 
+    def get_districts_for_comparison(self, district_codes: list[str]) -> list[dict[str, Any]]:
+        """
+        복수 상권 비교용 데이터 조회
+
+        Args:
+            district_codes: 비교할 상권 코드 리스트 (최대 3개 권장)
+
+        Returns:
+            각 상권의 상세 데이터 리스트
+        """
+        results = []
+        for code in district_codes[:3]:  # 최대 3개까지만
+            district = self._district_by_code.get(code)
+            if district:
+                results.append(district)
+        return results
+
 
 # ─── Registry Pattern ──────────────────────────────────────────────────────
 _registry: dict[str, DataService] = {}

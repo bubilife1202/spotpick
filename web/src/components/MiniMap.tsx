@@ -330,6 +330,7 @@ function ExpandedMapModal({
           }}
           style={{ width: "100%", height: "100%" }}
           mapStyle={MAP_STYLE}
+          cooperativeGestures={false}
         >
           <NavigationControl position="top-right" showCompass={true} />
 
@@ -500,6 +501,7 @@ export function MiniMap({
           mapStyle={MAP_STYLE}
           onLoad={() => setIsMapReady(true)}
           attributionControl={false}
+          cooperativeGestures={true}
         >
           <NavigationControl
             position="top-right"

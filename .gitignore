@@ -81,3 +81,26 @@ secrets.json
 *_key.json
 service-account*.json
 api_keys.txt
+
+# PID files
+*.pid
+.api-dev.pid
+.web-dev.pid
+
+# Screenshots & test outputs
+e2e-*.png
+landing-*.png
+test_report.pdf
+
+# Claude internal
+.sisyphus/
+
+# Office documents (project docs, not code)
+*.docx
+*.xlsx
+사업계획서/
+
+# Auto-generated docs
+PDF_EXPORT_USAGE.md
+PDF_QUALITY_REPORT.md
+SUPPORT_PROGRAMS.md

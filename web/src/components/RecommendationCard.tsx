@@ -34,32 +34,32 @@ export function RecommendationCard({
 
   if (compact) {
     return (
-      <div 
+      <div
         className={cn(
           "group max-w-[400px] bg-gradient-to-br from-white to-slate-50/80",
-          "rounded-xl border border-slate-200/60 p-3.5",
+          "rounded-xl border border-slate-200/60 p-3 sm:p-3.5",
           "hover:shadow-lg hover:shadow-slate-200/50 hover:border-slate-300/80",
-          "transition-all duration-300 ease-out cursor-pointer",
+          "transition-all duration-300 ease-out cursor-pointer active:scale-[0.98]",
           "backdrop-blur-sm",
           isSelected && "ring-2 ring-blue-500 ring-offset-2"
         )}
         onClick={onClick}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <span className={cn(
-              "flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center",
+              "flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center",
               "text-xs font-bold text-slate-500 bg-slate-100",
               "group-hover:bg-slate-200 transition-colors"
             )}>
               {r.rank}
             </span>
             <div className="min-w-0 flex-1">
-              <span className="font-semibold text-slate-900 truncate block">
+              <span className="font-semibold text-sm sm:text-base text-slate-900 truncate block">
                 {r.area_name}
               </span>
               <span className={cn(
-                "inline-flex items-center text-[10px] px-1.5 py-0.5 mt-0.5",
+                "inline-flex items-center text-[9px] sm:text-[10px] px-1.5 py-0.5 mt-0.5",
                 "bg-slate-100 rounded text-slate-500 font-medium tracking-tight"
               )}>
                 {r.area_type}
@@ -68,19 +68,19 @@ export function RecommendationCard({
           </div>
           
           <div className={cn(
-            "flex-shrink-0 px-2.5 py-1.5 rounded-lg border",
+            "flex-shrink-0 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg border",
             probabilityBgColor,
             "transition-transform group-hover:scale-105"
           )}>
-            <span className={cn("text-lg font-bold tracking-tight", probabilityColor)}>
+            <span className={cn("text-base sm:text-lg font-bold tracking-tight", probabilityColor)}>
               {Math.round(r.success_probability * 100)}
-              <span className="text-xs font-medium">%</span>
+              <span className="text-[10px] sm:text-xs font-medium">%</span>
             </span>
           </div>
         </div>
-        
-        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+
+        <div className="flex items-center gap-2 sm:gap-3 mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-100 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-600 flex-shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
             <span className="font-medium">월세</span>
             <span className="text-slate-900 font-semibold">
@@ -88,7 +88,7 @@ export function RecommendationCard({
             </span>
           </div>
           {r.time_analysis?.peak_time && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-600 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
               <span className="font-medium">피크</span>
               <span className="text-slate-900 font-semibold">
@@ -97,7 +97,7 @@ export function RecommendationCard({
             </div>
           )}
           {r.customer_analysis?.main_age_group && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-600 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
               <span className="text-slate-900 font-semibold">
                 {r.customer_analysis.main_age_group}
@@ -105,18 +105,18 @@ export function RecommendationCard({
             </div>
           )}
         </div>
-        
-        <div className="flex items-center gap-2 mt-3">
-          <button 
+
+        <div className="flex items-center gap-2 mt-2.5 sm:mt-3">
+          <button
             onClick={(e) => { e.stopPropagation(); onClick?.(); }}
             className={cn(
-              "flex items-center gap-1 text-xs font-medium",
-              "text-slate-600 hover:text-blue-600",
-              "transition-colors group/btn"
+              "flex items-center gap-1 text-[10px] sm:text-xs font-medium",
+              "text-slate-600 hover:text-blue-600 active:scale-95",
+              "transition-all group/btn"
             )}
           >
             <span>상세보기</span>
-            <ChevronRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
+            <ChevronRight size={10} className="sm:w-3 sm:h-3 group-hover/btn:translate-x-0.5 transition-transform" />
           </button>
 
           <a
@@ -125,32 +125,33 @@ export function RecommendationCard({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "flex items-center gap-1.5 text-xs font-medium",
-              "text-slate-600 hover:text-blue-600",
-              "transition-colors"
+              "flex items-center gap-1.5 text-[10px] sm:text-xs font-medium",
+              "text-slate-600 hover:text-blue-600 active:scale-95",
+              "transition-all"
             )}
             title="카카오맵에서 위치 보기"
           >
-            <MapPin size={12} />
+            <MapPin size={10} className="sm:w-3 sm:h-3" />
             <span>지도</span>
           </a>
           
           {onAskAI && (
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation(); 
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
                 onAskAI(`${r.area_name} 상권에 대해 자세히 알려줘`);
               }}
               className={cn(
-                "flex items-center gap-1.5 text-xs font-medium ml-auto",
-                "px-2.5 py-1.5 rounded-lg",
+                "flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium ml-auto",
+                "px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg",
                 "bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10",
-                "text-violet-700 hover:from-violet-500/20 hover:to-fuchsia-500/20",
+                "text-violet-700 hover:from-violet-500/20 hover:to-fuchsia-500/20 active:scale-95",
                 "transition-all duration-200"
               )}
             >
-              <Sparkles size={12} className="text-violet-500" />
-              <span>AI에게 물어보기</span>
+              <Sparkles size={10} className="text-violet-500 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">AI에게 물어보기</span>
+              <span className="sm:hidden">AI 질문</span>
             </button>
           )}
         </div>
