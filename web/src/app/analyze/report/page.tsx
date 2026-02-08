@@ -900,7 +900,7 @@ function ReportContent() {
               franchise_stores: 0,
             };
             // Get from competitive analysis
-            return fetch(`${API_BASE}/competitive/analysis?district_code=${districtCode}&industry_code=${industryCode}`)
+            return fetch(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}`)
               .then((r2) => r2.json())
               .then((comp) => {
                 const merged = { stores: { ...storesInfo, ...comp } };

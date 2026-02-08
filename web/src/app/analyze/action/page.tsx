@@ -52,7 +52,7 @@ function ActionContent() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/business-plan`, {
+        const res = await fetch(`${API_BASE}/business-plan/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -85,7 +85,7 @@ function ActionContent() {
     if (!districtCode || sections.length === 0) return;
     setPdfLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/pdf/export`, {
+      const res = await fetch(`${API_BASE}/pdf/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
