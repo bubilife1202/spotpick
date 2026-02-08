@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { AiInsightBanner } from "@/components/AiInsightBanner";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import { useJourneyStore } from "@/lib/journey-store";
 
 // ---------------------------------------------------------------------------
@@ -270,6 +272,24 @@ function SimulatorContent() {
     };
   }, [avgTicket, dailyVisitors, cogsRatio, monthlyRent, laborCount, defaults]);
 
+  // AI Insight message (dynamic, based on current slider values + results)
+  const simInsightMessage = useMemo(() => {
+    const rentRatio = results.monthlyRevenue > 0 ? results.rent / results.monthlyRevenue : 0;
+    if (results.netProfit < 0) {
+      return `현재 조건에서는 월 적자입니다. 객단가를 높이거나 일 방문객수를 늘려보세요.`;
+    }
+    if (results.breakEvenMonths > 24) {
+      return `손익분기점 ${results.breakEvenMonths}개월은 위험 수준입니다. 초기 투자를 줄이거나 매출 구조를 재검토하세요.`;
+    }
+    if (rentRatio > 0.3) {
+      return `임대료가 매출의 ${Math.round(rentRatio * 100)}%로 높습니다. 업계 권장 비율은 15~20%입니다.`;
+    }
+    if (results.breakEvenMonths <= 12) {
+      return `손익분기 ${results.breakEvenMonths}개월, 월 순이익 ${Math.round(results.netProfit / 10000)}만원. 양호한 수익 구조입니다.`;
+    }
+    return `손익분기 ${results.breakEvenMonths}개월 예상. 객단가 또는 방문객수 조정으로 단축이 가능합니다.`;
+  }, [results]);
+
   // Slider configurations
   const sliders: SliderConfig[] = [
     {
@@ -425,6 +445,9 @@ function SimulatorContent() {
       </header>
 
       <JourneyStepper className="py-3 px-4 bg-white/80 backdrop-blur-sm border-b border-slate-100" />
+      <div className="max-w-7xl mx-auto px-4 pt-3">
+        <JourneyContextBadge />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -449,6 +472,9 @@ function SimulatorContent() {
 
           {/* Right: Results */}
           <div className="lg:col-span-8 space-y-4">
+            {/* AI Insight */}
+            <AiInsightBanner message={simInsightMessage} />
+
             {/* Key metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <MetricCard

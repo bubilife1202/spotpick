@@ -15,6 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { AiInsightBanner } from "@/components/AiInsightBanner";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import {
   useJourneyStore,
   INDUSTRY_NAMES,
@@ -64,29 +66,40 @@ function formatManWon(won: number): string {
 // Pros & Risks content
 // ---------------------------------------------------------------------------
 
-const FRANCHISE_PROS = [
-  "검증된 브랜드",
-  "본사 마케팅·물류 지원",
-  "레시피·운영 매뉴얼",
-];
+const DEFAULT_FRANCHISE_PROS = ["검증된 브랜드", "본사 마케팅·물류 지원", "레시피·운영 매뉴얼"];
+const DEFAULT_FRANCHISE_RISKS = ["월 로열티 3~5%", "메뉴/인테리어 자유도 제한", "계약해지 위약금"];
+const DEFAULT_INDEPENDENT_PROS = ["초기비용 낮음", "메뉴/운영 자유도", "로열티 없음"];
+const DEFAULT_INDEPENDENT_RISKS = ["브랜드 인지도 0", "모든 것 직접 해결", "마케팅 직접"];
 
-const FRANCHISE_RISKS = [
-  "월 로열티 3~5%",
-  "메뉴/인테리어 자유도 제한",
-  "계약해지 위약금",
-];
+const INDUSTRY_FRANCHISE_PROS: Record<string, string[]> = {
+  CS100010: ["테이크아웃 비중으로 임대료 상쇄 가능", "본사 원두 공급 안정적", "인테리어 통일성으로 신뢰도 확보"],
+  CS100007: ["배달 수요 안정적", "본사 물류·소스 공급", "야간 매출 비중 높음"],
+  CS100001: ["한식 프랜차이즈 브랜드 인지도 높음", "식자재 대량구매 원가 절감", "본사 메뉴 개발 지원"],
+  CS100006: ["회전율 높은 업종", "운영 매뉴얼 표준화", "배달 플랫폼 연동 지원"],
+};
+const INDUSTRY_INDEPENDENT_PROS: Record<string, string[]> = {
+  CS100010: ["시그니처 메뉴로 차별화 가능", "원두·로스팅 직접 선택", "인테리어 자유 설계"],
+  CS100007: ["레시피 자유도 높음", "로열티 부담 없음", "배달 플랫폼 직접 운영"],
+  CS100001: ["지역 맛집 브랜딩 가능", "메뉴 유연한 변경", "식자재 직거래 마진"],
+  CS100006: ["메뉴 독창성 확보", "마진율 직접 설계", "브랜딩 자유도"],
+};
 
-const INDEPENDENT_PROS = [
-  "초기비용 낮음",
-  "메뉴/운영 자유도",
-  "로열티 없음",
-];
+function getIndustryPros(code: string, type: "franchise" | "independent"): string[] {
+  if (type === "franchise") return INDUSTRY_FRANCHISE_PROS[code] || DEFAULT_FRANCHISE_PROS;
+  return INDUSTRY_INDEPENDENT_PROS[code] || DEFAULT_INDEPENDENT_PROS;
+}
 
-const INDEPENDENT_RISKS = [
-  "브랜드 인지도 0",
-  "모든 것 직접 해결",
-  "마케팅 직접",
-];
+function generateFranchiseInsight(data: FranchiseBenchmark, independentTotal: number): string {
+  const diff = data.startup_costs.total_startup_cost - independentTotal;
+  const avgSalesMan = Math.round(data.industry_status.avg_sales / 10000);
+  if (data.industry_status.brand_count > 100) {
+    return `${data.industry_status.brand_count}개 브랜드가 경쟁 중인 레드오션 업종입니다. 프랜차이즈 선택 시 브랜드 차별화가 핵심입니다.`;
+  }
+  if (diff > 30000000) {
+    return `프랜차이즈가 독립 창업 대비 ${formatManWon(diff)} 더 들지만, 평균 월매출 ${avgSalesMan}만원의 안정적 수익이 기대됩니다.`;
+  }
+  return `프랜차이즈 평균 초기비용 ${formatManWon(data.startup_costs.total_startup_cost)}, 가맹점 ${data.industry_status.store_count.toLocaleString()}개 운영 중. 평균 월매출 ${avgSalesMan}만원입니다.`;
+}
 
 // ---------------------------------------------------------------------------
 // Skeleton
@@ -344,6 +357,8 @@ export default function FranchisePage() {
           </p>
         </div>
 
+        <JourneyContextBadge className="mb-2" />
+
         {/* Loading skeleton */}
         {loading && <ComparisonSkeleton />}
 
@@ -370,6 +385,7 @@ export default function FranchisePage() {
         {/* Comparison cards */}
         {!loading && !error && data && (
           <>
+            <AiInsightBanner message={generateFranchiseInsight(data, independentTotal)} className="mb-2" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* LEFT -- Franchise Card */}
               <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
@@ -420,7 +436,7 @@ export default function FranchisePage() {
 
                     titleColor="text-emerald-700"
                     title="장점"
-                    items={FRANCHISE_PROS}
+                    items={getIndustryPros(industryCode, "franchise")}
                     bulletColor="text-emerald-400"
                     bulletChar="+"
                   />
@@ -431,7 +447,7 @@ export default function FranchisePage() {
 
                     titleColor="text-amber-700"
                     title="리스크"
-                    items={FRANCHISE_RISKS}
+                    items={DEFAULT_FRANCHISE_RISKS}
                     bulletColor="text-amber-400"
                     bulletChar="-"
                   />
@@ -478,7 +494,7 @@ export default function FranchisePage() {
 
                     titleColor="text-emerald-700"
                     title="장점"
-                    items={INDEPENDENT_PROS}
+                    items={getIndustryPros(industryCode, "independent")}
                     bulletColor="text-emerald-400"
                     bulletChar="+"
                   />
@@ -489,7 +505,7 @@ export default function FranchisePage() {
 
                     titleColor="text-amber-700"
                     title="리스크"
-                    items={INDEPENDENT_RISKS}
+                    items={DEFAULT_INDEPENDENT_RISKS}
                     bulletColor="text-amber-400"
                     bulletChar="-"
                   />

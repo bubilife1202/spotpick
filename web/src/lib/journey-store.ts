@@ -64,6 +64,7 @@ interface JourneyState {
   goToReport: () => string;
   goToSimulator: () => string;
   goToBusinessPlan: () => string;
+  goToSummary: () => string;
   reset: () => void;
   initFromLocalStorage: () => void;
 }
@@ -132,6 +133,12 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
     const { selectedDistrict, industryCode } = get();
     if (!selectedDistrict) return "/business-plan";
     return `/business-plan?district_code=${selectedDistrict.district_code}&industry_code=${industryCode}`;
+  },
+
+  goToSummary: () => {
+    const { selectedDistrict, industryCode } = get();
+    if (!selectedDistrict) return "/summary";
+    return `/summary?district_code=${selectedDistrict.district_code}&industry_code=${industryCode}`;
   },
 
   reset: () => set({

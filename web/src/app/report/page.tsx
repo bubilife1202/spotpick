@@ -17,11 +17,13 @@ import {
   XCircle,
   Download,
   SlidersHorizontal,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import { useJourneyStore } from "@/lib/journey-store";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { ChatChartSection } from "@/components/ChatChart";
@@ -1345,6 +1347,10 @@ function ReportContent() {
 
       <JourneyStepper className="py-3 px-4 bg-white/80 backdrop-blur-sm border-b border-slate-100" />
 
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
+        <JourneyContextBadge className="mb-4" />
+      </div>
+
       {/* Title */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-4 sm:pt-8 sm:pb-6">
         <div className="flex items-center gap-3 mb-2">
@@ -1419,7 +1425,14 @@ function ReportContent() {
         />
 
         {/* Bottom CTA */}
-        <div className="flex items-center justify-center gap-3 py-8 border-t border-slate-100 mt-8">
+        <div className="flex flex-wrap items-center justify-center gap-3 py-8 border-t border-slate-100 mt-8">
+          <Link
+            href={`/summary?district_code=${districtCode}&industry_code=${industryCode}`}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+          >
+            <BarChart3 size={16} />
+            전체 분석 요약
+          </Link>
           <Link
             href={`/simulator?district_code=${districtCode}&industry_code=${industryCode}`}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-xl transition-all active:scale-[0.98] text-sm"

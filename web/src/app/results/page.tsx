@@ -27,6 +27,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { InteractiveMarkerData } from "@/components/InteractiveMap";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { AiInsightBanner } from "@/components/AiInsightBanner";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import { useJourneyStore } from "@/lib/journey-store";
 
 // ---------------------------------------------------------------------------
@@ -987,6 +989,7 @@ function ResultsContent() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Filter bar */}
         <div>
+          <JourneyContextBadge className="mb-3" />
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="sm:hidden flex items-center gap-2 text-sm font-medium text-blue-600 mb-2"
@@ -1037,6 +1040,20 @@ function ResultsContent() {
             </div>
           );
         })()}
+
+        {/* AI Insight */}
+        {!loading && results.length > 0 && (
+          <AiInsightBanner
+            message={(() => {
+              const top = results[0];
+              const highComp = results.filter(r => r.store_count > 80).length;
+              if (highComp > results.length * 0.7) {
+                return `${industry.name} 업종은 대부분의 상권에서 경쟁이 치열합니다. ${top.district_name}(점수 ${top.scorecard_total}점)이 상대적으로 유리합니다.`;
+              }
+              return `${results.length}개 상권 중 ${top.district_name}을 최우선 추천합니다. 종합점수 ${top.scorecard_total}점, 성공확률 ${Math.round(top.success_probability * 100)}%.`;
+            })()}
+          />
+        )}
 
         {/* Results count */}
         <div className="flex items-center justify-between">

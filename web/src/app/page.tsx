@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -23,7 +24,44 @@ import {
   Utensils,
   Zap,
   Crown,
+  Loader2,
+  TrendingUp,
+  Shield,
+  ChevronDown,
 } from "lucide-react";
+
+/* ─────────────────────────────────────────────
+   Constants & Types
+   ───────────────────────────────────────────── */
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+
+const INDUSTRY_OPTIONS: { code: string; name: string; icon: string }[] = [
+  { code: "CS100010", name: "카페", icon: "☕" },
+  { code: "CS100001", name: "한식", icon: "🍚" },
+  { code: "CS100007", name: "치킨", icon: "🍗" },
+  { code: "CS100005", name: "베이커리", icon: "🍞" },
+  { code: "CS100004", name: "양식", icon: "🍝" },
+  { code: "CS100006", name: "패스트푸드", icon: "🍔" },
+  { code: "CS100002", name: "중식", icon: "🥟" },
+  { code: "CS100003", name: "일식", icon: "🍣" },
+  { code: "CS100008", name: "분식", icon: "🍜" },
+  { code: "CS100009", name: "호프/주점", icon: "🍺" },
+];
+
+interface DemoDistrictResult {
+  district_code: string;
+  district_name: string;
+  district_type: string;
+  success_probability: number;
+  verdict: string;
+  estimated_rent: number;
+  monthly_sales: number;
+  store_count: number;
+  survival_rate: number;
+  scorecard_total: number;
+  key_factors: string[];
+}
 
 /* ─────────────────────────────────────────────
    Header
@@ -141,6 +179,376 @@ function HeroSection() {
 }
 
 /* ─────────────────────────────────────────────
+   Section 1.5 -- Live Demo Card
+   ───────────────────────────────────────────── */
+
+function generateAIComment(result: DemoDistrictResult): string {
+  if (result.survival_rate < 0.6) {
+    return "폐업 위험이 높은 지역입니다. 철저한 리스크 관리가 필요합니다";
+  }
+  if (result.scorecard_total < 50 && result.store_count > 80) {
+    return "경쟁 포화 상권입니다. 인근 대안 상권을 검토하세요";
+  }
+  if (result.scorecard_total < 50) {
+    return "리스크가 높은 상권입니다. 신중한 검토가 필요합니다";
+  }
+  if (result.scorecard_total >= 75) {
+    return "우수 상권입니다. 적극 검토를 권장합니다";
+  }
+  if (result.store_count > 80) {
+    return "경쟁이 치열한 상권입니다. 차별화 전략이 중요합니다";
+  }
+  return "보통 수준의 상권입니다. 세부 분석을 통해 기회를 확인하세요";
+}
+
+function getDemoVerdict(score: number): {
+  label: string;
+  color: string;
+  bg: string;
+} {
+  if (score >= 75)
+    return {
+      label: "추천",
+      color: "text-emerald-700",
+      bg: "bg-emerald-50 border-emerald-200",
+    };
+  if (score >= 50)
+    return {
+      label: "보통",
+      color: "text-amber-700",
+      bg: "bg-amber-50 border-amber-200",
+    };
+  return {
+    label: "주의",
+    color: "text-rose-700",
+    bg: "bg-rose-50 border-rose-200",
+  };
+}
+
+function formatSalesMan(wonValue: number): string {
+  return `${Math.round(wonValue / 10000).toLocaleString()}만원`;
+}
+
+function LiveDemoSection() {
+  const [industryCode, setIndustryCode] = useState("CS100010");
+  const [districts, setDistricts] = useState<DemoDistrictResult[]>([]);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState("");
+  const [result, setResult] = useState<DemoDistrictResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTopDistricts = useCallback(async (code: string) => {
+    setDistrictsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        industry_code: code,
+        limit: "3",
+      });
+      const res = await fetch(
+        `${API_BASE}/recommendations/dashboard?${params}`,
+      );
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data: { results: DemoDistrictResult[] } = await res.json();
+      const top3 = data.results.slice(0, 3);
+      setDistricts(top3);
+      if (top3.length > 0) {
+        setSelectedDistrictCode(top3[0].district_code);
+        setResult(top3[0]);
+      } else {
+        setSelectedDistrictCode("");
+        setResult(null);
+      }
+    } catch {
+      setError("상권 데이터를 불러올 수 없습니다.");
+      setDistricts([]);
+      setResult(null);
+    } finally {
+      setDistrictsLoading(false);
+    }
+  }, []);
+
+  const fetchDistrictData = useCallback(
+    async (districtCode: string, indCode: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          industry_code: indCode,
+          district_filter: districtCode,
+          limit: "1",
+        });
+        const res = await fetch(
+          `${API_BASE}/recommendations/dashboard?${params}`,
+        );
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data: { results: DemoDistrictResult[] } = await res.json();
+        if (data.results.length > 0) {
+          setResult(data.results[0]);
+        } else {
+          const cached = districts.find(
+            (d) => d.district_code === districtCode,
+          );
+          setResult(cached ?? null);
+        }
+      } catch {
+        const cached = districts.find((d) => d.district_code === districtCode);
+        if (cached) {
+          setResult(cached);
+        } else {
+          setError("분석 데이터를 불러올 수 없습니다.");
+          setResult(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [districts],
+  );
+
+  useEffect(() => {
+    fetchTopDistricts(industryCode);
+  }, [industryCode, fetchTopDistricts]);
+
+  useEffect(() => {
+    if (!selectedDistrictCode || districtsLoading) return;
+    if (result && result.district_code === selectedDistrictCode) return;
+    fetchDistrictData(selectedDistrictCode, industryCode);
+  }, [
+    selectedDistrictCode,
+    industryCode,
+    districtsLoading,
+    fetchDistrictData,
+    result,
+  ]);
+
+  const selectedIndustry = INDUSTRY_OPTIONS.find(
+    (i) => i.code === industryCode,
+  );
+  const isLoading = loading || districtsLoading;
+  const verdict = result ? getDemoVerdict(result.scorecard_total) : null;
+  const aiComment = result ? generateAIComment(result) : "";
+
+  return (
+    <section className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+            <Zap className="h-3.5 w-3.5" />
+            라이브 데모
+          </span>
+          <h2 className="mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            지금 바로 체험해보세요
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            업종과 상권을 선택하면 AI가 즉시 분석해드립니다
+          </p>
+        </div>
+
+        <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
+          {/* Dropdowns */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            {/* Industry dropdown */}
+            <div className="relative flex-1">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                업종 선택
+              </label>
+              <div className="relative">
+                <select
+                  value={industryCode}
+                  onChange={(e) => setIndustryCode(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  {INDUSTRY_OPTIONS.map((ind) => (
+                    <option key={ind.code} value={ind.code}>
+                      {ind.icon} {ind.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+
+            {/* District dropdown */}
+            <div className="relative flex-1">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                추천 상권 TOP 3
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedDistrictCode}
+                  onChange={(e) => setSelectedDistrictCode(e.target.value)}
+                  disabled={districts.length === 0 || districtsLoading}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  {districtsLoading ? (
+                    <option value="">불러오는 중...</option>
+                  ) : districts.length === 0 ? (
+                    <option value="">데이터 없음</option>
+                  ) : (
+                    districts.map((d, idx) => (
+                      <option key={d.district_code} value={d.district_code}>
+                        {idx + 1}위 {d.district_name} ({d.district_type})
+                      </option>
+                    ))
+                  )}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Result Card */}
+          <div className="mt-6">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50/50 py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <p className="mt-3 text-sm text-slate-500">
+                  {selectedIndustry?.icon} {selectedIndustry?.name} 상권을
+                  분석하고 있습니다...
+                </p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-rose-100 bg-rose-50/50 py-12">
+                <AlertTriangle className="h-8 w-8 text-rose-400" />
+                <p className="mt-3 text-sm text-rose-600">{error}</p>
+                <button
+                  onClick={() => fetchTopDistricts(industryCode)}
+                  className="mt-3 rounded-lg bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : result && verdict ? (
+              <div className="space-y-5">
+                {/* Score + Verdict header */}
+                <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                      <span className="text-3xl font-extrabold text-blue-600">
+                        {result.scorecard_total}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">
+                        {result.district_name}
+                      </p>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold",
+                          verdict.bg,
+                          verdict.color,
+                        )}
+                      >
+                        {verdict.label}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                    {result.district_type}
+                  </span>
+                </div>
+
+                {/* Metrics grid */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-slate-400">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium">종합점수</span>
+                    </div>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">
+                      {result.scorecard_total}
+                      <span className="text-sm font-medium text-slate-400">
+                        /100
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-slate-400">
+                      <Store className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium">
+                        경쟁 점포
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">
+                      {result.store_count}
+                      <span className="text-sm font-medium text-slate-400">
+                        개
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-slate-400">
+                      <Shield className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium">생존율</span>
+                    </div>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">
+                      {(result.survival_rate * 100).toFixed(0)}
+                      <span className="text-sm font-medium text-slate-400">
+                        %
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-slate-400">
+                      <Coins className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium">예상매출</span>
+                    </div>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">
+                      <span className="text-base">
+                        {formatSalesMan(result.monthly_sales)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI Comment */}
+                <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700">
+                      AI 판정
+                    </p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-blue-900">
+                      {aiComment}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href={`/report?district_code=${result.district_code}&industry_code=${industryCode}`}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
+                  >
+                    이 상권 상세 분석
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href={`/results?industry_code=${industryCode}`}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    다른 상권 추천
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50/50 py-12">
+                <Search className="h-8 w-8 text-slate-300" />
+                <p className="mt-3 text-sm text-slate-400">
+                  업종과 상권을 선택하면 AI 분석 결과를 확인할 수 있습니다
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Section 2 -- Pipeline (7-Step Journey)
    ───────────────────────────────────────────── */
 const PIPELINE_STEPS = [
@@ -210,7 +618,7 @@ function PipelineSection() {
                 href={step.href}
                 className={cn(
                   "group relative flex flex-row items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md",
-                  "lg:flex-col lg:items-center lg:gap-2 lg:p-5 lg:text-center"
+                  "lg:flex-col lg:items-center lg:gap-2 lg:p-5 lg:text-center",
                 )}
               >
                 {/* Step number badge */}
@@ -253,14 +661,48 @@ const COMPARISON_FEATURES: {
   chatgpt: CellStatus;
   spotpick: CellStatus;
 }[] = [
-  { feature: "상권 데이터 분석", openup: "yes", chatgpt: "no", spotpick: "yes" },
-  { feature: "AI 해석 · 전략", openup: "partial", chatgpt: "yes", spotpick: "yes" },
-  { feature: "프랜차이즈 비교", openup: "no", chatgpt: "no", spotpick: "yes" },
-  { feature: "수익 시뮬레이션", openup: "no", chatgpt: "no", spotpick: "yes" },
-  { feature: "정부지원 매칭", openup: "no", chatgpt: "no", spotpick: "yes" },
-  { feature: "상표 검색", openup: "no", chatgpt: "no", spotpick: "yes" },
-  { feature: "사업계획서 PDF", openup: "no", chatgpt: "no", spotpick: "yes" },
-  { feature: "7단계 원스톱", openup: "no", chatgpt: "no", spotpick: "yes" },
+  {
+    feature: "실시간 상권 데이터",
+    openup: "yes",
+    chatgpt: "no",
+    spotpick: "yes",
+  },
+  {
+    feature: "AI 입지 자동 추천",
+    openup: "no",
+    chatgpt: "partial",
+    spotpick: "yes",
+  },
+  {
+    feature: "Go/No-Go 판정",
+    openup: "no",
+    chatgpt: "partial",
+    spotpick: "yes",
+  },
+  {
+    feature: "손익분기점 실시간 계산",
+    openup: "no",
+    chatgpt: "partial",
+    spotpick: "yes",
+  },
+  {
+    feature: "정부지원금 자동 매칭",
+    openup: "no",
+    chatgpt: "no",
+    spotpick: "yes",
+  },
+  {
+    feature: "데이터 연동 사업계획서",
+    openup: "no",
+    chatgpt: "partial",
+    spotpick: "yes",
+  },
+  {
+    feature: "7단계 원스톱 연결",
+    openup: "no",
+    chatgpt: "no",
+    spotpick: "yes",
+  },
 ];
 
 function StatusIcon({ status }: { status: CellStatus }) {
@@ -289,10 +731,23 @@ function ComparisonSection() {
             <thead>
               <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <th className="py-4 pl-5 pr-3 text-left">기능</th>
-                <th className="px-3 py-4 text-center">오픈업</th>
-                <th className="px-3 py-4 text-center">ChatGPT</th>
                 <th className="px-3 py-4 text-center">
-                  <span className="text-blue-600">SpotPick</span>
+                  <div>오픈업</div>
+                  <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-400">
+                    카드 매출 통계
+                  </div>
+                </th>
+                <th className="px-3 py-4 text-center">
+                  <div>ChatGPT</div>
+                  <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-400">
+                    범용 AI 상담
+                  </div>
+                </th>
+                <th className="px-3 py-4 text-center">
+                  <div className="text-blue-600">SpotPick</div>
+                  <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-blue-400">
+                    AI 의사결정 플랫폼
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -302,7 +757,7 @@ function ComparisonSection() {
                   key={i}
                   className={cn(
                     "border-b border-slate-50 transition hover:bg-slate-50/60",
-                    i === COMPARISON_FEATURES.length - 1 && "border-b-0"
+                    i === COMPARISON_FEATURES.length - 1 && "border-b-0",
                   )}
                 >
                   <td className="py-3.5 pl-5 pr-3 font-medium text-slate-700">
@@ -314,7 +769,7 @@ function ComparisonSection() {
                   <td className="px-3 py-3.5 text-center">
                     <StatusIcon status={row.chatgpt} />
                   </td>
-                  <td className="px-3 py-3.5 bg-blue-50/30 text-center">
+                  <td className="bg-blue-50/30 px-3 py-3.5 text-center">
                     <StatusIcon status={row.spotpick} />
                   </td>
                 </tr>
@@ -390,7 +845,7 @@ function EntryPointSection() {
                 <div
                   className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white",
-                    ep.color
+                    ep.color,
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -629,6 +1084,7 @@ export default function LandingPage() {
       <Header />
       <main>
         <HeroSection />
+        <LiveDemoSection />
         <PipelineSection />
         <ComparisonSection />
         <EntryPointSection />

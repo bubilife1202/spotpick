@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
@@ -19,6 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { AiInsightBanner } from "@/components/AiInsightBanner";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import {
   useJourneyStore,
   INDUSTRY_NAMES,
@@ -248,6 +250,19 @@ function SupportPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // AI Insight message (dynamic, based on loaded programs)
+  const supportInsightMessage = useMemo(() => {
+    if (programs.length === 0) return "";
+    const urgent = programs.filter((p) => p.days_until_deadline <= 14);
+    const maxAmount = Math.max(...programs.map((p) => p.max_amount_man));
+    const totalMax = programs.reduce((s, p) => s + p.max_amount_man, 0);
+
+    if (urgent.length > 0) {
+      return `마감 임박 ${urgent.length}건 주의! ${urgent[0].program_name} D-${urgent[0].days_until_deadline}. 최대 지원금 ${maxAmount >= 10000 ? maxAmount / 10000 + "억" : maxAmount.toLocaleString() + "만"}원 프로그램이 포함되어 있습니다.`;
+    }
+    return `총 ${programs.length}건, 최대 ${maxAmount >= 10000 ? maxAmount / 10000 + "억" : maxAmount.toLocaleString() + "만"}원 규모 프로그램이 매칭되었습니다. 합산 최대 ${totalMax >= 10000 ? Math.round(totalMax / 10000) + "억" : totalMax.toLocaleString() + "만"}원 지원 가능합니다.`;
+  }, [programs]);
+
   // Set journey step to 6 on mount
   useEffect(() => {
     useJourneyStore.getState().setStep(6);
@@ -339,6 +354,9 @@ function SupportPageInner() {
           </div>
         </div>
 
+        {/* Journey context */}
+        <JourneyContextBadge className="mb-4" />
+
         {/* Match condition badges */}
         <div className="flex flex-wrap gap-2 mb-6">
           {/* Industry badge */}
@@ -391,6 +409,7 @@ function SupportPageInner() {
         ) : (
           /* Program list */
           <div className="space-y-3">
+            <AiInsightBanner message={supportInsightMessage} variant="emerald" className="mb-3" />
             <p className="text-sm text-slate-500 font-medium">
               총{" "}
               <span className="text-blue-600 font-bold">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   FileText,
@@ -27,6 +27,8 @@ import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { JourneyStepper } from "@/components/JourneyStepper";
+import { AiInsightBanner } from "@/components/AiInsightBanner";
+import { JourneyContextBadge } from "@/components/JourneyContextBadge";
 import { useJourneyStore } from "@/lib/journey-store";
 import {
   PieChart,
@@ -590,6 +592,7 @@ function ConfirmScreen({
   budget,
   areaPyeong,
   onGenerate,
+  insightMessage,
 }: {
   industryCode: string;
   districtName: string;
@@ -597,13 +600,16 @@ function ConfirmScreen({
   budget: number;
   areaPyeong: number;
   onGenerate: (businessName: string) => void;
+  insightMessage: string;
 }) {
   const [businessName, setBusinessName] = useState("");
   const icon = INDUSTRY_ICONS[industryCode] || "🏪";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-lg space-y-3">
+        <JourneyContextBadge />
+        <AiInsightBanner message={insightMessage} />
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-white text-center">
             <div className="text-4xl mb-3">{icon}</div>
@@ -1104,6 +1110,15 @@ function BusinessPlanPageInner() {
 
   const industryName = INDUSTRY_NAMES[industryCode] || "카페";
 
+  // AI Insight message for confirm stage
+  const bizPlanInsightMessage = useMemo(() => {
+    if (!districtName) {
+      return `${industryName} 업종 사업계획서를 생성합니다. 상권을 지정하면 더 정확한 분석이 포함됩니다.`;
+    }
+    const budgetStr = budget >= 10000 ? `${budget / 10000}억` : `${budget.toLocaleString()}만`;
+    return `${districtName} \u00D7 ${industryName}, 예산 ${budgetStr}원 기준으로 사업계획서를 생성합니다. 이전 분석 데이터가 자동 반영됩니다.`;
+  }, [districtName, industryName, budget]);
+
   const [stage, setStage] = useState<Stage>("confirm");
   const [plan, setPlan] = useState<BusinessPlanData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1257,6 +1272,7 @@ function BusinessPlanPageInner() {
         budget={budget}
         areaPyeong={areaPyeong}
         onGenerate={handleGenerate}
+        insightMessage={bizPlanInsightMessage}
       />
     </>
   );
