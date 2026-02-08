@@ -1,2223 +1,641 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, BarChart3, MapPin, LayoutDashboard, TrendingUp, Store, Clock, DollarSign, CalendarDays, Search, X, ChevronRight, Sparkles, Map, MessageCircle } from "lucide-react";
-import { ChatMessage, StructuredChatResponse, RecommendationCardData } from "@/types/chat";
-import { SuggestedQuestions } from "@/components/SuggestedQuestions";
-import { ChatChartSection } from "@/components/ChatChart";
-import type { ChartData } from "@/types/chat";
-
-import { sendStructuredChatMessage, GLOSSARY } from "@/lib/chat-api";
-import DOMPurify from "dompurify";
-
-import { cn } from "@/lib/utils";
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import SearchMode from "@/components/SearchMode";
-import { Onboarding, OnboardingData } from "@/components/Onboarding";
-import { useRouter } from "next/navigation";
-import type { MapMarker } from "@/components/MiniMap";
-import { ScorecardCard } from "@/components/ScorecardCard";
-import TrendChart from "@/components/TrendChart";
-import { SupportProgramList } from "@/components/SupportProgramCard";
-import { PDFExportButton } from "@/components/PDFExportButton";
+import { cn } from "@/lib/utils";
+import {
+  MapPin,
+  Store,
+  BarChart3,
+  Calculator,
+  Coins,
+  FileText,
+  ArrowRight,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Cpu,
+  Code2,
+  Sparkles,
+  Search,
+  Trophy,
+  MessageCircle,
+  Utensils,
+  Zap,
+  Crown,
+} from "lucide-react";
 
+/* ─────────────────────────────────────────────
+   Header
+   ───────────────────────────────────────────── */
+function Header() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-lg">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600">
+            <MapPin className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-lg font-bold text-slate-900">SpotPick</span>
+        </Link>
 
-const INDUSTRY_NAMES: Record<string, string> = {
-  CS100001: "한식", CS100002: "중식", CS100003: "일식", CS100004: "양식",
-  CS100005: "베이커리", CS100006: "패스트푸드", CS100007: "치킨",
-  CS100008: "분식", CS100009: "호프/주점", CS100010: "카페",
-};
+        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+          <Link href="/explore" className="transition hover:text-slate-900">
+            탐색
+          </Link>
+          <Link href="/results" className="transition hover:text-slate-900">
+            랭킹
+          </Link>
+          <Link href="/simulator" className="transition hover:text-slate-900">
+            시뮬레이터
+          </Link>
+          <Link href="/support" className="transition hover:text-slate-900">
+            지원금
+          </Link>
+        </nav>
 
-const INDUSTRY_ICONS: Record<string, string> = {
-  CS100001: "🍚", CS100002: "🥟", CS100003: "🍣", CS100004: "🍝",
-  CS100005: "🍞", CS100006: "🍔", CS100007: "🍗",
-  CS100008: "🍜", CS100009: "🍺", CS100010: "☕",
-};
-
-function getStoredIndustry(): { code: string; name: string; icon: string } {
-  if (typeof window === "undefined") return { code: "CS100010", name: "카페", icon: "☕" };
-  const code = window.localStorage.getItem("builder_curation_industry_code") || "CS100010";
-  return {
-    code,
-    name: INDUSTRY_NAMES[code] || "카페",
-    icon: INDUSTRY_ICONS[code] || "☕",
-  };
-}
-
-interface DistrictSearchResult {
-  code: string;
-  name: string;
-  type: string;
-  monthly_sales: number;
-  store_count: number;
-  survival_rate: number;
-}
-
-interface DistrictSearchResponse {
-  results: DistrictSearchResult[];
-  total: number;
-}
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-const MiniMap = dynamic(
-  () => import("@/components/MiniMap").then((mod) => ({ default: mod.MiniMap })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full min-h-[240px] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-        <div className="text-center text-gray-500">
-          <MapPin size={32} className="mx-auto mb-2 opacity-60 animate-pulse" />
-          <p className="text-sm">지도 로딩 중...</p>
-        </div>
+        <Link
+          href="/onboarding"
+          className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+        >
+          시작하기
+        </Link>
       </div>
-    ),
-  }
-);
+    </header>
+  );
+}
 
-// 보고서 페이지로 이동한 무거운 섹션들 — false로 두면 채팅에서 숨김
-const SHOW_DETAIL_SECTIONS = false;
-
-function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSearch: () => void; onGoHome: () => void; initialQuery?: string }) {
-  const [industry] = useState(() => getStoredIndustry());
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const initialQuerySent = useRef(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const [districtResults, setDistrictResults] = useState<DistrictSearchResult[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
-  const autocompleteRef = useRef<HTMLDivElement>(null);
-
-  const debouncedInput = useDebounce(input, 450);
-
-  const extractKoreanLocation = useCallback((text: string): string | null => {
-    const raw = (text || "").trim();
-    if (!raw) return null;
-
-    const stopwords = new Set([
-      "추천",
-      "추천해줘",
-      "추천좀",
-      "카페", "한식", "중식", "일식", "양식", "치킨", "분식", "베이커리", "패스트푸드", "호프", "주점",
-      "창업",
-      "예산",
-      "월세",
-      "타겟",
-      "직장인",
-      "여성",
-      "남성",
-      "점심",
-      "오전",
-      "오후",
-      "저녁",
-      "심야",
-      "골목",
-      "발달",
-      "전통",
-      "시장",
-      "관광",
-      "비교",
-      "분석",
-      "알려줘",
-      "자세히",
-    ]);
-
-    const stripParticles = (token: string) =>
-      token.replace(/(에서|으로|로|에|의|은|는|을|를|과|와)$/g, "");
-
-    const cleanToken = (token: string) => {
-      const t = stripParticles((token || "").trim());
-      if (t.length < 2) return "";
-      if (stopwords.has(t)) return "";
-      return t;
-    };
-
-    // Prefer "서울 <지역>" pattern if present.
-    const seoulMatch = raw.match(/서울\s+([\uAC00-\uD7A30-9]+(?:역|구|동|로|길|시장|관광특구)?)/);
-    if (seoulMatch && seoulMatch[1]) {
-      const tok = cleanToken(seoulMatch[1]);
-      if (tok) return tok;
-    }
-
-    // Otherwise, scan tokens from the end.
-    const tokens = raw.split(/[\s,]+/g).filter(Boolean);
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      // Keep only Korean letters + digits (drop punctuation)
-      const t = tokens[i].replace(/[^\uAC00-\uD7A30-9]/g, "");
-      const tok = cleanToken(t);
-      if (tok) return tok;
-    }
-
-    return null;
-  }, []);
-
-  const lastSearchRef = useRef("");
-
-  useEffect(() => {
-    const locationQuery = extractKoreanLocation(debouncedInput);
-    if (!locationQuery || locationQuery.length < 2) {
-      setDistrictResults([]);
-      setShowAutocomplete(false);
-      return;
-    }
-
-    if (locationQuery === lastSearchRef.current) return;
-    lastSearchRef.current = locationQuery;
-
-    let cancelled = false;
-
-    fetch(`${API_BASE}/districts/search?q=${encodeURIComponent(locationQuery)}&limit=10`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: DistrictSearchResponse | null) => {
-        if (cancelled || !data) return;
-        setDistrictResults(data.results);
-        setShowAutocomplete(data.results.length > 0);
-        setAutocompleteIndex(-1);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setDistrictResults([]);
-          setShowAutocomplete(false);
-        }
-      });
-
-    return () => { cancelled = true; };
-  }, [debouncedInput, extractKoreanLocation]);
-
-  const handleDistrictSelect = useCallback((district: DistrictSearchResult) => {
-    const locationQuery = extractKoreanLocation(input);
-    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (locationQuery) {
-      const newInput = input.replace(
-        new RegExp(escapeRegExp(locationQuery) + "$"),
-        district.name
-      );
-      setInput(newInput);
-    } else {
-      setInput(input + " " + district.name);
-    }
-    setShowAutocomplete(false);
-    setDistrictResults([]);
-    inputRef.current?.focus();
-  }, [input, extractKoreanLocation]);
-
-  const handleAutocompleteKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!showAutocomplete || districtResults.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setAutocompleteIndex(prev =>
-        prev < districtResults.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setAutocompleteIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === "Enter" && autocompleteIndex >= 0) {
-      e.preventDefault();
-      handleDistrictSelect(districtResults[autocompleteIndex]);
-    } else if (e.key === "Escape") {
-      setShowAutocomplete(false);
-    }
-  }, [showAutocomplete, districtResults, autocompleteIndex, handleDistrictSelect]);
-
-  const makeKakaoMapUrl = (query: string) =>
-    `https://map.kakao.com/link/search/${encodeURIComponent(query)}`;
-
-  const formatKRWCompact = useCallback((value: number) => {
-    if (!Number.isFinite(value) || value <= 0) return "-";
-    // 억 단위
-    if (value >= 100_000_000) {
-      const eok = value / 100_000_000;
-      return `${eok >= 100 ? eok.toFixed(0) : eok.toFixed(1)}억`;
-    }
-    // 만 단위
-    if (value >= 10_000) {
-      const man = value / 10_000;
-      return `${man >= 1000 ? man.toFixed(0) : man.toFixed(0)}만`;
-    }
-    return `${Math.round(value)}원`;
-  }, []);
-
-  // Initialize welcome message
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{
-        id: "welcome",
-        role: "assistant",
-        content: [
-          `안녕하세요! ${industry.name} 창업 AI 컨설턴트 **SpotPick**입니다.`,
-          "",
-          "현재 베타 서비스는 **서울 지역 데이터만** 지원합니다.",
-          "",
-          "**질문 작성 팁**",
-          "- 지역: 서울 + 구/동/역 (예: 강남, 홍대, 성수)",
-          "- 월세 예산: 200~400만원 (예: 300만원대)",
-          "- 옵션: 타겟(20대/직장인/여성), 시간대(오전/점심/저녁), 상권 유형(골목/발달)",
-          "",
-          "**예시**",
-          "- 서울 강남에서 월세 300~400만원, 직장인 점심 타겟 상권 추천해줘",
-          "- 서울 성수 골목상권에서 월세 200~300만원 추천해줘",
-        ].join("\n"),
-        timestamp: new Date(),
-      }]);
-    }
-  }, [messages.length]);
-
-  useEffect(() => {
-    if (initialQuery && !initialQuerySent.current && messages.length > 0) {
-      initialQuerySent.current = true;
-      handleSend(initialQuery);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery, messages.length]);
-
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length, scrollToBottom]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const convertToMapMarkers = useCallback((recommendations: RecommendationCardData[]): MapMarker[] => {
-    return recommendations
-      .filter((rec) => rec.coordinates?.lat && rec.coordinates?.lng)
-      .map((rec) => ({
-        lat: rec.coordinates!.lat,
-        lng: rec.coordinates!.lng,
-        label: rec.district_name,
-        type: "recommended" as const,
-        rank: rec.rank,
-        successProbability: rec.success_probability,
-      }));
-  }, []);
-
-  const hasStructuredData = useCallback((message: ChatMessage) => {
-    return (
-      (message.structured?.recommendations && message.structured.recommendations.length > 0) ||
-      (message.structured?.charts && message.structured.charts.length > 0) ||
-      (message.structured?.suggestedQuestions && message.structured.suggestedQuestions.length > 0)
-    );
-  }, []);
-
-  const handleSend = async (text?: string) => {
-    const messageText = text || input.trim();
-    if (!messageText || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: messageText,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const response: StructuredChatResponse = await sendStructuredChatMessage(messageText, messages);
-
-      const isIntake = Boolean(
-        response.context?.intake_needs &&
-        Array.isArray(response.context.intake_needs) &&
-        response.context.intake_needs.length > 0
-      );
-
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response.reply,
-        timestamp: new Date(),
-        structured: {
-          recommendations: response.recommendations,
-          charts: response.charts,
-          suggestedQuestions: response.suggested_questions,
-          isIntake,
-          competitive: response.competitive,
-          simulation: response.simulation,
-          timeline: response.timeline,
-          trademark: response.trademark,
-        },
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch {
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "죄송합니다, 일시적인 오류가 발생했습니다. 다시 시도해주세요.",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showAutocomplete && districtResults.length > 0) {
-      handleAutocompleteKeyDown(e);
-      if (["ArrowDown", "ArrowUp"].includes(e.key)) return;
-      if (e.key === "Enter" && autocompleteIndex >= 0) return;
-    }
-
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  // Process content with glossary terms and markdown
-  const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
-
-  const renderMessageContent = (content: string, messageIndex?: number) => {
-    let processedContent = content;
-
-    Object.keys(GLOSSARY).forEach((term) => {
-      const regex = new RegExp(`(${term})`, "g");
-      processedContent = processedContent.replace(
-        regex,
-        `<span class="glossary-term underline decoration-dotted decoration-blue-400 cursor-help" title="${GLOSSARY[term]}">$1</span>`
-      );
-    });
-
-    processedContent = processedContent
-      .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-gray-900'>$1</strong>")
-      .replace(/\n/g, "<br />");
-
-    const isLong = content.length > 400;
-    const isExpanded = messageIndex !== undefined && expandedMessages.has(messageIndex);
-
-    return (
-      <div>
-        <div
-          className={cn(
-            "prose prose-sm max-w-none text-gray-700 leading-relaxed",
-            isLong && !isExpanded && "line-clamp-6"
-          )}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(processedContent, { ALLOWED_TAGS: ['strong', 'br', 'span', 'em', 'b', 'i', 'p', 'ul', 'ol', 'li', 'a', 'h3', 'h4'], ALLOWED_ATTR: ['class', 'title', 'href', 'target', 'rel', 'style'] }) }}
-        />
-        {isLong && !isExpanded && (
-          <button
-            onClick={() => setExpandedMessages(prev => new Set(prev).add(messageIndex!))}
-            className="mt-2 text-xs font-medium text-blue-500 hover:text-blue-700 transition-colors"
-          >
-            전체 보기 ▼
-          </button>
-        )}
-        {isLong && isExpanded && (
-          <button
-            onClick={() => {
-              setExpandedMessages(prev => {
-                const next = new Set(prev);
-                next.delete(messageIndex!);
-                return next;
-              });
-            }}
-            className="mt-2 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            접기 ▲
-          </button>
-        )}
-      </div>
-    );
-  };
+/* ─────────────────────────────────────────────
+   Section 1 -- Hero
+   ───────────────────────────────────────────── */
+function HeroSection() {
+  const stats = [
+    { value: "1,077", label: "분석상권" },
+    { value: "10개", label: "지원업종" },
+    { value: "23개", label: "정부지원" },
+    { value: "5분", label: "플랜완성" },
+  ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
-        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
-          <button onClick={onGoHome} className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
-            <div className="relative">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <span className="text-base sm:text-lg">{industry.icon}</span>
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 rounded-full border-2 border-white" />
-            </div>
-            <div className="text-left hidden sm:block">
-              <h1 className="text-lg font-bold text-gray-900 tracking-tight">SpotPick</h1>
-              <p className="text-xs text-gray-500">AI가 골라주는 나만의 창업 자리</p>
-            </div>
-            <div className="text-left sm:hidden">
-              <h1 className="text-base font-bold text-gray-900 tracking-tight">SpotPick</h1>
-            </div>
-          </button>
+    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-20 sm:py-28">
+      {/* Background decorations */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-40 -top-40 h-[500px] w-[500px] rounded-full bg-blue-100/40 blur-3xl" />
+        <div className="absolute -left-40 top-40 h-[400px] w-[400px] rounded-full bg-indigo-100/30 blur-3xl" />
+      </div>
 
-          <div className="flex items-center gap-2">
-            <PDFExportButton
-              messages={messages}
-              industryName={industry.name}
-              className="hidden sm:block"
-            />
-            <button
-              onClick={onSwitchToSearch}
-              className="text-xs sm:text-sm font-medium text-gray-700 hover:text-gray-900 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-50 transition-colors"
-              title="고급 기능: 조건 검색, 지도/카드 비교"
-            >
-              <span className="hidden sm:inline">검색/비교</span>
-              <span className="sm:hidden">검색</span>
-            </button>
-          </div>
+      <div className="relative mx-auto max-w-6xl px-4 text-center sm:px-6">
+        <div className="animate-fade-in">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI 창업 의사결정 플랫폼
+          </span>
         </div>
-      </header>
 
-      {/* Main content */}
-      <div className="relative max-w-3xl mx-auto px-3 sm:px-4">
-        {(
-          <div className="flex flex-col h-[calc(100vh-60px)] sm:h-[calc(100vh-73px)]">
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto py-4 sm:py-6 space-y-4 sm:space-y-5">
-              {messages.map((message, msgIdx) => (
-                <div key={message.id} className="space-y-4">
-                  <div
-                    className={cn(
-                      "flex gap-2 sm:gap-3",
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                          <Bot size={16} className="text-white sm:w-[18px] sm:h-[18px]" />
-                        </div>
-                      </div>
-                    )}
+        <h1 className="animate-slide-up mt-6 text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+          창업, 감으로 하지 마세요
+        </h1>
 
-                    <div
-                      className={cn(
-                        "max-w-[82%] sm:max-w-[85%] md:max-w-[75%]",
-                        message.role === "user"
-                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-lg shadow-blue-500/20"
-                          : "bg-white border border-gray-100 rounded-2xl rounded-bl-md p-3 sm:p-4 shadow-md"
-                      )}
-                    >
-                      {message.role === "assistant"
-                        ? renderMessageContent(message.content, msgIdx)
-                        : <p className="text-xs sm:text-sm leading-relaxed">{message.content}</p>
-                      }
-                    </div>
+        <p className="animate-slide-up animation-delay-100 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          서울 <strong className="text-slate-800">1,077개 상권</strong> ·{" "}
+          <strong className="text-slate-800">10개 업종</strong> ·{" "}
+          <strong className="text-slate-800">7종 공공데이터</strong>
+          <br />
+          AI가 모든 창업 의사결정을 도와드립니다
+        </p>
 
-                    {message.role === "user" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-                          <User size={16} className="text-gray-500 sm:w-[18px] sm:h-[18px]" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+        <div className="animate-slide-up animation-delay-200 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/onboarding"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl hover:shadow-blue-500/30"
+          >
+            무료로 시작하기
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/explore"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-7 py-3.5 text-base font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+          >
+            지도로 둘러보기
+          </Link>
+        </div>
 
-                  {message.role === "assistant" && hasStructuredData(message) && (
-                    <div className="ml-12 animate-fade-in">
-                      <div className={cn(
-                        "relative overflow-hidden",
-                        "bg-gradient-to-br from-slate-50 via-white to-blue-50/50",
-                        "border border-slate-200/60 rounded-2xl",
-                        "shadow-lg shadow-slate-200/40"
-                      )}>
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/20 via-transparent to-transparent pointer-events-none" />
-
-                        <div className="relative px-4 py-3 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                              <LayoutDashboard size={14} className="text-white" />
-                            </div>
-                            <span className="text-sm font-semibold text-slate-700">상권 분석 결과</span>
-                          </div>
-                        </div>
-
-                        <div className="relative p-4 space-y-5">
-                          {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
-                            const recommendations = message.structured!.recommendations.slice(0, 3);
-                            const markers = convertToMapMarkers(recommendations);
-                            const hasCoordinates = markers.length > 0;
-
-                            return (
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    <TrendingUp size={12} className="text-blue-500" />
-                                    추천 상권 TOP {recommendations.length}
-                                    <span className="text-[10px] text-slate-400 font-normal ml-auto lg:hidden">← 스와이프</span>
-                                  </div>
-                                  {/* 모바일: 가로 스크롤 / 데스크톱: 세로 스택 */}
-                                  <div className="lg:space-y-2.5">
-                                    <div className="flex lg:flex-col gap-2.5 overflow-x-auto lg:overflow-x-visible snap-x snap-mandatory scrollbar-hide pb-2 lg:pb-0 -mx-1 px-1">
-                                    {recommendations.map((rec, i) => {
-                                      const probColor = rec.success_probability >= 0.7
-                                        ? "text-emerald-600 bg-emerald-50"
-                                        : rec.success_probability >= 0.5
-                                          ? "text-amber-600 bg-amber-50"
-                                          : "text-rose-600 bg-rose-50";
-
-                                      return (
-                                        <div
-                                          key={i}
-                                          className={cn(
-                                            "group relative p-3 rounded-xl flex-shrink-0",
-                                            "bg-white border border-slate-100",
-                                            "hover:border-blue-200 hover:shadow-md",
-                                            "transition-all duration-200 cursor-pointer",
-                                            "w-[85%] sm:w-[70%] lg:w-full snap-center"
-                                          )}
-                                          onClick={() => handleSend(`${rec.district_name} 상권에 대해 자세히 알려줘`)}
-                                        >
-                                          <div className="flex items-start justify-between gap-3">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                              <span className={cn(
-                                                "flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center",
-                                                "text-xs font-bold bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm"
-                                              )}>
-                                                {rec.rank}
-                                              </span>
-                                              <div className="min-w-0">
-                                                <span className="font-semibold text-slate-800 text-sm block truncate">
-                                                  {rec.district_name}
-                                                </span>
-                                                <span className="text-[10px] text-slate-500 font-medium">
-                                                  {rec.district_type}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            <div className={cn("px-2 py-1 rounded-lg text-sm font-bold", probColor)}>
-                                              {Math.round(rec.success_probability * 100)}%
-                                            </div>
-                                          </div>
-
-                                          <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-slate-50">
-                                            {(rec.monthly_sales_total || rec.monthly_sales) && (
-                                              <div className="flex items-center gap-2 text-[11px] text-slate-600 min-w-0">
-                                                <Store size={10} className="text-slate-400" />
-                                                {rec.monthly_sales_total ? (
-                                                  <span className="font-medium truncate">총 {formatKRWCompact(rec.monthly_sales_total)} /월</span>
-                                                ) : null}
-                                                {rec.monthly_sales ? (
-                                                  <span className={cn(
-                                                    "font-medium truncate",
-                                                    rec.monthly_sales_total ? "text-slate-500" : ""
-                                                  )}>
-                                                    점포당 {formatKRWCompact(rec.monthly_sales)} /월
-                                                  </span>
-                                                ) : null}
-                                              </div>
-                                            )}
-                                            {rec.store_count !== undefined && (
-                                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
-                                                <span className="font-medium">경쟁 {rec.store_count}개</span>
-                                              </div>
-                                            )}
-                                            {rec.peak_time && (
-                                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
-                                                <Clock size={10} className="text-slate-400" />
-                                                <span className="font-medium">{rec.peak_time}</span>
-                                              </div>
-                                            )}
-                                            {rec.survival_rate != null && (
-                                              <span className="text-[10px] text-slate-500">
-                                                생존율 {(rec.survival_rate * 100).toFixed(0)}%
-                                              </span>
-                                            )}
-                                          </div>
-                                          {(rec.foot_traffic_total || rec.worker_total || rec.facility_subway || rec.change_indicator || rec.single_household_ratio) && (
-                                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                              {rec.foot_traffic_total ? (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 font-medium">
-                                                  유동 {rec.foot_traffic_total >= 1000000 ? `${(rec.foot_traffic_total / 10000).toFixed(0)}만` : `${(rec.foot_traffic_total / 1000).toFixed(0)}K`}
-                                                </span>
-                                              ) : null}
-                                              {rec.worker_total ? (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 font-medium">
-                                                  직장인 {rec.worker_total >= 10000 ? `${(rec.worker_total / 10000).toFixed(1)}만` : `${(rec.worker_total / 1000).toFixed(1)}K`}
-                                                </span>
-                                              ) : null}
-                                              {rec.facility_subway ? (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-600 font-medium">
-                                                  🚇 {rec.facility_subway}개역
-                                                </span>
-                                              ) : null}
-                                              {rec.change_indicator && (
-                                                <span className={cn(
-                                                  "px-1.5 py-0.5 rounded text-[10px] font-medium",
-                                                  rec.change_indicator.includes("HH") || rec.change_indicator.includes("성장") ? "bg-emerald-50 text-emerald-600" :
-                                                  rec.change_indicator.includes("HL") || rec.change_indicator.includes("안정") ? "bg-sky-50 text-sky-600" :
-                                                  rec.change_indicator.includes("LL") || rec.change_indicator.includes("쇠퇴") ? "bg-rose-50 text-rose-600" :
-                                                  "bg-slate-50 text-slate-500"
-                                                )}>
-                                                  {rec.change_indicator}
-                                                </span>
-                                              )}
-                                              {rec.transit_percentile != null && rec.transit_percentile > 0 && (
-                                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                                  rec.transit_percentile > 0.8 ? 'bg-emerald-50 text-emerald-600' :
-                                                  rec.transit_percentile > 0.4 ? 'bg-sky-50 text-sky-600' :
-                                                  'bg-slate-100 text-slate-500'
-                                                }`}>
-                                                  🚇 교통 {rec.transit_percentile > 0.8 ? '우수' : rec.transit_percentile > 0.4 ? '양호' : '보통'}
-                                                </span>
-                                              )}
-                                              {rec.single_household_ratio != null && rec.single_household_ratio > 0.35 && (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-50 text-orange-600 font-medium">
-                                                  🏠 1인가구 {(rec.single_household_ratio * 100).toFixed(0)}%
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                          {rec.positioning && (
-                                            <div className="mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100/60">
-                                              <p className="text-[11px] font-semibold text-indigo-700 mb-0.5">
-                                                💡 {rec.positioning} 포지셔닝 적합
-                                              </p>
-                                              {rec.positioning_detail && (
-                                                <p className="text-[10px] text-indigo-600/80">{rec.positioning_detail}</p>
-                                              )}
-                                            </div>
-                                          )}
-                                          {rec.scorecard && (
-                                            <div className="mt-2">
-                                              <ScorecardCard scorecard={rec.scorecard} />
-                                            </div>
-                                          )}
-                                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-end">
-                                            <Link
-                                              href={`/report?district_code=${rec.district_code}&industry_code=${industry.code}`}
-                                              onClick={(e) => e.stopPropagation()}
-                                              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-                                            >
-                                              상세 보고서 보기 →
-                                            </Link>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    <MapPin size={12} className="text-blue-500" />
-                                    위치 지도
-                                  </div>
-                                  {hasCoordinates ? (
-                                    <div className="rounded-xl overflow-hidden border border-slate-100">
-                                      <MiniMap
-                                        markers={markers}
-                                        height={240}
-                                        zoom={12}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                      <p className="text-xs text-slate-500 mb-3">
-                                        지도 좌표를 찾지 못해 외부 지도 링크로 안내합니다.
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {recommendations.map((r) => (
-                                          <a
-                                            key={`map-${r.rank}`}
-                                            href={makeKakaoMapUrl(r.address || `서울 ${r.district_name}`)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={cn(
-                                              "inline-flex items-center gap-1.5 text-xs px-3 py-1.5",
-                                              "bg-white border border-slate-200 rounded-full",
-                                              "text-slate-700 hover:border-blue-300 hover:text-blue-600",
-                                              "transition-colors shadow-sm"
-                                            )}
-                                          >
-                                            <MapPin size={11} className="text-blue-500" />
-                                            <span>{r.district_name}</span>
-                                          </a>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.charts && message.structured.charts.length > 0 && (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                <BarChart3 size={12} className="text-blue-500" />
-                                매출 분석
-                              </div>
-                              {message.structured?.recommendations && message.structured.recommendations.length > 0 && (() => {
-                                const top = message.structured!.recommendations[0];
-                                const show = Boolean(top.monthly_sales_total || top.monthly_transactions_total || top.avg_ticket);
-                                if (!show) return null;
-                                return (
-                                  <div className={cn(
-                                    "flex flex-wrap gap-2 text-[11px]",
-                                    "px-3 py-2 rounded-xl",
-                                    "bg-white/70 border border-slate-200/60"
-                                  )}>
-                                    {top.monthly_sales_total ? (
-                                      <span className="font-medium text-slate-700">총 월매출 {formatKRWCompact(top.monthly_sales_total)}</span>
-                                    ) : null}
-                                    {top.monthly_transactions_total ? (
-                                      <span className="text-slate-500">거래 {top.monthly_transactions_total.toLocaleString()}건</span>
-                                    ) : null}
-                                    {top.avg_ticket ? (
-                                      <span className="text-slate-500">객단가 {top.avg_ticket.toLocaleString()}원</span>
-                                    ) : null}
-                                  </div>
-                                );
-                              })()}
-                              <ChatChartSection charts={message.structured.charts as ChartData[]} />
-                            </div>
-                          )}
-
-                          {/* 경쟁분석 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.competitive && (
-                            <div className={cn(
-                              "mt-3 p-3 rounded-xl",
-                              "bg-white/70 border border-slate-200/60",
-                              "space-y-2.5"
-                            )}>
-                              <div className="flex items-center gap-2">
-                                <Store size={14} className="text-amber-600" />
-                                <span className="text-xs font-semibold text-slate-700">주변 경쟁 분석</span>
-                                <span className="text-[10px] text-slate-400 ml-auto">
-                                  {message.structured.competitive.total_nearby_cafes}개 {industry.name} 분석
-                                </span>
-                              </div>
-
-                              {message.structured.competitive.cafe_types.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {message.structured.competitive.cafe_types.slice(0, 4).map((ct, i) => (
-                                    <span
-                                      key={i}
-                                      className={cn(
-                                        "px-2 py-0.5 rounded-full text-[10px] font-medium",
-                                        i === 0 ? "bg-amber-100 text-amber-700" :
-                                        i === 1 ? "bg-blue-100 text-blue-700" :
-                                        "bg-slate-100 text-slate-600"
-                                      )}
-                                    >
-                                      {ct.type} {ct.ratio}%
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
-                              {message.structured.competitive.market_gaps.length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">시장 기회</p>
-                                  {message.structured.competitive.market_gaps.slice(0, 2).map((gap, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-[11px]">
-                                      <span className={cn(
-                                        "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
-                                        gap.opportunity_score >= 0.7 ? "bg-emerald-500" :
-                                        gap.opportunity_score >= 0.4 ? "bg-amber-500" : "bg-slate-400"
-                                      )} />
-                                      <span className="text-slate-600 leading-snug">{gap.description}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {message.structured.competitive.strategies.length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">차별화 전략</p>
-                                  {message.structured.competitive.strategies.slice(0, 2).map((s, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-[11px]">
-                                      <span className={cn(
-                                        "px-1.5 py-0.5 rounded text-[9px] font-semibold flex-shrink-0 mt-0.5",
-                                        s.priority === "high" ? "bg-rose-100 text-rose-700" :
-                                        s.priority === "medium" ? "bg-amber-100 text-amber-700" :
-                                        "bg-emerald-100 text-emerald-700"
-                                      )}>
-                                        {s.priority === "high" ? "높음" : s.priority === "medium" ? "중간" : "낮음"}
-                                      </span>
-                                      <span className="text-slate-600 leading-snug">{s.strategy}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* 시뮬레이션 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.simulation && (() => {
-                            const sim = message.structured!.simulation;
-                            const startup = sim.startup_cost;
-                            const operating = sim.operating_cost;
-                            const breakEven = sim.break_even;
-                            const menuCosts = sim.menu_costs;
-                            const formatMan = (value: number) => `${Math.round(value / 10000).toLocaleString()}만원`;
-                            const formatManRange = (min: number, max: number) => `${formatMan(min)} ~ ${formatMan(max)}`;
-                            const formatCompactWon = (value: number) => {
-                              const compact = formatKRWCompact(value);
-                              return compact.endsWith("원") ? compact : `${compact}원`;
-                            };
-                            const operatingPercent = (value: number) =>
-                              operating.total > 0 ? Math.round((value / operating.total) * 100) : 0;
-
-                            return (
-                              <div className={cn(
-                                "mt-3 p-3 rounded-xl",
-                                "bg-white/70 border border-slate-200/60",
-                                "space-y-3"
-                              )}>
-                                <div className="flex items-center gap-2">
-                                  <LayoutDashboard size={14} className="text-slate-600" />
-                                  <span className="text-xs font-semibold text-slate-700">창업 시뮬레이션</span>
-                                  <span className="text-[10px] text-slate-400 ml-auto">
-                                    {sim.district_name}
-                                  </span>
-                                </div>
-                                {sim.assumptions && (
-                                  <div className="text-[10px] text-slate-400 -mt-1.5">
-                                    {sim.assumptions.summary} · {sim.assumptions.disclaimer}
-                                  </div>
-                                )}
-
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                                    <DollarSign size={12} className="text-emerald-600" />
-                                    초기 투자비용
-                                  </div>
-                                  {/* 독립창업 vs 가맹평균 비교 */}
-                                  {sim.franchise_benchmark?.startup_costs && sim.franchise_benchmark.startup_costs.length > 0 ? (() => {
-                                    const fb = sim.franchise_benchmark!;
-                                    const costs = fb.startup_costs!;
-                                    // 평균 계산 (여러 소분류가 있을 수 있으므로)
-                                    const avgFranchiseFee = Math.round(costs.reduce((s, c) => s + c.franchise_fee, 0) / costs.length);
-                                    const avgEducationFee = Math.round(costs.reduce((s, c) => s + c.education_fee, 0) / costs.length);
-                                    const avgDeposit = Math.round(costs.reduce((s, c) => s + c.deposit, 0) / costs.length);
-                                    const avgInterior = Math.round(costs.reduce((s, c) => s + c.interior_cost, 0) / costs.length);
-                                    const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_startup_cost, 0) / costs.length);
-                                    return (
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {/* 왼쪽: 독립창업 예상 */}
-                                        <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-2 space-y-1.5">
-                                          <div className="text-[10px] font-semibold text-blue-700 text-center pb-1 border-b border-blue-200/60">
-                                            독립창업 예상
-                                          </div>
-                                          <div className="space-y-0.5 text-[10px]">
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-500">보증금</span>
-                                              <span className="text-blue-800 font-medium">{formatMan(startup.deposit)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-500">인테리어</span>
-                                              <span className="text-blue-800 font-medium">{formatMan(startup.interior)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-500">장비</span>
-                                              <span className="text-blue-800 font-medium">{formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-500">재고+기타</span>
-                                              <span className="text-blue-800 font-medium">{formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}</span>
-                                            </div>
-                                          </div>
-                                          <div className="flex justify-between pt-1 border-t border-blue-200/60 text-[11px]">
-                                            <span className="font-semibold text-blue-700">합계</span>
-                                            <span className="font-bold text-blue-800">{formatManRange(startup.total_min, startup.total_max)}</span>
-                                          </div>
-                                        </div>
-                                        {/* 오른쪽: 가맹평균 (공정위) */}
-                                        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2 space-y-1.5">
-                                          <div className="text-[10px] font-semibold text-slate-500 text-center pb-1 border-b border-slate-200/60">
-                                            가맹평균 (공정위)
-                                          </div>
-                                          <div className="space-y-0.5 text-[10px]">
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-400">가맹비</span>
-                                              <span className="text-slate-600 font-medium">{avgFranchiseFee > 0 ? formatMan(avgFranchiseFee) : "-"}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-400">교육비</span>
-                                              <span className="text-slate-600 font-medium">{avgEducationFee > 0 ? formatMan(avgEducationFee) : "-"}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-400">보증금</span>
-                                              <span className="text-slate-600 font-medium">{avgDeposit > 0 ? formatMan(avgDeposit) : "-"}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-400">인테리어</span>
-                                              <span className="text-slate-600 font-medium">{avgInterior > 0 ? formatMan(avgInterior) : "-"}</span>
-                                            </div>
-                                          </div>
-                                          <div className="flex justify-between pt-1 border-t border-slate-200/60 text-[11px]">
-                                            <span className="font-semibold text-slate-500">합계</span>
-                                            <span className="font-bold text-slate-700">{avgTotal > 0 ? formatMan(avgTotal) : "-"}</span>
-                                          </div>
-                                          <div className="text-[9px] text-slate-400 text-center">
-                                            {fb.source}{fb.brand_count ? ` (${fb.brand_count}개 브랜드)` : ""}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })() : (
-                                    /* 가맹 데이터 없을 때 기존 단일 레이아웃 */
-                                    <>
-                                      <div className="flex items-center justify-between text-[12px]">
-                                        <span className="text-slate-500">총 투자</span>
-                                        <span className="font-semibold text-slate-800">
-                                          {formatManRange(startup.total_min, startup.total_max)}
-                                        </span>
-                                      </div>
-                                      <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                                          보증금 {formatMan(startup.deposit)}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                          인테리어 {formatMan(startup.interior)} ({startup.area_pyeong}평/{startup.interior_grade})
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                          장비 {formatMan(startup.equipment_min)}~{formatMan(startup.equipment_max)}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                          재고+기타 {formatMan(startup.initial_inventory_min + startup.permits_misc_min)}~{formatMan(startup.initial_inventory_max + startup.permits_misc_max)}
-                                        </span>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                                    <Clock size={12} className="text-amber-600" />
-                                    월 운영비
-                                  </div>
-                                  <div className="flex items-center justify-between text-[12px]">
-                                    <span className="text-slate-500">총 운영비</span>
-                                    <span className="font-semibold text-slate-800">{formatMan(operating.total)}/월</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      월세 {formatMan(operating.rent)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                      재료비 {operatingPercent(operating.cogs)}%
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                      인건비 {operatingPercent(operating.labor)}%
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      공과금 {formatMan(operating.utilities)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                      기타 {formatMan(operating.other)}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                                    <TrendingUp size={12} className="text-emerald-600" />
-                                    손익분기
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                                    <span className="text-slate-500">월 순이익</span>
-                                    <span className="font-semibold text-emerald-700">
-                                      {formatMan(breakEven.monthly_net_profit)}
-                                    </span>
-                                    <span className="text-slate-500">마진</span>
-                                    <span className="font-semibold text-emerald-700">
-                                      {(breakEven.net_profit_margin * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                                    <span className="text-slate-500">투자 회수</span>
-                                    <span className="font-semibold text-slate-700">
-                                      {breakEven.break_even_months_min}~{breakEven.break_even_months_max}개월
-                                    </span>
-                                    <span className="text-slate-500">일 손익분기</span>
-                                    <span className="font-semibold text-amber-700">
-                                      {formatMan(breakEven.daily_break_even_sales)}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {menuCosts && menuCosts.menu_costs.length > 0 && (
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                                      <span className="text-xs">{industry.icon}</span>
-                                      메뉴 원가
-                                    </div>
-                                    <div className="grid gap-1 text-[10px] text-slate-600">
-                                      {menuCosts.menu_costs.slice(0, 4).map((item) => (
-                                        <div key={item.menu} className="flex items-center justify-between">
-                                          <span className="truncate">
-                                            {item.menu} {item.cost.toLocaleString()}원 → {item.selling_price.toLocaleString()}원
-                                          </span>
-                                          <span className="text-emerald-700 font-semibold">
-                                            마진 {(item.margin_rate * 100).toFixed(0)}%
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500">
-                                      {menuCosts.daily_sales_scenario.unit_name || `일 ${(menuCosts.daily_sales_scenario.daily_orders ?? menuCosts.daily_sales_scenario.daily_cups ?? 100).toLocaleString()}${menuCosts.daily_sales_scenario.unit || "식"}`} 시나리오: 일매출 {formatCompactWon(menuCosts.daily_sales_scenario.daily_revenue)} / 원가 {formatCompactWon(menuCosts.daily_sales_scenario.daily_cogs)} / 마진 {formatCompactWon(menuCosts.daily_sales_scenario.daily_gross_profit)}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()}
-
-                          {/* 타임라인 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.timeline && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                <CalendarDays size={16} className="text-teal-500" />
-                                예상 창업 일정
-                                <span className="text-xs font-normal text-slate-400">
-                                  약 {message.structured.timeline.total_months}개월
-                                </span>
-                              </h4>
-                              <div className="space-y-1.5">
-                                {message.structured.timeline.stages.map((stage, idx) => {
-                                  const maxWeek = message.structured!.timeline!.total_weeks;
-                                  const leftPct = (stage.start_week / maxWeek) * 100;
-                                  const widthPct = Math.max(4, ((stage.end_week - stage.start_week) / maxWeek) * 100);
-                                  const colors = [
-                                    'bg-blue-400', 'bg-emerald-400', 'bg-amber-400',
-                                    'bg-purple-400', 'bg-rose-400', 'bg-teal-400'
-                                  ];
-                                  return (
-                                    <div key={idx} className="flex items-center gap-2">
-                                      <span className="text-[10px] text-slate-500 w-20 text-right flex-shrink-0 truncate">
-                                        {stage.name}
-                                      </span>
-                                      <div className="flex-1 h-5 bg-slate-100 rounded-full relative overflow-hidden">
-                                        <div
-                                          className={`absolute h-full rounded-full ${colors[idx % colors.length]} opacity-80`}
-                                          style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                                        />
-                                        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-slate-600 font-medium">
-                                          {stage.duration_weeks}주
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                                <span>⚡ 빠르게 ~{message.structured.timeline.fast_estimate_months}개월</span>
-                                <span>여유있게 ~{message.structured.timeline.slow_estimate_months}개월</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 italic">
-                                {message.structured.timeline.summary}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* 트렌드 차트 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.trend && (
-                            <div className="mt-4">
-                              <TrendChart data={message.structured.trend} />
-                            </div>
-                          )}
-
-                          {/* 상표충돌 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.trademark && (
-                            <div className={cn(
-                              "mt-3 p-3 rounded-xl border space-y-2",
-                              message.structured.trademark.risk_level === "high" ? "bg-rose-50 border-rose-200" :
-                              message.structured.trademark.risk_level === "medium" ? "bg-amber-50 border-amber-200" :
-                              "bg-emerald-50 border-emerald-200"
-                            )}>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-slate-700">
-                                  &ldquo;{message.structured.trademark.query}&rdquo; 상표 충돌 확인
-                                </span>
-                                <span className={cn(
-                                  "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                                  message.structured.trademark.risk_level === "high" ? "bg-rose-100 text-rose-700" :
-                                  message.structured.trademark.risk_level === "medium" ? "bg-amber-100 text-amber-700" :
-                                  "bg-emerald-100 text-emerald-700"
-                                )}>
-                                  {message.structured.trademark.risk_level === "high" ? "위험 높음" :
-                                   message.structured.trademark.risk_level === "medium" ? "주의" : "양호"}
-                                </span>
-                              </div>
-                              {message.structured.trademark.conflicts.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {message.structured.trademark.conflicts.slice(0, 5).map((c, i) => (
-                                    <span key={i} className={cn(
-                                      "px-2 py-0.5 rounded text-[10px] font-medium",
-                                      c.similarity >= 0.95 ? "bg-rose-100 text-rose-700" :
-                                      c.similarity >= 0.85 ? "bg-amber-100 text-amber-700" :
-                                      "bg-slate-100 text-slate-600"
-                                    )}>
-                                      {c.name} ({Math.round(c.similarity * 100)}%)
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {message.structured.trademark.suggestions.length > 0 && (
-                                <ul className="text-[10px] text-slate-600 space-y-0.5">
-                                  {message.structured.trademark.suggestions.map((s, i) => (
-                                    <li key={i}>• {s}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          )}
-
-                          {/* 지원사업 — 보고서 페이지로 이동, 채팅에서는 숨김 */}
-                          {SHOW_DETAIL_SECTIONS && message.structured?.support_programs && message.structured.support_programs.length > 0 && (
-                            <div className="mt-4">
-                              <h4 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                신청 가능한 창업 지원사업
-                              </h4>
-                              <SupportProgramList programs={message.structured.support_programs} />
-                            </div>
-                          )}
-
-                          {message.structured?.suggestedQuestions && message.structured.suggestedQuestions.length > 0 && (
-                            message.structured.isIntake ? (
-                              <div className="pt-4 space-y-2">
-                                <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">아래에서 선택하세요</p>
-                                <div className="grid gap-2">
-                                  {message.structured.suggestedQuestions.map((q, qi) => (
-                                    <button
-                                      key={qi}
-                                      onClick={() => handleSend(q)}
-                                      className={cn(
-                                        "w-full text-left px-4 py-3 rounded-xl",
-                                        "bg-gradient-to-r from-blue-50 to-indigo-50",
-                                        "border border-blue-200/60",
-                                        "hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300",
-                                        "hover:shadow-md active:scale-[0.98]",
-                                        "transition-all duration-150",
-                                        "text-sm font-medium text-slate-700"
-                                      )}
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                          <MapPin size={14} className="text-blue-600" />
-                                        </div>
-                                        <span className="leading-snug">{q}</span>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="pt-3 border-t border-slate-100">
-                                <SuggestedQuestions
-                                  questions={message.structured.suggestedQuestions}
-                                  onSelect={handleSend}
-                                  variant="minimal"
-                                />
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Loading indicator */}
-              {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="flex-shrink-0">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                      <Bot size={18} className="text-white" />
-                    </div>
-                  </div>
-                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-5 py-4 shadow-md">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 sm:pt-4 sm:pb-6">
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
-                  onFocus={() => districtResults.length > 0 && setShowAutocomplete(true)}
-                  placeholder="메시지를 입력하세요..."
-                  disabled={isLoading}
-                  className={cn(
-                    "w-full pl-4 pr-12 py-3 text-sm sm:pl-5 sm:pr-14 sm:py-4",
-                    "bg-white border-2 border-gray-100 rounded-2xl",
-                    "focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100",
-                    "shadow-lg shadow-gray-200/50",
-                    "placeholder:text-gray-400",
-                    "disabled:opacity-60 disabled:cursor-not-allowed",
-                    "transition-all duration-200"
-                  )}
-                />
-                <button
-                  onClick={() => handleSend()}
-                  disabled={isLoading || !input.trim()}
-                  className={cn(
-                    "absolute right-1.5 top-1/2 -translate-y-1/2",
-                    "w-9 h-9 rounded-xl sm:w-10 sm:h-10 sm:right-2",
-                    "flex items-center justify-center",
-                    "transition-all duration-200",
-                    !isLoading && input.trim()
-                      ? "bg-blue-500 text-white hover:bg-blue-600 shadow-md active:scale-95"
-                      : "bg-gray-100 text-gray-400"
-                  )}
-                >
-                  <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
-                </button>
-
-                {showAutocomplete && districtResults.length > 0 && (
-                  <div
-                    ref={autocompleteRef}
-                    className={cn(
-                      "absolute bottom-full left-0 right-0 mb-2",
-                      "bg-white border border-slate-200 rounded-xl",
-                      "shadow-xl shadow-slate-200/50",
-                      "max-h-64 overflow-y-auto",
-                      "animate-fade-in z-50"
-                    )}
-                  >
-                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        상권 자동완성
-                      </span>
-                    </div>
-                    <div className="p-1">
-                      {districtResults.map((district, index) => (
-                        <button
-                          key={district.code}
-                          onClick={() => handleDistrictSelect(district)}
-                          className={cn(
-                            "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg",
-                            "text-left transition-colors",
-                            index === autocompleteIndex
-                              ? "bg-blue-50 text-blue-700"
-                              : "hover:bg-slate-50 text-slate-700"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <MapPin size={14} className={cn(
-                              index === autocompleteIndex ? "text-blue-500" : "text-slate-400"
-                            )} />
-                            <div className="min-w-0">
-                              <span className="font-medium text-sm block truncate">
-                                {district.name}
-                              </span>
-                              <span className="text-[11px] text-slate-500">
-                                {district.type}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {district.survival_rate > 0 && (
-                              <span className={cn(
-                                "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                                district.survival_rate >= 0.8
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : district.survival_rate >= 0.6
-                                    ? "bg-amber-50 text-amber-600"
-                                    : "bg-rose-50 text-rose-600"
-                              )}>
-                                생존율 {Math.round(district.survival_rate * 100)}%
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <p className="mt-2 text-center text-xs text-gray-400">
-                Enter로 전송 · 지역명 입력시 자동완성
+        <div className="animate-slide-up animation-delay-300 mt-14 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-5 shadow-sm backdrop-blur"
+            >
+              <p className="text-2xl font-extrabold text-slate-900 sm:text-3xl">
+                {stat.value}
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
+                {stat.label}
               </p>
             </div>
-           </div>
-         )}
-       </div>
-     </main>
-   );
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Smart Search NLP parser
-// ---------------------------------------------------------------------------
-
-const INDUSTRY_KEYWORD_MAP: Record<string, string> = {
-  "카페": "CS100010", "커피": "CS100010", "커피숍": "CS100010",
-  "치킨": "CS100007",
-  "한식": "CS100001", "한식당": "CS100001", "한정식": "CS100001",
-  "중식": "CS100002", "중국집": "CS100002", "중화": "CS100002",
-  "일식": "CS100003", "일본": "CS100003", "초밥": "CS100003", "라멘": "CS100003",
-  "양식": "CS100004", "레스토랑": "CS100004", "파스타": "CS100004",
-  "베이커리": "CS100005", "빵": "CS100005", "빵집": "CS100005", "제과": "CS100005",
-  "패스트푸드": "CS100006", "버거": "CS100006", "햄버거": "CS100006",
-  "분식": "CS100008", "떡볶이": "CS100008", "분식집": "CS100008",
-  "호프": "CS100009", "주점": "CS100009", "술집": "CS100009", "술": "CS100009", "바": "CS100009",
-};
-
-const DISTRICT_KEYWORDS = [
-  "강남", "서초", "송파", "마포", "용산", "성동", "광진", "종로",
-  "중구", "영등포", "관악", "동작", "강서", "양천", "구로", "금천",
-  "은평", "서대문", "노원", "도봉", "강북", "성북", "동대문", "중랑", "강동",
+/* ─────────────────────────────────────────────
+   Section 2 -- Pipeline (7-Step Journey)
+   ───────────────────────────────────────────── */
+const PIPELINE_STEPS = [
+  {
+    icon: Utensils,
+    title: "업종 선택",
+    desc: "10개 요식업종 중 선택",
+    href: "/onboarding",
+  },
+  {
+    icon: Store,
+    title: "프랜차이즈 비교",
+    desc: "공정위 공시 데이터 기반",
+    href: "/franchise",
+  },
+  {
+    icon: MapPin,
+    title: "AI 입지 추천",
+    desc: "1,077개 상권 자동 분석",
+    href: "/results",
+  },
+  {
+    icon: BarChart3,
+    title: "상세 분석",
+    desc: "투명 스코어카드 제공",
+    href: "/explore",
+  },
+  {
+    icon: Calculator,
+    title: "수익 시뮬레이션",
+    desc: "손익분기점 자동 계산",
+    href: "/simulator",
+  },
+  {
+    icon: Coins,
+    title: "지원금 매칭",
+    desc: "23개 프로그램 자동 매칭",
+    href: "/support",
+  },
+  {
+    icon: FileText,
+    title: "사업계획서",
+    desc: "AI가 5분 안에 생성",
+    href: "/business-plan",
+  },
 ];
 
-interface ParsedQuery {
-  industryCode: string | null;
-  industryName: string | null;
-  district: string | null;
-  budgetMan: number | null; // in 만원
-}
-
-function parseSmartQuery(text: string): ParsedQuery {
-  const result: ParsedQuery = {
-    industryCode: null,
-    industryName: null,
-    district: null,
-    budgetMan: null,
-  };
-
-  const normalized = text.trim();
-  if (!normalized) return result;
-
-  // 1. Industry detection
-  for (const [keyword, code] of Object.entries(INDUSTRY_KEYWORD_MAP)) {
-    if (normalized.includes(keyword)) {
-      result.industryCode = code;
-      result.industryName = INDUSTRY_NAMES[code];
-      break;
-    }
-  }
-
-  // 2. District detection (strip particles first)
-  const stripped = normalized.replace(/(에서|으로|로|에|의|은|는|을|를|과|와|구)/g, " ");
-  for (const district of DISTRICT_KEYWORDS) {
-    if (stripped.includes(district) || normalized.includes(district)) {
-      result.district = `${district}구`;
-      break;
-    }
-  }
-
-  // 3. Budget extraction
-  // Match patterns like: 8천만원, 1억, 1억5천만원, 5000만원, 8천, 5000만
-  const budgetPatterns = [
-    // 억 + 천만원 pattern: "1억5천만원" or "1억 5천만원"
-    /(\d+)\s*억\s*(\d+)\s*천\s*만?\s*원?/,
-    // 억원 pattern: "1억원" or "1억"
-    /(\d+)\s*억\s*원?/,
-    // 천만원 pattern: "8천만원" or "8천만"
-    /(\d+)\s*천\s*만?\s*원?/,
-    // Direct 만원: "5000만원" or "5000만"
-    /(\d+)\s*만\s*원?/,
-  ];
-
-  // Try 억+천 first
-  const eokCheonMatch = normalized.match(budgetPatterns[0]);
-  if (eokCheonMatch) {
-    const eok = parseInt(eokCheonMatch[1]);
-    const cheon = parseInt(eokCheonMatch[2]);
-    result.budgetMan = eok * 10000 + cheon * 1000;
-  } else {
-    // 억 only
-    const eokMatch = normalized.match(budgetPatterns[1]);
-    if (eokMatch) {
-      result.budgetMan = parseInt(eokMatch[1]) * 10000;
-    } else {
-      // 천만원
-      const cheonMatch = normalized.match(budgetPatterns[2]);
-      if (cheonMatch) {
-        result.budgetMan = parseInt(cheonMatch[1]) * 1000;
-      } else {
-        // Direct 만원
-        const manMatch = normalized.match(budgetPatterns[3]);
-        if (manMatch) {
-          result.budgetMan = parseInt(manMatch[1]);
-        }
-      }
-    }
-  }
-
-  return result;
-}
-
-function formatBudgetDisplay(manWon: number): string {
-  if (manWon >= 10000) {
-    const eok = Math.floor(manWon / 10000);
-    const remainder = manWon % 10000;
-    if (remainder > 0) {
-      return `${eok}억 ${remainder.toLocaleString()}만원`;
-    }
-    return `${eok}억원`;
-  }
-  return `${manWon.toLocaleString()}만원`;
-}
-
-// ---------------------------------------------------------------------------
-// Landing page components
-// ---------------------------------------------------------------------------
-
-type Mode = "landing" | "onboarding" | "search" | "chat";
-
-const ONBOARDING_DONE_KEY = "builder_curation_onboarding_done";
-const ONBOARDING_CONTEXT_KEY = "builder_curation_onboarding_context";
-
-// Step indicator for the landing page
-function StepIndicator({ current }: { current: number }) {
-  const steps = [
-    { num: 1, label: "탐색" },
-    { num: 2, label: "분석" },
-    { num: 3, label: "계획서" },
-  ];
+function PipelineSection() {
   return (
-    <div className="flex items-center justify-center gap-0 mb-8">
-      {steps.map((step, i) => (
-        <div key={step.num} className="flex items-center">
-          <div className="flex flex-col items-center">
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-              step.num === current
-                ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
-                : step.num < current
-                  ? "bg-blue-100 text-blue-600"
-                  : "bg-slate-100 text-slate-400"
-            )}>
-              {step.num}
-            </div>
-            <span className={cn(
-              "text-[10px] mt-1 font-medium",
-              step.num === current ? "text-blue-600" : "text-slate-400"
-            )}>{step.label}</span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={cn(
-              "w-12 h-0.5 mx-1 -mt-3",
-              step.num < current ? "bg-blue-300" : "bg-slate-200"
-            )} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Confirmation toast after smart search parse
-interface ConfirmationToastProps {
-  parsed: ParsedQuery;
-  onConfirm: () => void;
-  onEdit: () => void;
-  onDismiss: () => void;
-}
-
-function ConfirmationToast({ parsed, onConfirm, onEdit, onDismiss }: ConfirmationToastProps) {
-  const parts: string[] = [];
-  if (parsed.industryName) parts.push(parsed.industryName);
-  if (parsed.district) parts.push(parsed.district);
-  if (parsed.budgetMan) parts.push(`예산 ${formatBudgetDisplay(parsed.budgetMan)}`);
-
-  return (
-    <div className="animate-fade-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md">
-      <div className={cn(
-        "bg-white rounded-2xl shadow-2xl shadow-slate-300/50",
-        "border border-slate-200 p-4"
-      )}>
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <p className="text-sm font-medium text-slate-800">
-            {parts.join(" / ")} 맞으시죠?
-          </p>
-          <button onClick={onDismiss} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
-            <X size={16} />
-          </button>
-        </div>
-        {!parsed.industryCode && (
-          <p className="text-xs text-amber-600 mb-2">
-            업종이 감지되지 않았어요. 기본값(카페)으로 진행합니다.
-          </p>
-        )}
-        {!parsed.district && (
-          <p className="text-xs text-amber-600 mb-2">
-            지역이 감지되지 않았어요. 서울 전체로 진행합니다.
-          </p>
-        )}
-        {!parsed.budgetMan && (
-          <p className="text-xs text-amber-600 mb-2">
-            예산이 감지되지 않았어요. 기본값(5,000만원)으로 진행합니다.
-          </p>
-        )}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onConfirm}
-            className={cn(
-              "flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold",
-              "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
-              "shadow-md shadow-blue-500/25",
-              "hover:shadow-lg active:scale-[0.98] transition-all"
-            )}
-          >
-            맞아요
-          </button>
-          <button
-            onClick={onEdit}
-            className={cn(
-              "flex-1 px-4 py-2.5 rounded-xl text-sm font-medium",
-              "bg-slate-100 text-slate-700",
-              "hover:bg-slate-200 active:scale-[0.98] transition-all"
-            )}
-          >
-            수정
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Industry grid modal
-function IndustryModal({ onSelect, onClose }: { onSelect: (code: string) => void; onClose: () => void }) {
-  const industries = Object.entries(INDUSTRY_NAMES).map(([code, name]) => ({
-    code, name, icon: INDUSTRY_ICONS[code],
-  }));
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 animate-fade-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">업종 선택</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {industries.map(({ code, name, icon }) => (
-            <button
-              key={code}
-              onClick={() => onSelect(code)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl text-left",
-                "border border-slate-200 bg-white",
-                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
-                "active:scale-[0.97] transition-all duration-150"
-              )}
-            >
-              <span className="text-2xl">{icon}</span>
-              <span className="text-sm font-medium text-slate-700">{name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// District selection modal
-function DistrictModal({ onSelect, onClose }: { onSelect: (district: string) => void; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 animate-fade-in max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">지역 선택</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {DISTRICT_KEYWORDS.map((d) => (
-            <button
-              key={d}
-              onClick={() => onSelect(`${d}구`)}
-              className={cn(
-                "px-3 py-2.5 rounded-xl text-sm font-medium text-center",
-                "border border-slate-200 bg-white",
-                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
-                "active:scale-[0.97] transition-all duration-150"
-              )}
-            >
-              {d}구
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Budget input modal
-function BudgetModal({ onSelect, onClose }: { onSelect: (budgetMan: number) => void; onClose: () => void }) {
-  const [value, setValue] = useState("");
-  const presets = [
-    { label: "3,000만원", man: 3000 },
-    { label: "5,000만원", man: 5000 },
-    { label: "8,000만원", man: 8000 },
-    { label: "1억원", man: 10000 },
-    { label: "1.5억원", man: 15000 },
-    { label: "2억원", man: 20000 },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 animate-fade-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">총 예산 설정</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {presets.map(({ label, man }) => (
-            <button
-              key={man}
-              onClick={() => onSelect(man)}
-              className={cn(
-                "px-3 py-2.5 rounded-xl text-sm font-medium",
-                "border border-slate-200 bg-white",
-                "hover:border-blue-300 hover:bg-blue-50 hover:shadow-md",
-                "active:scale-[0.97] transition-all duration-150"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <input
-              type="number"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="직접 입력"
-              className="w-full pl-3 pr-12 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && value) {
-                  onSelect(parseInt(value));
-                }
-              }}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">만원</span>
-          </div>
-          <button
-            onClick={() => value && onSelect(parseInt(value))}
-            disabled={!value}
-            className={cn(
-              "px-4 py-2.5 rounded-xl text-sm font-medium",
-              value
-                ? "bg-blue-500 text-white hover:bg-blue-600"
-                : "bg-slate-100 text-slate-400"
-            )}
-          >
-            확인
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// New Landing Page with Smart Search + Scenario Cards
-// ---------------------------------------------------------------------------
-
-function LandingPage({ onStartOnboarding, hasSaved, onResume, onClear }: {
-  onStartOnboarding: () => void;
-  hasSaved: boolean;
-  onResume: () => void;
-  onClear: () => void;
-}) {
-  const router = useRouter();
-  const [searchInput, setSearchInput] = useState("");
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
-  const [activeModal, setActiveModal] = useState<"industry" | "district" | "budget" | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [savedLabel, setSavedLabel] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hasSaved || typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem("builder_curation_onboarding_context");
-      if (raw) {
-        const ctx = JSON.parse(raw);
-        const parts: string[] = [];
-        if (ctx.districts && ctx.districts.length) parts.push(ctx.districts[0]);
-        if (ctx.industry_code) parts.push(INDUSTRY_NAMES[ctx.industry_code] || "");
-        setSavedLabel(parts.filter(Boolean).length ? parts.filter(Boolean).join(" · ") : null);
-      }
-    } catch { /* ignore */ }
-  }, [hasSaved]);
-
-  const saveAndNavigate = useCallback((opts: {
-    industryCode?: string;
-    district?: string;
-    budgetMan?: number;
-  }) => {
-    if (typeof window === "undefined") return;
-    const ic = opts.industryCode || "CS100010";
-    const districts = opts.district ? [opts.district] : [];
-    const budgetMin = 0;
-    const budgetMax = opts.budgetMan || 5000;
-
-    window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
-    window.localStorage.setItem("builder_curation_industry_code", ic);
-    window.localStorage.setItem("builder_curation_budget_min", String(budgetMin));
-    window.localStorage.setItem("builder_curation_budget_max", String(budgetMax));
-    window.localStorage.setItem("builder_curation_districts", districts.join(","));
-    window.localStorage.setItem(
-      ONBOARDING_CONTEXT_KEY,
-      JSON.stringify({
-        districts,
-        budget_min: budgetMin,
-        budget_max: budgetMax,
-        industry_code: ic,
-      })
-    );
-    router.push("/results");
-  }, [router]);
-
-  const handleSmartSearch = useCallback(() => {
-    const text = searchInput.trim();
-    if (!text) return;
-
-    const parsed = parseSmartQuery(text);
-    setParsedQuery(parsed);
-    setShowConfirmation(true);
-  }, [searchInput]);
-
-  const handleConfirm = useCallback(() => {
-    if (!parsedQuery) return;
-    setShowConfirmation(false);
-    saveAndNavigate({
-      industryCode: parsedQuery.industryCode || undefined,
-      district: parsedQuery.district || undefined,
-      budgetMan: parsedQuery.budgetMan || undefined,
-    });
-  }, [parsedQuery, saveAndNavigate]);
-
-  const handleIndustrySelect = useCallback((code: string) => {
-    setActiveModal(null);
-    saveAndNavigate({ industryCode: code });
-  }, [saveAndNavigate]);
-
-  const handleDistrictSelect = useCallback((district: string) => {
-    setActiveModal(null);
-    saveAndNavigate({ district });
-  }, [saveAndNavigate]);
-
-  const handleBudgetSelect = useCallback((budgetMan: number) => {
-    setActiveModal(null);
-    saveAndNavigate({ budgetMan });
-  }, [saveAndNavigate]);
-
-  return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-100/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Store className="text-white" size={18} />
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 tracking-tight">SpotPick</h1>
-              <p className="text-[10px] text-gray-400 -mt-0.5">AI 창업 입지 분석</p>
-            </div>
-          </div>
-          <span className="text-[10px] px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">Beta</span>
-        </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 pt-8 pb-16">
-        {/* Step indicator */}
-        <StepIndicator current={1} />
-
-        {/* Hero text */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 tracking-tight">
-            어떤 창업을 생각하고 계세요?
+    <section className="bg-white py-20 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            창업의 모든 단계를 한 곳에서
           </h2>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto">
-            서울시 1,077개 상권 데이터를 AI가 분석합니다
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            업종 선택부터 사업계획서까지, 7단계 원스톱 여정
           </p>
         </div>
 
-        {/* 3 Entry Points */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          {/* 지도에서 찾기 */}
-          <button
-            onClick={() => router.push("/explore")}
-            className={cn(
-              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
-              "bg-gradient-to-br from-blue-50 to-indigo-50",
-              "border border-blue-100",
-              "hover:shadow-xl hover:shadow-blue-100/60 hover:border-blue-300 hover:-translate-y-1",
-              "active:scale-[0.98] transition-all duration-300"
-            )}
-          >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
-              <Map size={26} className="text-white" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800 mb-1">지도에서 찾기</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              지도를 탭해서<br />관심 상권을<br />직접 골라보세요
-            </p>
-          </button>
-
-          {/* 조건으로 찾기 */}
-          <button
-            onClick={onStartOnboarding}
-            className={cn(
-              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
-              "bg-gradient-to-br from-violet-50 to-purple-50",
-              "border border-violet-100",
-              "hover:shadow-xl hover:shadow-violet-100/60 hover:border-violet-300 hover:-translate-y-1",
-              "active:scale-[0.98] transition-all duration-300"
-            )}
-          >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-3 shadow-lg shadow-violet-500/25 group-hover:scale-110 transition-transform">
-              <Search size={26} className="text-white" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800 mb-1">조건으로 찾기</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              업종·예산·지역 조건<br />설정해서 AI가<br />추천해드려요
-            </p>
-          </button>
-
-          {/* AI에게 물어보기 */}
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.localStorage.setItem("builder_curation_onboarding_done", "true");
-              }
-              saveAndNavigate({ industryCode: "CS100010" });
-            }}
-            className={cn(
-              "group relative flex flex-col items-center text-center p-6 rounded-2xl",
-              "bg-gradient-to-br from-emerald-50 to-teal-50",
-              "border border-emerald-100",
-              "hover:shadow-xl hover:shadow-emerald-100/60 hover:border-emerald-300 hover:-translate-y-1",
-              "active:scale-[0.98] transition-all duration-300"
-            )}
-          >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
-              <MessageCircle size={26} className="text-white" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800 mb-1">AI에게 물어보기</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              &ldquo;강남에서 카페<br />할만한 곳?&rdquo;<br />자유롭게 물어보세요
-            </p>
-          </button>
-        </div>
-
-        {/* Smart Search Bar */}
-        <div className="relative mb-8">
-          <div className={cn(
-            "relative bg-white rounded-2xl shadow-xl shadow-slate-200/50",
-            "border-2 border-slate-100",
-            "focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100",
-            "transition-all duration-200"
-          )}>
-            <div className="flex items-center px-4 py-1">
-              <Search size={18} className="text-slate-400 flex-shrink-0" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSmartSearch();
-                  }
-                }}
-                placeholder='예: "강남에서 카페 8천만원"'
-                className="flex-1 px-3 py-3 text-sm bg-transparent focus:outline-none placeholder:text-slate-400"
-              />
-              <button
-                onClick={handleSmartSearch}
-                disabled={!searchInput.trim()}
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7 lg:gap-3">
+          {PIPELINE_STEPS.map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <Link
+                key={i}
+                href={step.href}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                  searchInput.trim()
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg active:scale-[0.97]"
-                    : "bg-slate-100 text-slate-400"
+                  "group relative flex flex-row items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md",
+                  "lg:flex-col lg:items-center lg:gap-2 lg:p-5 lg:text-center"
                 )}
               >
-                검색
-              </button>
-            </div>
-          </div>
-          <p className="text-center text-[11px] text-slate-400 mt-2">
-            업종, 지역, 예산을 자유롭게 입력하세요
-          </p>
+                {/* Step number badge */}
+                <div className="absolute -top-2.5 left-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-[10px] font-bold text-white lg:left-1/2 lg:-translate-x-1/2">
+                  {i + 1}
+                </div>
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100 lg:h-14 lg:w-14">
+                  <Icon className="h-6 w-6" />
+                </div>
+
+                <div className="min-w-0 lg:mt-1">
+                  <p className="text-sm font-bold text-slate-900">
+                    {step.title}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">{step.desc}</p>
+                </div>
+
+                {/* Arrow connector between steps (lg only) */}
+                {i < PIPELINE_STEPS.length - 1 && (
+                  <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 lg:absolute lg:-right-3.5 lg:top-1/2 lg:block lg:-translate-y-1/2" />
+                )}
+              </Link>
+            );
+          })}
         </div>
-
-        {/* Scenario Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-          <button
-            onClick={() => setActiveModal("industry")}
-            className={cn(
-              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
-              "bg-white border border-slate-200",
-              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
-              "active:scale-[0.98] transition-all duration-200"
-            )}
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl">☕</span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800">업종 정했어요</p>
-              <p className="text-xs text-slate-500">10개 업종 중 선택</p>
-            </div>
-            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
-          </button>
-
-          <button
-            onClick={() => setActiveModal("district")}
-            className={cn(
-              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
-              "bg-white border border-slate-200",
-              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
-              "active:scale-[0.98] transition-all duration-200"
-            )}
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 flex items-center justify-center flex-shrink-0">
-              <MapPin size={20} className="text-blue-500" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800">지역 정했어요</p>
-              <p className="text-xs text-slate-500">서울 25개 구 선택</p>
-            </div>
-            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
-          </button>
-
-          <button
-            onClick={() => setActiveModal("budget")}
-            className={cn(
-              "group relative flex items-center gap-3 p-4 rounded-2xl text-left",
-              "bg-white border border-slate-200",
-              "hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50",
-              "active:scale-[0.98] transition-all duration-200"
-            )}
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/50 flex items-center justify-center flex-shrink-0">
-              <DollarSign size={20} className="text-emerald-500" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800">예산 정했어요</p>
-              <p className="text-xs text-slate-500">총 창업 예산 입력</p>
-            </div>
-            <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-auto flex-shrink-0 transition-colors" />
-          </button>
-        </div>
-
-        {/* "잘 모르겠어요" link */}
-        <div className="text-center mb-8">
-          <button
-            onClick={onStartOnboarding}
-            className={cn(
-              "inline-flex items-center gap-2 px-5 py-2.5 rounded-full",
-              "text-sm font-medium text-slate-600",
-              "bg-slate-50 border border-slate-200",
-              "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200",
-              "transition-all duration-200"
-            )}
-          >
-            <Sparkles size={14} />
-            잘 모르겠어요, 추천해주세요
-          </button>
-        </div>
-
-        {/* Previous session */}
-        {hasSaved && (
-          <div className="flex flex-col items-center gap-2 pt-4 border-t border-slate-100">
-            <button
-              onClick={onResume}
-              className={cn(
-                "inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium",
-                "bg-white border border-slate-200 text-slate-700",
-                "shadow-sm hover:shadow-md hover:border-blue-300 hover:text-blue-600",
-                "active:scale-[0.98] transition-all duration-200"
-              )}
-            >
-              이전 분석 결과 보기
-              {savedLabel && (
-                <span className="text-xs text-slate-400">{savedLabel}</span>
-              )}
-            </button>
-            <button
-              onClick={onClear}
-              className="text-xs text-slate-400 hover:text-rose-500 transition-colors"
-            >
-              이전 데이터 삭제
-            </button>
-          </div>
-        )}
       </div>
-
-      {/* Confirmation toast */}
-      {showConfirmation && parsedQuery && (
-        <ConfirmationToast
-          parsed={parsedQuery}
-          onConfirm={handleConfirm}
-          onEdit={() => {
-            setShowConfirmation(false);
-            searchRef.current?.focus();
-          }}
-          onDismiss={() => setShowConfirmation(false)}
-        />
-      )}
-
-      {/* Modals */}
-      {activeModal === "industry" && (
-        <IndustryModal onSelect={handleIndustrySelect} onClose={() => setActiveModal(null)} />
-      )}
-      {activeModal === "district" && (
-        <DistrictModal onSelect={handleDistrictSelect} onClose={() => setActiveModal(null)} />
-      )}
-      {activeModal === "budget" && (
-        <BudgetModal onSelect={handleBudgetSelect} onClose={() => setActiveModal(null)} />
-      )}
-    </main>
+    </section>
   );
 }
 
-export default function Page() {
-  const router = useRouter();
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [initialQuery] = useState<string | undefined>(undefined);
-  const [initialSearchParams] = useState<{
-    budgetMin: number;
-    budgetMax: number;
-    district?: string;
-  } | undefined>(undefined);
+/* ─────────────────────────────────────────────
+   Section 3 -- Comparison Table
+   ───────────────────────────────────────────── */
+type CellStatus = "yes" | "no" | "partial";
 
-  const [hasSavedSession, setHasSavedSession] = useState(false);
+const COMPARISON_FEATURES: {
+  feature: string;
+  openup: CellStatus;
+  chatgpt: CellStatus;
+  spotpick: CellStatus;
+}[] = [
+  { feature: "상권 데이터 분석", openup: "yes", chatgpt: "no", spotpick: "yes" },
+  { feature: "AI 해석 · 전략", openup: "partial", chatgpt: "yes", spotpick: "yes" },
+  { feature: "프랜차이즈 비교", openup: "no", chatgpt: "no", spotpick: "yes" },
+  { feature: "수익 시뮬레이션", openup: "no", chatgpt: "no", spotpick: "yes" },
+  { feature: "정부지원 매칭", openup: "no", chatgpt: "no", spotpick: "yes" },
+  { feature: "상표 검색", openup: "no", chatgpt: "no", spotpick: "yes" },
+  { feature: "사업계획서 PDF", openup: "no", chatgpt: "no", spotpick: "yes" },
+  { feature: "7단계 원스톱", openup: "no", chatgpt: "no", spotpick: "yes" },
+];
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setHasSavedSession(!!window.localStorage.getItem(ONBOARDING_DONE_KEY));
-    setMode("landing");
-  }, []);
+function StatusIcon({ status }: { status: CellStatus }) {
+  if (status === "yes")
+    return <CheckCircle2 className="mx-auto h-5 w-5 text-emerald-500" />;
+  if (status === "partial")
+    return <AlertTriangle className="mx-auto h-5 w-5 text-amber-500" />;
+  return <XCircle className="mx-auto h-5 w-5 text-slate-300" />;
+}
 
-  const completeOnboarding = (data: OnboardingData) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
-      if (data.industryCode) {
-        window.localStorage.setItem("builder_curation_industry_code", data.industryCode);
-      }
-      // Save budget range in 만원 units
-      window.localStorage.setItem("builder_curation_budget_min", String(data.budgetMin));
-      window.localStorage.setItem("builder_curation_budget_max", String(data.budgetMax));
-      // Legacy rent keys (cleared)
-      window.localStorage.removeItem("builder_curation_rent_min");
-      window.localStorage.removeItem("builder_curation_rent_max");
-      // Save districts as comma-separated
-      window.localStorage.setItem("builder_curation_districts", data.districts.join(","));
-      window.localStorage.setItem(
-        ONBOARDING_CONTEXT_KEY,
-        JSON.stringify({
-          districts: data.districts,
-          budget_min: data.budgetMin,
-          budget_max: data.budgetMax,
-          industry_code: data.industryCode || "CS100010",
-        })
-      );
-    }
-    // Redirect to results dashboard
-    router.push("/results");
-  };
+function ComparisonSection() {
+  return (
+    <section className="bg-slate-50 py-20 sm:py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            왜 SpotPick인가요?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            기존 서비스와 한눈에 비교해보세요
+          </p>
+        </div>
 
-  if (mode === null) {
-    // Hydration: waiting for localStorage check — render nothing to prevent flash
-    return null;
-  }
+        <div className="mt-12 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[480px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <th className="py-4 pl-5 pr-3 text-left">기능</th>
+                <th className="px-3 py-4 text-center">오픈업</th>
+                <th className="px-3 py-4 text-center">ChatGPT</th>
+                <th className="px-3 py-4 text-center">
+                  <span className="text-blue-600">SpotPick</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON_FEATURES.map((row, i) => (
+                <tr
+                  key={i}
+                  className={cn(
+                    "border-b border-slate-50 transition hover:bg-slate-50/60",
+                    i === COMPARISON_FEATURES.length - 1 && "border-b-0"
+                  )}
+                >
+                  <td className="py-3.5 pl-5 pr-3 font-medium text-slate-700">
+                    {row.feature}
+                  </td>
+                  <td className="px-3 py-3.5 text-center">
+                    <StatusIcon status={row.openup} />
+                  </td>
+                  <td className="px-3 py-3.5 text-center">
+                    <StatusIcon status={row.chatgpt} />
+                  </td>
+                  <td className="px-3 py-3.5 bg-blue-50/30 text-center">
+                    <StatusIcon status={row.spotpick} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
 
-  if (mode === "landing") {
-    return (
-      <LandingPage
-        onStartOnboarding={() => setMode("onboarding")}
-        hasSaved={hasSavedSession}
-        onResume={() => {
-          router.push("/results");
-        }}
-        onClear={() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem(ONBOARDING_DONE_KEY);
-            window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
-          }
-          setHasSavedSession(false);
-        }}
-      />
-    );
-  }
+/* ─────────────────────────────────────────────
+   Section 4 -- Entry Points
+   ───────────────────────────────────────────── */
+const ENTRY_POINTS = [
+  {
+    question: "어디가 좋을까?",
+    label: "AI 입지추천",
+    desc: "업종만 고르면 최적 상권을 AI가 골라드려요",
+    href: "/onboarding",
+    icon: MapPin,
+    color: "from-blue-500 to-blue-600",
+  },
+  {
+    question: "여기는 어떨까?",
+    label: "위치 진단",
+    desc: "관심 상권을 지도에서 찍으면 즉시 진단해드려요",
+    href: "/explore",
+    icon: Search,
+    color: "from-emerald-500 to-emerald-600",
+  },
+  {
+    question: "잘되는 곳 알려줘",
+    label: "성공 랭킹",
+    desc: "매출 상위 상권을 한눈에 확인하세요",
+    href: "/results",
+    icon: Trophy,
+    color: "from-amber-500 to-amber-600",
+  },
+  {
+    question: "잘 모르겠어",
+    label: "AI 상담",
+    desc: "어떤 질문이든 AI가 친절하게 안내해드려요",
+    href: "/onboarding",
+    icon: MessageCircle,
+    color: "from-purple-500 to-purple-600",
+  },
+];
 
-  if (mode === "onboarding") {
-    return (
-      <Onboarding
-        onComplete={completeOnboarding}
-        onSkip={() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
-            window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
-          }
-          router.push("/results");
-        }}
-      />
-    );
-  }
+function EntryPointSection() {
+  return (
+    <section className="bg-white py-20 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            어디서 시작하든, SpotPick이 도와드려요
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            상황에 맞는 진입점을 선택하세요
+          </p>
+        </div>
 
-  if (mode === "search") {
-    return (
-      <SearchMode
-        initialSearchParams={initialSearchParams}
-        onSwitchToChat={() => setMode("chat")}
-      />
-    );
-  }
+        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {ENTRY_POINTS.map((ep, i) => {
+            const Icon = ep.icon;
+            return (
+              <Link
+                key={i}
+                href={ep.href}
+                className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-lg"
+              >
+                <div
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white",
+                    ep.color
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
 
-  return <ChatHome onSwitchToSearch={() => setMode("search")} onGoHome={() => setMode("landing")} initialQuery={initialQuery} />;
+                <p className="mt-5 text-lg font-extrabold text-slate-900">
+                  &ldquo;{ep.question}&rdquo;
+                </p>
+                <span className="mt-1 text-sm font-semibold text-blue-600">
+                  {ep.label}
+                </span>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
+                  {ep.desc}
+                </p>
+
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition group-hover:gap-2">
+                  바로가기 <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Section 5 -- Pricing
+   ───────────────────────────────────────────── */
+function PricingSection() {
+  return (
+    <section className="bg-slate-50 py-20 sm:py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            합리적인 요금제
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            베타 기간 중 모든 기능을 무료로 이용하세요
+          </p>
+        </div>
+
+        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {/* Free tier */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                <Zap className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-slate-900">무료</p>
+                <p className="text-2xl font-extrabold text-slate-900">
+                  &#8361;0
+                </p>
+              </div>
+            </div>
+            <ul className="mt-6 space-y-3 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                기본 상권 분석
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                TOP 5 추천
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                사업계획서 1회/일
+              </li>
+            </ul>
+            <Link
+              href="/onboarding"
+              className="mt-7 block w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              무료로 시작하기
+            </Link>
+          </div>
+
+          {/* Pro tier */}
+          <div className="relative rounded-2xl border-2 border-blue-600 bg-white p-7 shadow-md">
+            <div className="absolute -top-3 right-5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-0.5 text-xs font-bold text-white">
+              추천
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                <Crown className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-slate-900">Pro</p>
+                <p className="text-2xl font-extrabold text-slate-900">
+                  &#8361;9,900
+                  <span className="text-sm font-medium text-slate-500">
+                    /월
+                  </span>
+                </p>
+              </div>
+            </div>
+            <ul className="mt-6 space-y-3 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                무제한 상권 분석
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                전체 상권 추천
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                무제한 사업계획서 + PDF
+              </li>
+            </ul>
+            <Link
+              href="/onboarding"
+              className="mt-7 block w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+            >
+              Pro 시작하기
+            </Link>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-slate-400">
+          * 베타 기간 전체 무료
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Section 6 -- Tech Stack (바이브랩스 심사용)
+   ───────────────────────────────────────────── */
+function TechStackSection() {
+  return (
+    <section className="bg-white py-20 sm:py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            AI 네이티브로 만들었습니다
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
+            제품도, 개발 과정도 AI-First
+          </p>
+        </div>
+
+        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {/* Product AI */}
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50/60 to-indigo-50/40 p-7">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+              <Cpu className="h-6 w-6" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-slate-900">
+              제품 내 AI
+            </h3>
+            <p className="mt-1 text-sm font-semibold text-blue-600">
+              Gemini 2.5 Flash
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                상권 분석 및 전략 해석
+              </li>
+              <li className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                사업계획서 자동 생성
+              </li>
+              <li className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                AI 창업 상담
+              </li>
+            </ul>
+          </div>
+
+          {/* Development AI */}
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/60 p-7">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+              <Code2 className="h-6 w-6" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-slate-900">
+              개발 과정 AI
+            </h3>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              Claude Code
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                { value: "58", label: "API 엔드포인트" },
+                { value: "21", label: "라우터 모듈" },
+                { value: "11,430", label: "코드 줄 수" },
+                { value: "2주", label: "개발 기간" },
+              ].map((stat, i) => (
+                <div key={i} className="rounded-lg bg-white/80 px-3 py-2">
+                  <p className="text-lg font-extrabold text-slate-900">
+                    {stat.value}
+                  </p>
+                  <p className="text-[11px] text-slate-500">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              1인 개발 · AI 페어 프로그래밍
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Footer
+   ───────────────────────────────────────────── */
+function Footer() {
+  return (
+    <footer className="border-t border-slate-200 bg-white py-10">
+      <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
+        <p className="text-sm text-slate-500">
+          &copy; 2026 SpotPick &mdash; AI 창업 의사결정 플랫폼
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+          데이터 출처: 서울시 우리마을가게 상권분석 · 소상공인시장진흥공단 ·
+          공정거래위원회 정보공개서 · KOSIS 통계 · 국세청 사업자등록 · 특허청
+          KIPRIS · 중소벤처기업부 지원사업
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Page
+   ───────────────────────────────────────────── */
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen">
+      <Header />
+      <main>
+        <HeroSection />
+        <PipelineSection />
+        <ComparisonSection />
+        <EntryPointSection />
+        <PricingSection />
+        <TechStackSection />
+      </main>
+      <Footer />
+    </div>
+  );
 }

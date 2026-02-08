@@ -6,6 +6,7 @@ import {
   ONBOARDING_DONE_KEY,
   ONBOARDING_CONTEXT_KEY,
 } from "@/lib/onboarding-utils";
+import { useJourneyStore } from "@/lib/journey-store";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -34,7 +35,13 @@ export default function OnboardingPage() {
         })
       );
     }
-    router.push("/results");
+    // Sync with journey store
+    const store = useJourneyStore.getState();
+    if (data.industryCode) store.setIndustry(data.industryCode);
+    store.setBudget(data.budgetMin, data.budgetMax);
+    store.setDistricts(data.districts);
+    store.setStep(2);
+    router.push(store.goToFranchise());
   };
 
   const handleSkip = () => {
@@ -42,6 +49,7 @@ export default function OnboardingPage() {
       window.localStorage.setItem(ONBOARDING_DONE_KEY, "true");
       window.localStorage.removeItem(ONBOARDING_CONTEXT_KEY);
     }
+    useJourneyStore.getState().setStep(3);
     router.push("/results");
   };
 

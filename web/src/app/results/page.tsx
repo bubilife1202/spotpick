@@ -20,11 +20,14 @@ import {
   CheckSquare,
   Square,
   Info,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { InteractiveMarkerData } from "@/components/InteractiveMap";
+import { JourneyStepper } from "@/components/JourneyStepper";
+import { useJourneyStore } from "@/lib/journey-store";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -437,6 +440,41 @@ function ResultCard({
           </div>
         </div>
 
+        {/* Additional info badges */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {result.scorecard_total > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+              종합 {Math.round(result.scorecard_total)}점
+            </span>
+          )}
+          {result.main_age_group && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-50 text-violet-700 border border-violet-200">
+              👥 {result.main_age_group}
+            </span>
+          )}
+          {result.subway_count > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+              🚇 {result.subway_count}개역
+            </span>
+          )}
+          {result.worker_total > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              직장인 {result.worker_total >= 10000 ? `${(result.worker_total / 10000).toFixed(1)}만` : `${(result.worker_total / 1000).toFixed(1)}K`}
+            </span>
+          )}
+          {result.change_indicator && (
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-medium border",
+              result.change_indicator.includes("HH") || result.change_indicator.includes("성장") ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+              result.change_indicator.includes("HL") || result.change_indicator.includes("안정") ? "bg-sky-50 text-sky-700 border-sky-200" :
+              result.change_indicator.includes("LL") || result.change_indicator.includes("쇠퇴") ? "bg-rose-50 text-rose-700 border-rose-200" :
+              "bg-slate-50 text-slate-600 border-slate-200"
+            )}>
+              {result.change_indicator}
+            </span>
+          )}
+        </div>
+
         {/* Key factors */}
         {result.key_factors && result.key_factors.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -451,22 +489,67 @@ function ResultCard({
         {/* CTA */}
         <Link
           href={`/report?district_code=${result.district_code}&industry_code=${industryCode}`}
+          onClick={() => {
+            useJourneyStore.getState().selectDistrict({
+              district_code: result.district_code,
+              district_name: result.district_name,
+              district_type: result.district_type,
+              success_probability: result.success_probability,
+              estimated_rent: result.estimated_rent,
+              monthly_sales: result.monthly_sales,
+              store_count: result.store_count,
+              survival_rate: result.survival_rate,
+              peak_time: result.peak_time,
+              main_age_group: result.main_age_group,
+              coordinates: { lat: result.lat, lng: result.lng },
+            });
+          }}
           className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md hover:from-blue-600 hover:to-indigo-700 transition-all"
         >
           <FileText size={14} />
-          상세 보고서
+          상세 분석
           <ChevronRight size={14} />
         </Link>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Link
             href={`/simulator?district_code=${result.district_code}&industry_code=${industryCode}`}
+            onClick={() => {
+              useJourneyStore.getState().selectDistrict({
+                district_code: result.district_code,
+                district_name: result.district_name,
+                district_type: result.district_type,
+                success_probability: result.success_probability,
+                estimated_rent: result.estimated_rent,
+                monthly_sales: result.monthly_sales,
+                store_count: result.store_count,
+                survival_rate: result.survival_rate,
+                peak_time: result.peak_time,
+                main_age_group: result.main_age_group,
+                coordinates: { lat: result.lat, lng: result.lng },
+              });
+            }}
             className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
           >
             <SlidersHorizontal size={12} />
-            시뮬레이션
+            수익 시뮬
           </Link>
           <Link
             href={`/business-plan?district_code=${result.district_code}&industry_code=${industryCode}`}
+            onClick={() => {
+              useJourneyStore.getState().selectDistrict({
+                district_code: result.district_code,
+                district_name: result.district_name,
+                district_type: result.district_type,
+                success_probability: result.success_probability,
+                estimated_rent: result.estimated_rent,
+                monthly_sales: result.monthly_sales,
+                store_count: result.store_count,
+                survival_rate: result.survival_rate,
+                peak_time: result.peak_time,
+                main_age_group: result.main_age_group,
+                coordinates: { lat: result.lat, lng: result.lng },
+              });
+            }}
             className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
           >
             <FileText size={12} />
@@ -551,6 +634,29 @@ function CompareModal({
       icon: <MapPin size={14} className="text-slate-500" />,
       getValue: (r) => r.district_type,
     },
+    {
+      label: "종합점수",
+      icon: <BarChart3 size={14} className="text-blue-500" />,
+      getValue: (r) => r.scorecard_total > 0 ? `${Math.round(r.scorecard_total)}점` : "-",
+      highlight: "max",
+    },
+    {
+      label: "주요연령",
+      icon: <Users size={14} className="text-violet-500" />,
+      getValue: (r) => r.main_age_group || "-",
+    },
+    {
+      label: "지하철",
+      icon: <MapPin size={14} className="text-purple-500" />,
+      getValue: (r) => r.subway_count > 0 ? `${r.subway_count}개역` : "-",
+      highlight: "max",
+    },
+    {
+      label: "직장인구",
+      icon: <Users size={14} className="text-amber-500" />,
+      getValue: (r) => r.worker_total > 0 ? `${Math.round(r.worker_total / 10000).toLocaleString()}만` : "-",
+      highlight: "max",
+    },
   ];
 
   // Compute best value per row for highlighting
@@ -564,6 +670,9 @@ function CompareModal({
       if (row.label === "경쟁점포") return item.store_count;
       if (row.label === "생존율") return item.survival_rate;
       if (row.label === "유동인구") return item.foot_traffic_total;
+      if (row.label === "종합점수") return item.scorecard_total;
+      if (row.label === "지하철") return item.subway_count;
+      if (row.label === "직장인구") return item.worker_total;
       return 0;
     });
     const target = row.highlight === "max" ? Math.max(...numericValues) : Math.min(...numericValues);
@@ -741,8 +850,10 @@ function ResultsContent() {
   // Card refs for scroll-to
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Initialize filters from localStorage
+  // Initialize filters from localStorage & set journey step
   useEffect(() => {
+    useJourneyStore.getState().setStep(3);
+
     const storedBudgetMin = localStorage.getItem("builder_curation_budget_min");
     const storedBudgetMax = localStorage.getItem("builder_curation_budget_max");
     const storedDistricts = localStorage.getItem("builder_curation_districts");
@@ -870,6 +981,8 @@ function ResultsContent() {
           </div>
         </div>
       </header>
+
+      <JourneyStepper className="py-3 px-4 bg-white/80 backdrop-blur-sm border-b border-slate-100" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Filter bar */}

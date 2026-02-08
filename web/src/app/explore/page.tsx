@@ -30,6 +30,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useJourneyStore } from "@/lib/journey-store";
 import Link from "next/link";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -403,6 +404,8 @@ function DistrictMarker({
               <p>🏪 점포 <span className="text-white font-semibold">{district.store_count}개</span></p>
               <p>📈 생존율 <span className="text-white font-semibold">{Math.round(district.survival_rate * 100)}%</span></p>
               {district.peak_time && <p>⏰ 피크 <span className="text-white font-semibold">{district.peak_time}</span></p>}
+              {district.foot_traffic_total > 0 && <p>👥 유동인구 <span className="text-white font-semibold">{formatTraffic(district.foot_traffic_total)}</span></p>}
+              {district.main_age_group && <p>🎯 주고객 <span className="text-white font-semibold">{district.main_age_group}</span></p>}
             </div>
             <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-slate-800/95" />
           </div>
@@ -649,7 +652,10 @@ function LeftPanel({
                     <span className="flex-1 text-slate-700 truncate">
                       {d.district_name}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-[10px] text-slate-400">
+                      {Math.round(d.survival_rate * 100)}%
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">
                       {formatManShort(d.monthly_sales)}
                     </span>
                     <ChevronRight size={12} className="text-slate-300 flex-shrink-0" />
@@ -748,6 +754,46 @@ function LeftPanel({
           </p>
         </div>
       </div>
+
+      {/* Additional data badges */}
+      <div className="flex flex-wrap gap-1.5">
+        {selectedDistrict.main_age_group && (
+          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">
+            👥 {selectedDistrict.main_age_group}
+          </span>
+        )}
+        {selectedDistrict.peak_time && (
+          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-pink-50 text-pink-700 border border-pink-200">
+            ⏰ {selectedDistrict.peak_time}
+          </span>
+        )}
+        {selectedDistrict.change_indicator && (
+          <span className={cn(
+            "px-2.5 py-1 rounded-full text-xs font-medium border",
+            selectedDistrict.change_indicator.includes("HH") || selectedDistrict.change_indicator.includes("성장") ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+            selectedDistrict.change_indicator.includes("HL") || selectedDistrict.change_indicator.includes("안정") ? "bg-sky-50 text-sky-700 border-sky-200" :
+            selectedDistrict.change_indicator.includes("LL") || selectedDistrict.change_indicator.includes("쇠퇴") ? "bg-rose-50 text-rose-700 border-rose-200" :
+            "bg-slate-50 text-slate-600 border-slate-200"
+          )}>
+            {selectedDistrict.change_indicator}
+          </span>
+        )}
+      </div>
+
+      {/* New/Closed stores */}
+      {(selectedDistrict.new_stores > 0 || selectedDistrict.closed_stores > 0) && (
+        <div className="flex items-center gap-3 text-sm">
+          <span className="flex items-center gap-1 text-emerald-600">
+            <TrendingUp size={14} />
+            신규 {selectedDistrict.new_stores}개
+          </span>
+          <span className="text-slate-300">|</span>
+          <span className="flex items-center gap-1 text-rose-600">
+            <Minus size={14} />
+            폐업 {selectedDistrict.closed_stores}개
+          </span>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="space-y-2">
@@ -1179,6 +1225,9 @@ function ExploreContent() {
     }
   }, [showGuide]);
 
+  // Track journey step
+  useEffect(() => { useJourneyStore.getState().setStep(2); }, []);
+
   // ── Prefetch all districts in background for instant transitions ──
   useEffect(() => {
     if (guData.length === 0) return;
@@ -1361,6 +1410,21 @@ function ExploreContent() {
       setSheetHeight("half");
       setStores([]);
       setSalesBreakdown(null);
+
+      // Sync selected district with journey store
+      useJourneyStore.getState().selectDistrict({
+        district_code: d.district_code,
+        district_name: d.district_name,
+        district_type: d.district_type,
+        success_probability: 0,
+        estimated_rent: 0,
+        monthly_sales: d.monthly_sales,
+        store_count: d.store_count,
+        survival_rate: d.survival_rate,
+        peak_time: d.peak_time,
+        main_age_group: d.main_age_group,
+        coordinates: { lat: d.lat, lng: d.lng },
+      });
 
       mapRef.current?.flyTo({
         center: [d.lng, d.lat],

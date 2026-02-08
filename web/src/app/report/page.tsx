@@ -12,7 +12,6 @@ import {
   Shield,
   CalendarDays,
   Clock,
-  RefreshCw,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -21,6 +20,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
+import { JourneyStepper } from "@/components/JourneyStepper";
+import { useJourneyStore } from "@/lib/journey-store";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { ChatChartSection } from "@/components/ChatChart";
 import { SupportProgramList } from "@/components/SupportProgramCard";
@@ -189,10 +191,12 @@ function GoNoGoSection({
   scorecard,
   loading,
   verdictSummary,
+  industryName,
 }: {
   scorecard: ScorecardResult | null;
   loading: boolean;
   verdictSummary?: string;
+  industryName?: string;
 }) {
   if (loading) return <CardSkeleton />;
   if (!scorecard) return null;
@@ -202,12 +206,14 @@ function GoNoGoSection({
 
   // Derive success probability heuristic from score
   const successProb = Math.min(99, Math.max(10, Math.round(score * 0.95 + 5)));
+
+  // Score-based verdict badge: >=75 green "추천", 50-74 amber "보통", <50 red "주의"
   const verdict =
-    successProb >= 65
-      ? { label: "추천", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", badgeBg: "bg-gradient-to-r from-emerald-500 to-emerald-600", icon: <CheckCircle size={24} className="text-white" /> }
-      : successProb >= 50
-        ? { label: "주의", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", badgeBg: "bg-gradient-to-r from-amber-500 to-amber-600", icon: <AlertTriangle size={24} className="text-white" /> }
-        : { label: "비추천", color: "text-rose-600", bg: "bg-rose-50 border-rose-200", badgeBg: "bg-gradient-to-r from-rose-500 to-rose-600", icon: <XCircle size={24} className="text-white" /> };
+    score >= 75
+      ? { label: "추천", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", badgeBg: "bg-gradient-to-r from-emerald-500 to-emerald-600", glowClass: "glow-emerald", icon: <CheckCircle size={24} className="text-white" /> }
+      : score >= 50
+        ? { label: "보통", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", badgeBg: "bg-gradient-to-r from-amber-500 to-amber-600", glowClass: "glow-amber", icon: <AlertTriangle size={24} className="text-white" /> }
+        : { label: "주의", color: "text-rose-600", bg: "bg-rose-50 border-rose-200", badgeBg: "bg-gradient-to-r from-rose-500 to-rose-600", glowClass: "glow-rose", icon: <XCircle size={24} className="text-white" /> };
 
   const probColor =
     successProb >= 70 ? "text-emerald-600" : successProb >= 50 ? "text-amber-600" : "text-rose-600";
@@ -220,15 +226,47 @@ function GoNoGoSection({
     "안정성": "text-teal-600",
   };
 
+  // Identify dangerously low categories (score < 30)
+  const dangerousCategories = scorecard.categories.filter(
+    (cat) => Math.round(cat.score) < 30
+  );
+
+  // Score-based progress bar color
+  const getScoreBarColor = (s: number) => {
+    if (s >= 70) return "bg-emerald-500";
+    if (s >= 50) return "bg-amber-500";
+    return "bg-rose-500";
+  };
+
+  const getScoreBarTrack = (s: number) => {
+    if (s >= 70) return "bg-emerald-100";
+    if (s >= 50) return "bg-amber-100";
+    return "bg-rose-100";
+  };
+
   return (
     <SectionCard icon={<TrendingUp size={16} className="text-white" />} title="종합 판정">
       <div className="space-y-6">
         {/* Top row: Big verdict badge + success probability */}
         <div className="flex flex-col sm:flex-row items-center gap-5">
-          {/* Large verdict badge */}
-          <div className={cn("flex items-center gap-3 px-6 py-4 rounded-2xl shadow-md text-white", verdict.badgeBg)}>
-            {verdict.icon}
-            <span className="text-2xl font-extrabold">{verdict.label}</span>
+          {/* Large verdict badge with animated glow */}
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className={cn(
+                "flex items-center gap-3 px-6 py-4 rounded-2xl shadow-md text-white animate-verdict-glow",
+                verdict.badgeBg,
+                verdict.glowClass,
+              )}
+            >
+              {verdict.icon}
+              <span className="text-2xl font-extrabold">{verdict.label}</span>
+            </div>
+            {industryName && (
+              <p className="text-xs text-slate-500 text-center leading-snug max-w-[200px]">
+                이 상권에서 <span className="font-semibold text-slate-700">{industryName}</span> 창업은{" "}
+                <span className={cn("font-bold", verdict.color)}>{verdict.label}</span>입니다
+              </p>
+            )}
           </div>
           <div className="text-center sm:text-left">
             <p className="text-xs text-slate-500 mb-1">예상 성공확률</p>
@@ -250,25 +288,105 @@ function GoNoGoSection({
           </p>
         )}
 
-        {/* Category interpretations */}
-        {scorecard.categories.length > 0 && (
+        {/* Warning banners for dangerously low categories */}
+        {dangerousCategories.length > 0 && (
           <div className="space-y-2">
+            {dangerousCategories.map((cat) => {
+              const catScore = Math.round(cat.score);
+              const interpretation = getCategoryInterpretation(cat.name, cat.score);
+              return (
+                <div
+                  key={`warn-${cat.name}`}
+                  className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3"
+                >
+                  <AlertTriangle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-rose-800 leading-relaxed">
+                    <span className="font-bold">{cat.name}</span> 점수가 매우 낮습니다 (
+                    <span className="font-bold">{catScore}점</span>). {interpretation}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Category interpretations with progress bars — transparent scorecard */}
+        {scorecard.categories.length > 0 && (
+          <div className="space-y-3">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">5대 카테고리 평가</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {scorecard.categories.map((cat) => {
                 const catScore = Math.round(cat.score);
                 const interpretation = getCategoryInterpretation(cat.name, cat.score);
                 const colorClass = catColors[cat.name] || "text-slate-600";
+                const weightPercent = cat.weight != null ? Math.round(cat.weight * 100) : null;
+                const scoreBarColor = getScoreBarColor(catScore);
+                const trackColor = getScoreBarTrack(catScore);
+
                 return (
-                  <div key={cat.name} className="flex items-start gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
-                    <div className="flex-shrink-0 text-center">
-                      <span className={cn("text-lg font-bold", colorClass)}>{catScore}</span>
-                      <p className="text-[10px] text-slate-400">/ 100</p>
+                  <div
+                    key={cat.name}
+                    className={cn(
+                      "bg-slate-50/80 rounded-xl p-3 border",
+                      catScore < 30
+                        ? "border-rose-200/80"
+                        : "border-slate-100"
+                    )}
+                  >
+                    {/* Header: name + weight + score */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={cn("text-xs font-semibold", colorClass)}>
+                          {cat.name}
+                        </span>
+                        {weightPercent != null && (
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            (가중치 {weightPercent}%)
+                          </span>
+                        )}
+                      </div>
+                      <span className={cn("text-sm font-bold", colorClass)}>
+                        {catScore}<span className="text-[10px] text-slate-400 font-normal"> / 100</span>
+                      </span>
                     </div>
-                    <div className="min-w-0">
-                      <p className={cn("text-xs font-semibold", colorClass)}>{cat.name}</p>
-                      <p className="text-xs text-slate-500 leading-relaxed">{interpretation}</p>
+
+                    {/* Progress bar */}
+                    <div className={cn("w-full h-2 rounded-full overflow-hidden mb-2", trackColor)}>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-700 ease-out",
+                          scoreBarColor,
+                        )}
+                        style={{ width: `${Math.min(100, Math.max(0, catScore))}%` }}
+                      />
                     </div>
+
+                    {/* Interpretation */}
+                    <p className="text-xs text-slate-500 leading-relaxed">{interpretation}</p>
+
+                    {/* Sub-items breakdown */}
+                    {cat.items && cat.items.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-200/60 space-y-1">
+                        {cat.items.map((item) => {
+                          const itemPct = Math.round(item.percentile);
+                          return (
+                            <div key={item.feature} className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 w-16 truncate flex-shrink-0">{item.label}</span>
+                              <div className="flex-1 h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                                <div
+                                  className={cn(
+                                    "h-full rounded-full",
+                                    itemPct >= 70 ? "bg-emerald-400" : itemPct >= 40 ? "bg-amber-400" : "bg-rose-400"
+                                  )}
+                                  style={{ width: `${Math.min(100, Math.max(0, itemPct))}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-medium w-8 text-right">{itemPct}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -838,6 +956,123 @@ function TimelineSection({
   );
 }
 
+// --- Warning Banners ---
+function WarningBanners({
+  simulation,
+  loading,
+}: {
+  simulation: SimulationData | null;
+  loading: boolean;
+}) {
+  if (loading || !simulation) return null;
+
+  const { competition, revenue } = simulation;
+  const warnings: Array<{ type: "red" | "amber"; label: string; detail: string }> = [];
+
+  // High closure rate: survival_rate < 60%
+  if (competition.survival_rate != null && competition.survival_rate < 0.6) {
+    const survPct = Math.round(competition.survival_rate * 100);
+    warnings.push({
+      type: "red",
+      label: "폐업률 높음",
+      detail: `2년 생존율 ${survPct}% — 동종 업종 평균 대비 폐업 위험이 높습니다. 철저한 리스크 관리가 필요합니다.`,
+    });
+  }
+
+  // Market saturation: store_count > 100 (highly competitive)
+  if (competition.store_count != null && competition.store_count > 100) {
+    warnings.push({
+      type: "amber",
+      label: "경쟁 포화",
+      detail: `동일 업종 점포 ${competition.store_count}개 — 상권 내 경쟁이 포화 상태입니다. 강력한 차별화 전략이 필요합니다.`,
+    });
+  }
+
+  // Low monthly sales: below 15M KRW threshold
+  const monthlySales = revenue.monthly_sales_per_store;
+  if (monthlySales != null && monthlySales > 0 && monthlySales < 15_000_000) {
+    warnings.push({
+      type: "amber",
+      label: "매출 주의",
+      detail: `예상 월매출 ${formatKRWCompact(monthlySales)} — 업종 평균 대비 낮은 수준입니다. 추가 수요 확보 전략을 검토하세요.`,
+    });
+  }
+
+  if (warnings.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      {warnings.map((w, i) => {
+        const isRed = w.type === "red";
+        return (
+          <div
+            key={i}
+            className={cn(
+              "flex items-start gap-3 rounded-xl border px-4 py-3",
+              isRed
+                ? "border-rose-200 bg-rose-50/80"
+                : "border-amber-200 bg-amber-50/80"
+            )}
+          >
+            {isRed ? (
+              <XCircle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="min-w-0">
+              <span
+                className={cn(
+                  "text-xs font-bold uppercase tracking-wide",
+                  isRed ? "text-rose-700" : "text-amber-700"
+                )}
+              >
+                {w.label}
+              </span>
+              <p
+                className={cn(
+                  "text-sm leading-relaxed mt-0.5",
+                  isRed ? "text-rose-800" : "text-amber-800"
+                )}
+              >
+                {w.detail}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Journey Data Connection Badge ---
+function JourneyDataBadge() {
+  const franchiseChoice = useJourneyStore((s) => s.franchiseChoice);
+  const budgetMin = useJourneyStore((s) => s.budgetMin);
+  const budgetMax = useJourneyStore((s) => s.budgetMax);
+
+  const hasFranchise = franchiseChoice != null;
+  const hasBudget = budgetMin > 0 || budgetMax > 0;
+
+  if (!hasFranchise && !hasBudget) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {hasFranchise && (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <Store size={12} />
+          프랜차이즈 비교에서 선택: {franchiseChoice === "franchise" ? "가맹점" : "독립창업"}
+        </span>
+      )}
+      {hasBudget && (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">
+          <DollarSign size={12} />
+          예산 범위: {budgetMin.toLocaleString()}~{budgetMax.toLocaleString()}만원
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ============================================================================
 // Main Report Page Content
 // ============================================================================
@@ -889,6 +1124,16 @@ function ReportContent() {
   const [loadingTrademark, setLoadingTrademark] = useState(true);
   const [loadingTimeline, setLoadingTimeline] = useState(true);
   const [loadingSupport, setLoadingSupport] = useState(true);
+
+  // Set journey step
+  useEffect(() => { useJourneyStore.getState().setStep(4); }, []);
+
+  // Analytics: track report view
+  useEffect(() => {
+    if (districtCode) {
+      track("report_view", { district_code: districtCode });
+    }
+  }, [districtCode]);
 
   // Reset all state when district/industry changes to prevent stale data flash
   useEffect(() => {
@@ -1098,6 +1343,8 @@ function ReportContent() {
         </div>
       </header>
 
+      <JourneyStepper className="py-3 px-4 bg-white/80 backdrop-blur-sm border-b border-slate-100" />
+
       {/* Title */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-4 sm:pt-8 sm:pb-6">
         <div className="flex items-center gap-3 mb-2">
@@ -1109,6 +1356,8 @@ function ReportContent() {
             <p className="text-sm text-slate-500">{industryName} 창업 분석 보고서</p>
           </div>
         </div>
+        {/* Journey data connection badge */}
+        <JourneyDataBadge />
       </div>
 
       {/* Sections */}
@@ -1118,6 +1367,13 @@ function ReportContent() {
           scorecard={scorecard}
           loading={loadingScorecard}
           verdictSummary={analysis?.verdict_summary}
+          industryName={industryName}
+        />
+
+        {/* Warning Banners — risky indicators from simulation */}
+        <WarningBanners
+          simulation={simulation}
+          loading={loadingSimulation}
         />
 
         {/* Section 2: Profitability */}
@@ -1163,28 +1419,21 @@ function ReportContent() {
         />
 
         {/* Bottom CTA */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-4">
+        <div className="flex items-center justify-center gap-3 py-8 border-t border-slate-100 mt-8">
           <Link
             href={`/simulator?district_code=${districtCode}&industry_code=${industryCode}`}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-medium shadow-sm"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-xl transition-all active:scale-[0.98] text-sm"
           >
             <SlidersHorizontal size={16} />
-            시뮬레이션
+            수익 시뮬레이션 해보기
           </Link>
           <Link
             href={`/business-plan?district_code=${districtCode}&industry_code=${industryCode}`}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all font-medium shadow-sm"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl transition-all active:scale-[0.98] text-sm"
           >
             <FileText size={16} />
-            사업계획서
+            사업계획서 만들기
           </Link>
-          <button
-            onClick={() => router.push("/results")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
-          >
-            <RefreshCw size={16} />
-            다른 상권 보기
-          </button>
         </div>
       </div>
     </div>

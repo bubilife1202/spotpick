@@ -22,8 +22,12 @@ import {
   Target,
   BarChart3,
 } from "lucide-react";
+import Link from "next/link";
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
+import { JourneyStepper } from "@/components/JourneyStepper";
+import { useJourneyStore } from "@/lib/journey-store";
 import {
   PieChart,
   Pie,
@@ -800,6 +804,8 @@ function PreviewScreen({
         </div>
       </header>
 
+      <JourneyStepper className="py-3 px-4 bg-white/80 backdrop-blur-sm border-b border-slate-100" />
+
       <div className="max-w-7xl mx-auto flex">
         {/* Sidebar */}
         <aside className="hidden lg:block w-64 shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto border-r border-slate-200 bg-white">
@@ -894,7 +900,7 @@ function PreviewScreen({
           ))}
 
           {/* Bottom CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-12">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-4">
             <button
               onClick={onRegenerate}
               className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 transition shadow-sm"
@@ -902,6 +908,16 @@ function PreviewScreen({
               <RefreshCw className="w-4 h-4" />
               조건 바꿔서 다시 생성
             </button>
+          </div>
+
+          {/* Navigation CTA */}
+          <div className="flex items-center justify-center gap-3 py-8 border-t border-slate-100 mt-8">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-all active:scale-[0.98] text-sm"
+            >
+              새 분석 시작하기
+            </Link>
           </div>
         </main>
       </div>
@@ -1063,6 +1079,12 @@ function BusinessPlanPageInner() {
   const [budget, setBudget] = useState(budgetParam || 8000);
   const [areaPyeong, setAreaPyeong] = useState(areaParam || 15);
   const [districtName, setDistrictName] = useState(districtNameParam || "");
+
+  // Set journey step
+  useEffect(() => {
+    useJourneyStore.getState().setStep(7);
+    track("business_plan_generate");
+  }, []);
 
   useEffect(() => {
     if (!budgetParam) {
