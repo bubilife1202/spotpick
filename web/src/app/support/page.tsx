@@ -285,7 +285,7 @@ function SupportPageInner() {
         params.set("budget_max", String(budgetMax));
 
         const res = await fetch(
-          `${API_BASE}/support/matched?${params.toString()}`,
+          `${API_BASE}/support/programs?${params.toString()}`,
           { signal: controller.signal }
         );
 

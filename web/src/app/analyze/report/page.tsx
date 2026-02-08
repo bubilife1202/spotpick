@@ -11,6 +11,8 @@ import { RentTrendChart } from "@/components/RentTrendChart";
 import { MiniMap } from "@/components/MiniMap";
 import { CompetitionMap } from "@/components/CompetitionMap";
 import { ProGateSection } from "@/components/ProGateSection";
+import { SalesTrendChart } from "@/components/SalesTrendChart";
+import { FloatingTOC } from "@/components/FloatingTOC";
 import {
   MapPin,
   ArrowRight,
@@ -576,14 +578,23 @@ function InlineSimulatorSection({
   industryCode: string;
 }) {
   const [salesMultiplier, setSalesMultiplier] = useState(1.0);
+  const [rentMultiplier, setRentMultiplier] = useState(1.0);
+  const [laborMultiplier, setLaborMultiplier] = useState(1.0);
 
   if (loading) return <SectionSkeleton title="수익 시뮬레이터" />;
   if (!defaults) return null;
 
   const baseSales = defaults.revenue?.monthly_sales_per_store || 0;
-  const baseCost = defaults.operating_cost?.total || 0;
+  const baseRent = defaults.operating_cost?.rent || 0;
+  const baseLabor = defaults.operating_cost?.labor || 0;
+  const baseCogs = defaults.operating_cost?.cogs || 0;
+  const baseOther = (defaults.operating_cost?.utilities || 0) + (defaults.operating_cost?.other || 0);
+
   const adjustedSales = Math.round(baseSales * salesMultiplier);
-  const adjustedProfit = adjustedSales - baseCost;
+  const adjustedRent = Math.round(baseRent * rentMultiplier);
+  const adjustedLabor = Math.round(baseLabor * laborMultiplier);
+  const totalCost = baseCogs + adjustedRent + adjustedLabor + baseOther;
+  const adjustedProfit = adjustedSales - totalCost;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -592,40 +603,88 @@ function InlineSimulatorSection({
         <h3 className="text-sm font-bold text-slate-900">C. 수익 시뮬레이터</h3>
       </div>
 
-      <div className="mb-4">
-        <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
-          <span>매출 조정</span>
-          <span className="font-bold text-slate-700">{(salesMultiplier * 100).toFixed(0)}%</span>
-        </label>
-        <input
-          type="range"
-          min={0.5}
-          max={1.5}
-          step={0.05}
-          value={salesMultiplier}
-          onChange={(e) => setSalesMultiplier(parseFloat(e.target.value))}
-          className="w-full accent-indigo-600"
-        />
-        <div className="flex justify-between text-[10px] text-slate-400">
-          <span>비관적 (-50%)</span>
-          <span>기본</span>
-          <span>낙관적 (+50%)</span>
+      <div className="space-y-4">
+        {/* Sales slider */}
+        <div>
+          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+            <span>매출 조정</span>
+            <span className="font-bold text-slate-700">{(salesMultiplier * 100).toFixed(0)}%</span>
+          </label>
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={salesMultiplier}
+            onChange={(e) => setSalesMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-indigo-600"
+          />
+          <div className="flex justify-between text-[10px] text-slate-400">
+            <span>-50%</span>
+            <span>기본</span>
+            <span>+50%</span>
+          </div>
+        </div>
+
+        {/* Rent slider */}
+        <div>
+          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+            <span>임대료 조정</span>
+            <span className="font-bold text-slate-700">{formatWon(adjustedRent)}</span>
+          </label>
+          <input
+            type="range"
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            value={rentMultiplier}
+            onChange={(e) => setRentMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-rose-500"
+          />
+          <div className="flex justify-between text-[10px] text-slate-400">
+            <span>-50%</span>
+            <span>기본</span>
+            <span>+100%</span>
+          </div>
+        </div>
+
+        {/* Labor slider */}
+        <div>
+          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+            <span>인건비 조정</span>
+            <span className="font-bold text-slate-700">{formatWon(adjustedLabor)}</span>
+          </label>
+          <input
+            type="range"
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            value={laborMultiplier}
+            onChange={(e) => setLaborMultiplier(parseFloat(e.target.value))}
+            className="w-full accent-amber-500"
+          />
+          <div className="flex justify-between text-[10px] text-slate-400">
+            <span>-50%</span>
+            <span>기본</span>
+            <span>+100%</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      {/* Results */}
+      <div className="mt-4 grid grid-cols-3 gap-3">
         <div className="rounded-xl bg-blue-50 p-3 text-center">
           <p className="text-[10px] text-blue-500">조정 매출</p>
           <p className="text-sm font-extrabold text-blue-700">{formatWon(adjustedSales)}</p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3 text-center">
-          <p className="text-[10px] text-slate-500">운영비용</p>
-          <p className="text-sm font-extrabold text-slate-700">{formatWon(baseCost)}</p>
+          <p className="text-[10px] text-slate-500">총 비용</p>
+          <p className="text-sm font-extrabold text-slate-700">{formatWon(totalCost)}</p>
         </div>
         <div className={cn("rounded-xl p-3 text-center", adjustedProfit >= 0 ? "bg-emerald-50" : "bg-rose-50")}>
           <p className={cn("text-[10px]", adjustedProfit >= 0 ? "text-emerald-500" : "text-rose-500")}>순이익</p>
           <p className={cn("text-sm font-extrabold", adjustedProfit >= 0 ? "text-emerald-700" : "text-rose-700")}>
-            {formatWon(Math.abs(adjustedProfit))}
+            {adjustedProfit < 0 ? "-" : ""}{formatWon(Math.abs(adjustedProfit))}
           </p>
         </div>
       </div>
@@ -779,6 +838,8 @@ function ReportContent() {
   const [rentData, setRentData] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   const [localdataData, setLocaldataData] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [salesTrendData, setSalesTrendData] = useState<any>(null);
 
   // Section loading states
   const [scorecardLoading, setScorecardLoading] = useState(false);
@@ -792,6 +853,7 @@ function ReportContent() {
   const [rentLoading, setRentLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [localdataLoading, setLocaldataLoading] = useState(false);
+  const [salesTrendLoading, setSalesTrendLoading] = useState(false);
 
   // Phase 1: Fetch TOP 3
   useEffect(() => {
@@ -856,7 +918,7 @@ function ReportContent() {
             setScorecardData({ ...data, district_code: districtCode, industry_code: industryCode });
             store.setSectionData(districtCode, "scorecard", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setScorecardLoading(false));
       } else {
         setScorecardData({ ...cached.scorecard, district_code: districtCode, industry_code: industryCode });
@@ -880,7 +942,7 @@ function ReportContent() {
             setSimulationData({ ...data, district_code: districtCode, industry_code: industryCode });
             store.setSectionData(districtCode, "simulation", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setSimulationLoading(false));
       } else {
         setSimulationData({ ...cached.simulation, district_code: districtCode, industry_code: industryCode });
@@ -912,7 +974,7 @@ function ReportContent() {
                 store.setSectionData(districtCode, "competition", { stores: storesInfo });
               });
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setCompetitionLoading(false));
       } else {
         setCompetitionData(cached.competition);
@@ -927,7 +989,7 @@ function ReportContent() {
             setCustomerData(data);
             store.setSectionData(districtCode, "customer", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setCustomerLoading(false));
       } else {
         setCustomerData(cached.customer);
@@ -942,7 +1004,7 @@ function ReportContent() {
             setFranchiseData(data);
             store.setSectionData(districtCode, "franchise", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setFranchiseLoading(false));
       } else {
         setFranchiseData(cached.franchise);
@@ -957,7 +1019,7 @@ function ReportContent() {
             setRiskData(data);
             store.setSectionData(districtCode, "risk", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setRiskLoading(false));
       } else {
         setRiskData(cached.risk);
@@ -972,7 +1034,7 @@ function ReportContent() {
             setSupportData(data);
             store.setSectionData(districtCode, "support", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setSupportLoading(false));
       } else {
         setSupportData(cached.support);
@@ -987,7 +1049,7 @@ function ReportContent() {
             setLocationData(data);
             store.setSectionData(districtCode, "location", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setLocationLoading(false));
       } else {
         setLocationData(cached.location);
@@ -1002,10 +1064,25 @@ function ReportContent() {
             setRentData(data);
             store.setSectionData(districtCode, "rent", data);
           })
-          .catch(() => {})
+          .catch((err) => { console.error("API error:", err); })
           .finally(() => setRentLoading(false));
       } else {
         setRentData(cached.rent);
+      }
+
+      // Sales Trend
+      if (!cached?.salesTrend) {
+        setSalesTrendLoading(true);
+        fetch(`${API_BASE}/explore/sales-trend?district_code=${districtCode}&industry_code=${industryCode}`)
+          .then((r) => r.json())
+          .then((data) => {
+            setSalesTrendData(data);
+            store.setSectionData(districtCode, "salesTrend", data);
+          })
+          .catch((err) => { console.error("API error:", err); })
+          .finally(() => setSalesTrendLoading(false));
+      } else {
+        setSalesTrendData(cached.salesTrend);
       }
 
       // B3 enhanced: LOCALDATA competition
@@ -1022,7 +1099,7 @@ function ReportContent() {
               setLocaldataData(data);
               store.setSectionData(districtCode, "localdata", data);
             })
-            .catch(() => {})
+            .catch((err) => { console.error("API error:", err); })
             .finally(() => setLocaldataLoading(false));
         } else {
           setLocaldataLoading(false);
@@ -1083,7 +1160,7 @@ function ReportContent() {
         </div>
 
         {/* Section A: TOP 3 */}
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
           <Top3Section
             districts={topDistricts}
             selectedCode={selectedCode}
@@ -1107,55 +1184,80 @@ function ReportContent() {
           <div className="space-y-4">
             {/* Row 1: B1 + B2 */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ProGateSection feature="detailed_scorecard">
-                <ScorecardSection data={scorecardData} loading={scorecardLoading} />
-              </ProGateSection>
-              <ProGateSection feature="revenue_waterfall">
-                <RevenueSection data={simulationData} loading={simulationLoading} />
-              </ProGateSection>
+              <div id="section-b1">
+                <ProGateSection feature="detailed_scorecard">
+                  <ScorecardSection data={scorecardData} loading={scorecardLoading} />
+                </ProGateSection>
+              </div>
+              <div id="section-b2">
+                <ProGateSection feature="revenue_waterfall">
+                  <RevenueSection data={simulationData} loading={simulationLoading} />
+                </ProGateSection>
+              </div>
             </div>
 
             {/* Row 2: B3 + B5 */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ProGateSection feature="competition_map">
-                <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} />
-              </ProGateSection>
-              <ProGateSection feature="full_customer_charts">
-                <CustomerSection data={customerData} loading={customerLoading} />
-              </ProGateSection>
+              <div id="section-b3">
+                <ProGateSection feature="competition_map">
+                  <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} />
+                </ProGateSection>
+              </div>
+              <div id="section-b5">
+                <ProGateSection feature="full_customer_charts">
+                  <CustomerSection data={customerData} loading={customerLoading} />
+                </ProGateSection>
+              </div>
             </div>
 
             {/* Row 2.5: B4 Location + B6 Rent */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ProGateSection feature="location_profile">
-                <LocationProfile data={locationData} loading={locationLoading} />
-              </ProGateSection>
-              <ProGateSection feature="rent_trend">
-                <RentTrendChart data={rentData} loading={rentLoading} />
-              </ProGateSection>
+              <div id="section-b4">
+                <ProGateSection feature="location_profile">
+                  <LocationProfile data={locationData} loading={locationLoading} />
+                </ProGateSection>
+              </div>
+              <div id="section-b6">
+                <ProGateSection feature="rent_trend">
+                  <RentTrendChart data={rentData} loading={rentLoading} />
+                </ProGateSection>
+              </div>
+            </div>
+
+            {/* Row 2.75: Sales Trend */}
+            <div id="section-trend">
+              <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} />
             </div>
 
             {/* Row 3: B7 Franchise */}
-            <ProGateSection feature="franchise_comparison">
-              <FranchiseSection data={franchiseData} loading={franchiseLoading} industryCode={industryCode} />
-            </ProGateSection>
+            <div id="section-b7">
+              <ProGateSection feature="franchise_comparison">
+                <FranchiseSection data={franchiseData} loading={franchiseLoading} industryCode={industryCode} />
+              </ProGateSection>
+            </div>
 
             {/* Row 4: C Simulator */}
-            <ProGateSection feature="simulator_full">
-              <InlineSimulatorSection
-                defaults={simulationData}
-                loading={simulationLoading}
-                districtCode={selectedCode}
-                industryCode={industryCode}
-              />
-            </ProGateSection>
+            <div id="section-c">
+              <ProGateSection feature="simulator_full">
+                <InlineSimulatorSection
+                  defaults={simulationData}
+                  loading={simulationLoading}
+                  districtCode={selectedCode}
+                  industryCode={industryCode}
+                />
+              </ProGateSection>
+            </div>
 
             {/* Row 5: D Risk + E Support */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ProGateSection feature="risk_full">
-                <RiskSection data={riskData} loading={riskLoading} />
-              </ProGateSection>
-              <SupportSection data={supportData} loading={supportLoading} industryCode={industryCode} />
+              <div id="section-d">
+                <ProGateSection feature="risk_full">
+                  <RiskSection data={riskData} loading={riskLoading} />
+                </ProGateSection>
+              </div>
+              <div id="section-e">
+                <SupportSection data={supportData} loading={supportLoading} industryCode={industryCode} />
+              </div>
             </div>
           </div>
         )}
@@ -1174,6 +1276,9 @@ function ReportContent() {
           </div>
         )}
       </main>
+
+      {/* Floating TOC for mobile */}
+      {selectedCode && <FloatingTOC />}
     </div>
   );
 }

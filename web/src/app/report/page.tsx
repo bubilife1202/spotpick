@@ -1251,7 +1251,7 @@ function ReportContent() {
       .finally(() => setLoadingTimeline(false));
 
     // 7. Support programs
-    safeFetch(`${API_BASE}/support/programs/active`)
+    safeFetch(`${API_BASE}/support/programs`)
       .then((data) => {
         if (data && Array.isArray(data.programs)) {
           setSupportPrograms(data.programs);
@@ -1274,7 +1274,7 @@ function ReportContent() {
   // PDF download handler (reuse same pattern as PDFExportButton)
   const handlePDFDownload = async () => {
     try {
-      const res = await fetch(`${API_BASE}/report/pdf?district_code=${districtCode}&industry_code=${industryCode}`, {
+      const res = await fetch(`${API_BASE}/pdf/report?district_code=${districtCode}&industry_code=${industryCode}`, {
         method: "GET",
       });
       if (!res.ok) {

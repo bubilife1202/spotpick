@@ -1,6 +1,7 @@
 "use client";
 
-import { Store, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { MiniMap } from "@/components/MiniMap";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function CompetitionMap({ data, loading }: { data: any; loading: boolean }) {
@@ -20,21 +21,33 @@ export function CompetitionMap({ data, loading }: { data: any; loading: boolean 
 
   const stores = data.stores || [];
   const typeDistribution = data.type_distribution || {};
-  const totalNearby = data.total_nearby || 0;
+  const totalNearby = data.total_nearby || stores.length || 0;
+
+  // Build map markers from store data
+  const mapMarkers = stores
+    .filter((s: any) => s.lat && s.lng) // eslint-disable-line @typescript-eslint/no-explicit-any
+    .slice(0, 15)
+    .map((s: any, i: number) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+      lat: s.lat,
+      lng: s.lng,
+      label: s.name || s.store_name || `점포 ${i + 1}`,
+      type: "competitor" as const,
+    }));
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <Store className="h-5 w-5 text-violet-500" />
-        <h3 className="text-sm font-bold text-slate-900">LOCALDATA 경쟁 현황</h3>
-        <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
-          반경 500m
-        </span>
-      </div>
+    <div className="space-y-3">
+      {/* Map visualization */}
+      {mapMarkers.length > 0 && (
+        <MiniMap
+          markers={mapMarkers}
+          height={200}
+          zoom={15}
+        />
+      )}
 
       {/* Type distribution */}
       {Object.keys(typeDistribution).length > 0 && (
-        <div className="mb-4">
+        <div>
           <p className="mb-2 text-[10px] font-semibold text-slate-400">업종 분포 (총 {totalNearby}개)</p>
           <div className="flex flex-wrap gap-1.5">
             {Object.entries(typeDistribution)
@@ -54,8 +67,8 @@ export function CompetitionMap({ data, loading }: { data: any; loading: boolean 
       {/* Store list */}
       {stores.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold text-slate-400">주변 점포</p>
-          {stores.slice(0, 8).map(
+          <p className="text-[10px] font-semibold text-slate-400">주변 점포 ({stores.length}개)</p>
+          {stores.slice(0, 6).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any, i: number) => (
               <div
@@ -65,13 +78,15 @@ export function CompetitionMap({ data, loading }: { data: any; loading: boolean 
                 <div className="flex items-center gap-2">
                   <MapPin className="h-3 w-3 text-slate-400" />
                   <div>
-                    <p className="text-xs font-medium text-slate-900">{s.name}</p>
-                    <p className="text-[10px] text-slate-400">{s.type}</p>
+                    <p className="text-xs font-medium text-slate-900">{s.name || s.store_name}</p>
+                    <p className="text-[10px] text-slate-400">{s.type || s.category}</p>
                   </div>
                 </div>
-                <span className="text-[10px] font-medium text-slate-500">
-                  {s.distance_m}m
-                </span>
+                {s.distance_m && (
+                  <span className="text-[10px] font-medium text-slate-500">
+                    {s.distance_m}m
+                  </span>
+                )}
               </div>
             ),
           )}

@@ -883,3 +883,73 @@ def sales_breakdown(
         "breakdown": breakdown,
         "is_real_data": is_real_data,
     }
+
+
+# ── Sales Trend (quarterly) ──────────────────────────────────────────
+_SALES_TREND_CACHE: dict[str, list[dict[str, Any]]] = {}
+
+
+def _load_all_sales_data() -> dict[str, list[dict[str, Any]]]:
+    """Load all quarterly sales files and index by district_code+industry_code."""
+    global _SALES_TREND_CACHE
+    if _SALES_TREND_CACHE:
+        return _SALES_TREND_CACHE
+
+    sales_dir = Path(__file__).parent.parent.parent / "data" / "seoul"
+    result: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+    for f in sorted(sales_dir.glob("sales_*.json")):
+        try:
+            with open(f, encoding="utf-8") as fp:
+                raw = json.load(fp)
+            rows = raw if isinstance(raw, list) else raw.get("row", [])
+            for r in rows:
+                key = f"{r.get('TRDAR_CD', '')}_{r.get('SVC_INDUTY_CD', '')}"
+                period_raw = r.get("STDR_YYQU_CD", "")
+                if len(period_raw) >= 5:
+                    year = period_raw[:4]
+                    quarter = period_raw[4:]
+                    period = f"{year}Q{quarter}"
+                else:
+                    period = period_raw
+                result[key].append({
+                    "period": period,
+                    "monthly_sales": float(r.get("THSMON_SELNG_AMT", 0) or 0),
+                    "transactions": int(float(r.get("THSMON_SELNG_CO", 0) or 0)),
+                })
+        except Exception as e:
+            logger.warning("Failed to load %s: %s", f.name, e)
+
+    _SALES_TREND_CACHE = dict(result)
+    return _SALES_TREND_CACHE
+
+
+@router.get("/sales-trend")
+def sales_trend(
+    district_code: str = Query(..., description="상권 코드"),
+    industry_code: str = Query("CS100010", description="업종 코드"),
+):
+    """상권의 분기별 매출 트렌드 (최근 12분기)."""
+    all_data = _load_all_sales_data()
+    key = f"{district_code}_{industry_code}"
+    quarters = all_data.get(key, [])
+
+    # Sort by period and take last 12
+    quarters.sort(key=lambda x: x["period"])
+    recent = quarters[-12:] if len(quarters) > 12 else quarters
+
+    # Calculate YoY change
+    yoy_change = 0.0
+    if len(recent) >= 5:
+        current = recent[-1]["monthly_sales"]
+        year_ago = recent[-5]["monthly_sales"]
+        if year_ago > 0:
+            yoy_change = round((current - year_ago) / year_ago * 100, 1)
+
+    return {
+        "district_code": district_code,
+        "industry_code": industry_code,
+        "quarters": recent,
+        "yoy_change": yoy_change,
+        "total_quarters": len(quarters),
+    }
