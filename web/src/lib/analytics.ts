@@ -46,6 +46,23 @@ export function track(event: EventName, properties?: Record<string, string | num
       if (stored.length > 500) stored.splice(0, stored.length - 500);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     } catch {}
+
+    // Send to backend API
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+    const sessionId = localStorage.getItem("spotpick_session") || crypto.randomUUID();
+    localStorage.setItem("spotpick_session", sessionId);
+    fetch(`${API_BASE}/analytics/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event,
+        session_id: sessionId,
+        timestamp: new Date(entry.timestamp).toISOString(),
+        page: window.location.pathname,
+        referrer: document.referrer,
+        props: properties || {},
+      }),
+    }).catch(() => {});
   }
 
   // Log in development

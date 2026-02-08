@@ -78,6 +78,112 @@ function getVerdictStyle(score: number) {
   return { label: "주의", color: "text-rose-700", bg: "bg-rose-50 border-rose-200" };
 }
 
+// ─── AI Briefing Card ──────────────────────────────────────────────────
+function BriefingCard({ districtCode, industryCode }: { districtCode: string; industryCode: string }) {
+  const [briefing, setBriefing] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!districtCode) return;
+    setLoading(true);
+    fetch(`${API_BASE}/districts/${districtCode}/briefing?industry_code=${industryCode}`)
+      .then((r) => r.json())
+      .then((data) => setBriefing(data.briefing || ""))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [districtCode, industryCode]);
+
+  if (!districtCode) return null;
+
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-blue-500" />
+        <h3 className="text-sm font-bold text-blue-900">AI 실시간 브리핑</h3>
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 py-3">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+          <span className="text-xs text-blue-600">AI가 상권을 분석하고 있습니다...</span>
+        </div>
+      ) : briefing ? (
+        <p className="text-sm leading-relaxed text-blue-900/80">{briefing}</p>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Risk Alert Banner ────────────────────────────────────────────────
+function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string; industryCode: string }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [riskData, setRiskAlertData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!districtCode) return;
+    setLoading(true);
+    fetch(`${API_BASE}/districts/${districtCode}/risk?industry_code=${industryCode}`)
+      .then((r) => r.json())
+      .then((data) => setRiskAlertData(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [districtCode, industryCode]);
+
+  if (loading || !riskData) return null;
+
+  const level = riskData.risk_level;
+  if (level !== "high" && level !== "medium") return null;
+
+  const isHigh = level === "high";
+  const signals = (riskData.signals || []).filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (s: any) => s.level === "danger" || s.level === "warning"
+  );
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        isHigh
+          ? "border-rose-200 bg-rose-50/80"
+          : "border-amber-200 bg-amber-50/80",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <AlertTriangle
+          className={cn("h-5 w-5", isHigh ? "text-rose-500" : "text-amber-500")}
+        />
+        <h3
+          className={cn(
+            "text-sm font-bold",
+            isHigh ? "text-rose-800" : "text-amber-800",
+          )}
+        >
+          {isHigh ? "폐업 위험 높음" : "주의 필요"} — 위험도 {riskData.risk_score}점
+        </h3>
+      </div>
+      {signals.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {signals.slice(0, 3).map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (s: any, i: number) => (
+              <li
+                key={i}
+                className={cn(
+                  "text-xs",
+                  isHigh ? "text-rose-700" : "text-amber-700",
+                )}
+              >
+                · {s.title}: {s.detail}
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─── Section A: TOP 3 Recommendations ──────────────────────────────────
 function Top3Section({
   districts,
@@ -1179,6 +1285,14 @@ function ReportContent() {
           </div>
         )}
 
+        {/* AI Briefing + Risk Alert */}
+        {selectedCode && (
+          <div className="mb-4 space-y-3">
+            <BriefingCard districtCode={selectedCode} industryCode={industryCode} />
+            <RiskAlertBanner districtCode={selectedCode} industryCode={industryCode} />
+          </div>
+        )}
+
         {/* Report sections B~E */}
         {selectedCode && (
           <div className="space-y-4">
@@ -1264,7 +1378,7 @@ function ReportContent() {
 
         {/* Action: Go to Step 3 */}
         {selectedCode && (
-          <div className="mt-8 text-center">
+          <div className="mt-8 flex flex-col items-center gap-3">
             <Link
               href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
@@ -1273,6 +1387,20 @@ function ReportContent() {
               사업계획서 생성 & 액션 플랜
               <ArrowRight className="h-5 w-5" />
             </Link>
+            <div className="flex gap-3">
+              <Link
+                href={`/timeline?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budgetMax}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                창업 타임라인
+              </Link>
+              <Link
+                href={`/compare?industry_code=${industryCode}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                상권 비교
+              </Link>
+            </div>
           </div>
         )}
       </main>

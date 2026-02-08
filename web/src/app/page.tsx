@@ -87,6 +87,9 @@ function Header() {
           <Link href="/support" className="transition hover:text-slate-900">
             지원금
           </Link>
+          <Link href="/compare" className="transition hover:text-slate-900">
+            비교
+          </Link>
         </nav>
 
         <Link
@@ -781,6 +784,14 @@ const ENTRY_POINTS = [
     href: "/results",
     icon: Trophy,
     color: "from-amber-500 to-amber-600",
+  },
+  {
+    question: "A vs B 어디가 나아?",
+    label: "상권 비교",
+    desc: "두 상권을 나란히 비교하고 AI가 판정해드려요",
+    href: "/compare",
+    icon: BarChart3,
+    color: "from-violet-500 to-violet-600",
   },
   {
     question: "잘 모르겠어",

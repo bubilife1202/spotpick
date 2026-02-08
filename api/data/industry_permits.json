@@ -1,0 +1,118 @@
+{
+  "CS100010": {
+    "name": "카페",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["건물 용도가 '근린생활시설'인지 반드시 확인", "배달 영업 시 통신판매업 신고 필요"]
+  },
+  "CS100001": {
+    "name": "한식",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "소방안전관리 신고", "agency": "관할 소방서", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 6, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["가스레인지 사용 시 가스안전 점검 필수", "주류 판매 시 별도 신고 불필요 (일반음식점 영업신고에 포함)"]
+  },
+  "CS100002": {
+    "name": "중식",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "소방안전관리 신고", "agency": "관할 소방서", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 6, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["화력 조리 시 환기 시설 기준 충족 확인 필수", "배달 영업 시 통신판매업 신고 필요"]
+  },
+  "CS100003": {
+    "name": "일식",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["생선회 취급 시 수산물 위생관리 기준 준수", "주류 판매 시 별도 신고 불필요"]
+  },
+  "CS100004": {
+    "name": "양식",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "소방안전관리 신고", "agency": "관할 소방서", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 6, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["오픈키친 운영 시 환기·소음 기준 확인", "주류 판매 시 별도 신고 불필요"]
+  },
+  "CS100005": {
+    "name": "베이커리",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (제과점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["제조 판매 시 '제과점영업' 신고, 매장 내 취식 시 '일반음식점' 신고 필요", "밀가루 등 원재료 보관 위생 관리 주의"]
+  },
+  "CS100006": {
+    "name": "패스트푸드",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점/휴게음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["프랜차이즈 가맹 시 가맹계약서 사전 공개 14일 확인", "배달 전문 시 통신판매업 신고 필요"]
+  },
+  "CS100007": {
+    "name": "치킨전문점",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "소방안전관리 신고", "agency": "관할 소방서", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 6, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["튀김유 폐식용유 별도 처리 계약 필요", "환기 시설 기준 충족 확인 (기름 연기)", "프랜차이즈 가맹 시 정보공개서 확인"]
+  },
+  "CS100008": {
+    "name": "분식",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점/휴게음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["소규모 매장은 '휴게음식점'으로 신고 가능 (주류 판매 불가)", "배달 영업 시 통신판매업 신고 필요"]
+  },
+  "CS100009": {
+    "name": "호프/주점",
+    "permits": [
+      {"order": 1, "name": "사업자등록", "agency": "국세청 홈택스", "duration": "즉시~3일", "cost": 0, "required": true},
+      {"order": 2, "name": "식품위생교육", "agency": "한국외식산업협회", "duration": "1일(8시간)", "cost": 40000, "required": true},
+      {"order": 3, "name": "영업신고 (일반음식점)", "agency": "관할 구청 위생과", "duration": "7~14일", "cost": 0, "required": true},
+      {"order": 4, "name": "소방안전관리 신고", "agency": "관할 소방서", "duration": "3일", "cost": 0, "required": true},
+      {"order": 5, "name": "음식물폐기물 배출 신고", "agency": "관할 구청 환경과", "duration": "3일", "cost": 0, "required": true},
+      {"order": 6, "name": "심야영업 신고", "agency": "관할 구청", "duration": "3일", "cost": 0, "required": true},
+      {"order": 7, "name": "옥외광고물 표시 허가", "agency": "관할 구청", "duration": "7일", "cost": 50000, "required": false}
+    ],
+    "notes": ["학교 주변 200m 이내 주류판매 제한 확인", "심야영업(24시 이후) 시 별도 신고 필요", "소음 민원 주의 — 방음 시설 검토"]
+  }
+}
