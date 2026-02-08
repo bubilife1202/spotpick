@@ -7,7 +7,6 @@ import {
   MapPin,
   Store,
   BarChart3,
-  Calculator,
   Coins,
   FileText,
   ArrowRight,
@@ -91,7 +90,7 @@ function Header() {
         </nav>
 
         <Link
-          href="/onboarding"
+          href="/analyze"
           className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
         >
           시작하기
@@ -142,7 +141,7 @@ function HeroSection() {
 
         <div className="animate-slide-up animation-delay-200 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/onboarding"
+            href="/analyze"
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl hover:shadow-blue-500/30"
           >
             무료로 시작하기
@@ -552,45 +551,21 @@ function LiveDemoSection() {
 const PIPELINE_STEPS = [
   {
     icon: Utensils,
-    title: "업종 선택",
-    desc: "10개 요식업종 중 선택",
-    href: "/onboarding",
-  },
-  {
-    icon: Store,
-    title: "프랜차이즈 비교",
-    desc: "공정위 공시 데이터 기반",
-    href: "/franchise",
-  },
-  {
-    icon: MapPin,
-    title: "AI 입지 추천",
-    desc: "1,077개 상권 자동 분석",
-    href: "/results",
+    title: "입력",
+    desc: "업종 + 예산 30초 입력",
+    href: "/analyze",
   },
   {
     icon: BarChart3,
-    title: "상세 분석",
-    desc: "투명 스코어카드 제공",
-    href: "/explore",
-  },
-  {
-    icon: Calculator,
-    title: "수익 시뮬레이션",
-    desc: "손익분기점 자동 계산",
-    href: "/simulator",
-  },
-  {
-    icon: Coins,
-    title: "지원금 매칭",
-    desc: "23개 프로그램 자동 매칭",
-    href: "/support",
+    title: "AI 리포트",
+    desc: "원페이지 종합 분석",
+    href: "/analyze/report",
   },
   {
     icon: FileText,
-    title: "사업계획서",
-    desc: "AI가 5분 안에 생성",
-    href: "/business-plan",
+    title: "액션 플랜",
+    desc: "사업계획서 + PDF",
+    href: "/analyze/action",
   },
 ];
 
@@ -600,14 +575,14 @@ function PipelineSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            창업의 모든 단계를 한 곳에서
+            3단계로 끝나는 창업 분석
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
-            업종 선택부터 사업계획서까지, 7단계 원스톱 여정
+            업종과 예산만 입력하면, AI가 모든 분석을 한 번에
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7 lg:gap-3">
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-6">
           {PIPELINE_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
@@ -615,29 +590,28 @@ function PipelineSection() {
                 key={i}
                 href={step.href}
                 className={cn(
-                  "group relative flex flex-row items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md",
-                  "lg:flex-col lg:items-center lg:gap-2 lg:p-5 lg:text-center",
+                  "group relative flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md text-center",
                 )}
               >
                 {/* Step number badge */}
-                <div className="absolute -top-2.5 left-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-[10px] font-bold text-white lg:left-1/2 lg:-translate-x-1/2">
+                <div className="absolute -top-2.5 left-1/2 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white">
                   {i + 1}
                 </div>
 
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100 lg:h-14 lg:w-14">
-                  <Icon className="h-6 w-6" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
+                  <Icon className="h-7 w-7" />
                 </div>
 
-                <div className="min-w-0 lg:mt-1">
-                  <p className="text-sm font-bold text-slate-900">
+                <div>
+                  <p className="text-base font-bold text-slate-900">
                     {step.title}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">{step.desc}</p>
+                  <p className="mt-0.5 text-sm text-slate-500">{step.desc}</p>
                 </div>
 
-                {/* Arrow connector between steps (lg only) */}
+                {/* Arrow connector between steps */}
                 {i < PIPELINE_STEPS.length - 1 && (
-                  <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 lg:absolute lg:-right-3.5 lg:top-1/2 lg:block lg:-translate-y-1/2" />
+                  <ChevronRight className="absolute -right-5 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-slate-300 sm:block" />
                 )}
               </Link>
             );
@@ -696,7 +670,7 @@ const COMPARISON_FEATURES: {
     spotpick: "yes",
   },
   {
-    feature: "7단계 원스톱 연결",
+    feature: "3단계 원클릭 분석",
     openup: "no",
     chatgpt: "no",
     spotpick: "yes",
@@ -786,9 +760,9 @@ function ComparisonSection() {
 const ENTRY_POINTS = [
   {
     question: "어디가 좋을까?",
-    label: "AI 입지추천",
-    desc: "업종만 고르면 최적 상권을 AI가 골라드려요",
-    href: "/onboarding",
+    label: "AI 원클릭 분석",
+    desc: "업종과 예산만 입력하면 AI가 최적 상권을 찾아드려요",
+    href: "/analyze",
     icon: MapPin,
     color: "from-blue-500 to-blue-600",
   },
@@ -812,7 +786,7 @@ const ENTRY_POINTS = [
     question: "잘 모르겠어",
     label: "AI 상담",
     desc: "어떤 질문이든 AI가 친절하게 안내해드려요",
-    href: "/onboarding",
+    href: "/chat",
     icon: MessageCircle,
     color: "from-purple-500 to-purple-600",
   },
@@ -877,7 +851,7 @@ function EntryPointSection() {
 function PricingSection() {
   return (
     <section className="bg-slate-50 py-20 sm:py-24">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
             합리적인 요금제
@@ -887,44 +861,47 @@ function PricingSection() {
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-3">
           {/* Free tier */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
                 <Zap className="h-5 w-5 text-slate-600" />
               </div>
               <div>
                 <p className="text-lg font-bold text-slate-900">무료</p>
-                <p className="text-2xl font-extrabold text-slate-900">
-                  &#8361;0
-                </p>
+                <p className="text-2xl font-extrabold text-slate-900">&#8361;0</p>
               </div>
             </div>
-            <ul className="mt-6 space-y-3 text-sm text-slate-600">
+            <p className="mt-2 text-xs text-slate-500">월 1회 기본 분석</p>
+            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                기본 상권 분석
+                기본 상권 분석 (TOP 3)
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                TOP 5 추천
+                종합점수 + 월매출 요약
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                사업계획서 1회/일
+                경쟁 점포수 + 주요 연령
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                지원금 TOP 2
               </li>
             </ul>
             <Link
-              href="/onboarding"
-              className="mt-7 block w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              href="/analyze"
+              className="mt-6 block w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
             >
               무료로 시작하기
             </Link>
           </div>
 
-          {/* Pro tier */}
-          <div className="relative rounded-2xl border-2 border-blue-600 bg-white p-7 shadow-md">
+          {/* Pro Single tier */}
+          <div className="relative rounded-2xl border-2 border-blue-600 bg-white p-6 shadow-md">
             <div className="absolute -top-3 right-5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-0.5 text-xs font-bold text-white">
               추천
             </div>
@@ -933,40 +910,86 @@ function PricingSection() {
                 <Crown className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-900">Pro</p>
+                <p className="text-lg font-bold text-slate-900">Pro 건당</p>
                 <p className="text-2xl font-extrabold text-slate-900">
-                  &#8361;9,900
-                  <span className="text-sm font-medium text-slate-500">
-                    /월
-                  </span>
+                  &#8361;4,900<span className="text-sm font-medium text-slate-500">/건</span>
                 </p>
               </div>
             </div>
-            <ul className="mt-6 space-y-3 text-sm text-slate-600">
+            <p className="mt-2 text-xs text-slate-500">전체 리포트 1건</p>
+            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                무제한 상권 분석
+                5대 카테고리 레이더
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                전체 상권 추천
+                워터폴 수익 구조
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                무제한 사업계획서 + PDF
+                경쟁지도 + LOCALDATA
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                입지·임대료·고객 전체 차트
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                AI 리스크 판정 + 지원금 전체
               </li>
             </ul>
             <Link
-              href="/onboarding"
-              className="mt-7 block w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              href="/analyze"
+              className="mt-6 block w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
             >
               Pro 시작하기
+            </Link>
+          </div>
+
+          {/* Pro Monthly tier */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50">
+                <Sparkles className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-slate-900">Pro 구독</p>
+                <p className="text-2xl font-extrabold text-slate-900">
+                  &#8361;19,900<span className="text-sm font-medium text-slate-500">/월</span>
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">무제한 분석</p>
+            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                Pro 건당 모든 기능
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                무제한 상권 분석
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                사업계획서 PDF 다운로드
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                우선 지원
+              </li>
+            </ul>
+            <Link
+              href="/analyze"
+              className="mt-6 block w-full rounded-xl border border-indigo-300 bg-indigo-50 py-3 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            >
+              구독 시작하기
             </Link>
           </div>
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          * 베타 기간 전체 무료
+          * 베타 기간 전체 무료 · 결제 시스템 준비 중
         </p>
       </div>
     </section>

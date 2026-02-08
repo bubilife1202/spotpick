@@ -131,6 +131,9 @@ def create_app() -> FastAPI:
     explore_router = cast(APIRouter, import_module("api.routes.explore").router)
     app.include_router(explore_router, prefix="/api/v1", tags=["Explore"])
 
+    location_router = cast(APIRouter, import_module("api.routes.location").router)
+    app.include_router(location_router, prefix="/api/v1", tags=["Location"])
+
     return app
 
 

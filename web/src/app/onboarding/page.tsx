@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Onboarding, OnboardingData } from "@/components/Onboarding";
 import {
@@ -10,6 +11,11 @@ import { useJourneyStore } from "@/lib/journey-store";
 
 export default function OnboardingPage() {
   const router = useRouter();
+
+  // Redirect to new /analyze flow
+  useEffect(() => {
+    router.replace("/analyze");
+  }, [router]);
 
   const completeOnboarding = (data: OnboardingData) => {
     if (typeof window !== "undefined") {

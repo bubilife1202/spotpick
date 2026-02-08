@@ -116,6 +116,89 @@ async def get_single_household(region: str = "서울특별시"):
         )
 
 
+@router.get("/rent-trend")
+async def get_rent_trend(
+    district_code: str | None = None,
+    gu_name: str | None = None,
+):
+    """상가임대료 분기별 트렌드 (commercial_rent.json 기반)."""
+    import json
+    from pathlib import Path
+
+    rent_file = Path(__file__).parent.parent.parent / "data" / "seoul" / "commercial_rent.json"
+    if not rent_file.exists():
+        return {"available": False, "message": "임대료 데이터가 없습니다."}
+
+    try:
+        with open(rent_file, encoding="utf-8") as f:
+            raw = json.load(f)
+
+        tables = raw.get("tables", {})
+        small_rent = tables.get("small_store_rent", {})
+        rows = small_rent.get("row", [])
+
+        if not rows:
+            return {"available": False, "message": "임대료 행 데이터가 없습니다."}
+
+        # Filter by region if specified
+        target_name = gu_name or ""
+        filtered: list[dict] = []
+        seoul_rows: list[dict] = []
+
+        for r in rows:
+            region = r.get("C1_NM", "")
+            if region == "서울":
+                seoul_rows.append(r)
+            if target_name and target_name in region:
+                filtered.append(r)
+
+        # Use filtered if available, else seoul-level data
+        data_rows = filtered if filtered else seoul_rows
+
+        quarterly_rent: list[dict] = []
+        for r in data_rows:
+            period = r.get("PRD_DE", "")
+            rent_val = float(r.get("DT", 0) or 0)
+            quarterly_rent.append({
+                "period": period,
+                "rent_per_sqm": round(rent_val, 2),
+                "region": r.get("C1_NM", ""),
+            })
+
+        # Sort by period
+        quarterly_rent.sort(key=lambda x: x["period"])
+
+        # Calculate YoY change
+        yoy_change = 0.0
+        if len(quarterly_rent) >= 5:
+            current = quarterly_rent[-1]["rent_per_sqm"]
+            year_ago = quarterly_rent[-5]["rent_per_sqm"]
+            if year_ago > 0:
+                yoy_change = round((current - year_ago) / year_ago * 100, 1)
+
+        # Seoul average percentile
+        seoul_avg = 0.0
+        if seoul_rows:
+            seoul_avg = sum(float(r.get("DT", 0) or 0) for r in seoul_rows) / len(seoul_rows)
+
+        current_rent = quarterly_rent[-1]["rent_per_sqm"] if quarterly_rent else 0
+        percentile = round(current_rent / max(1, seoul_avg) * 100, 1) if seoul_avg > 0 else 50
+
+        return {
+            "available": True,
+            "district_code": district_code,
+            "gu_name": gu_name or "서울",
+            "quarterly_rent": quarterly_rent[-12:],  # Last 3 years (12 quarters)
+            "yoy_change": yoy_change,
+            "seoul_avg_percentile": percentile,
+            "current_rent_per_sqm": current_rent,
+        }
+
+    except Exception as e:
+        logger.error("Rent trend error: %s", e, exc_info=True)
+        return {"available": False, "message": "임대료 트렌드 조회 중 오류가 발생했습니다."}
+
+
 @router.get("/health")
 async def health():
     """KOSIS API 헬스체크"""
