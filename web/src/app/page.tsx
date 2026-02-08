@@ -15,8 +15,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Cpu,
-  Code2,
   Sparkles,
   Search,
   Trophy,
@@ -976,86 +974,6 @@ function PricingSection() {
 }
 
 /* ─────────────────────────────────────────────
-   Section 6 -- Tech Stack (바이브랩스 심사용)
-   ───────────────────────────────────────────── */
-function TechStackSection() {
-  return (
-    <section className="bg-white py-20 sm:py-24">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            AI 네이티브로 만들었습니다
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
-            제품도, 개발 과정도 AI-First
-          </p>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {/* Product AI */}
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50/60 to-indigo-50/40 p-7">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-              <Cpu className="h-6 w-6" />
-            </div>
-            <h3 className="mt-4 text-lg font-bold text-slate-900">
-              제품 내 AI
-            </h3>
-            <p className="mt-1 text-sm font-semibold text-blue-600">
-              Gemini 2.5 Flash
-            </p>
-            <ul className="mt-4 space-y-2 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                상권 분석 및 전략 해석
-              </li>
-              <li className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                사업계획서 자동 생성
-              </li>
-              <li className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                AI 창업 상담
-              </li>
-            </ul>
-          </div>
-
-          {/* Development AI */}
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/60 p-7">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
-              <Code2 className="h-6 w-6" />
-            </div>
-            <h3 className="mt-4 text-lg font-bold text-slate-900">
-              개발 과정 AI
-            </h3>
-            <p className="mt-1 text-sm font-semibold text-slate-600">
-              Claude Code
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {[
-                { value: "58", label: "API 엔드포인트" },
-                { value: "21", label: "라우터 모듈" },
-                { value: "11,430", label: "코드 줄 수" },
-                { value: "2주", label: "개발 기간" },
-              ].map((stat, i) => (
-                <div key={i} className="rounded-lg bg-white/80 px-3 py-2">
-                  <p className="text-lg font-extrabold text-slate-900">
-                    {stat.value}
-                  </p>
-                  <p className="text-[11px] text-slate-500">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-slate-400">
-              1인 개발 · AI 페어 프로그래밍
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────────
    Footer
    ───────────────────────────────────────────── */
 function Footer() {
@@ -1089,7 +1007,6 @@ export default function LandingPage() {
         <ComparisonSection />
         <EntryPointSection />
         <PricingSection />
-        <TechStackSection />
       </main>
       <Footer />
     </div>
