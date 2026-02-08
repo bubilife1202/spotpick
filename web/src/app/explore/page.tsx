@@ -190,13 +190,16 @@ function scoreColor(rank: number) {
   };
 }
 
-/** Convert raw scores array to percentile ranks (0~100) */
+/** Convert raw scores array to percentile ranks (0~100) with proper tie handling */
 function toPercentileRanks(values: number[]): number[] {
   if (values.length === 0) return [];
   const sorted = [...values].sort((a, b) => a - b);
   return values.map((v) => {
-    const idx = sorted.indexOf(v);
-    return Math.round((idx / Math.max(1, sorted.length - 1)) * 100);
+    // Average rank for tied values
+    const first = sorted.indexOf(v);
+    const last = sorted.lastIndexOf(v);
+    const avgIdx = (first + last) / 2;
+    return Math.round((avgIdx / Math.max(1, sorted.length - 1)) * 100);
   });
 }
 
@@ -428,6 +431,7 @@ function LeftPanel({
   loadingRankings,
   loadingStores,
   onBack,
+  onDistrictClick,
 }: {
   selectedGu: GuSummary | null;
   selectedDistrict: DistrictGeo | null;
@@ -443,7 +447,8 @@ function LeftPanel({
   loadingRankings: boolean;
   loadingStores: boolean;
   onBack: () => void;
-}) {
+  onDistrictClick: (d: DistrictGeo) => void;
+}): React.ReactNode {
   // Default: show Seoul overview
   if (!selectedGu) {
     const totalDistricts = guData.reduce((s, g) => s + g.district_count, 0);
@@ -630,9 +635,10 @@ function LeftPanel({
                 const dRank = districtColorScores[d.district_code] ?? 50;
                 const dsc = scoreColor(dRank);
                 return (
-                  <div
+                  <button
                     key={d.district_code}
-                    className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 cursor-default text-sm"
+                    onClick={() => onDistrictClick(d)}
+                    className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer text-sm w-full text-left transition-colors"
                   >
                     <span
                       className={cn(
@@ -646,7 +652,8 @@ function LeftPanel({
                     <span className="text-xs text-slate-400">
                       {formatManShort(d.monthly_sales)}
                     </span>
-                  </div>
+                    <ChevronRight size={12} className="text-slate-300 flex-shrink-0" />
+                  </button>
                 );
               })}
             </div>
@@ -791,9 +798,11 @@ function LeftPanel({
           <p className="text-xs text-slate-400">업종 데이터가 없습니다</p>
         ) : (
           <div className="space-y-1.5">
-            {industryRankings.map((r) => {
+            {industryRankings.map((r, idx) => {
               const ind = INDUSTRIES.find((i) => i.code === r.industry_code);
-              const rsc = scoreColor(r.score);
+              // Convert rank position to percentile (rank 1 = best = highest percentile)
+              const rankPct = Math.round(((industryRankings.length - idx) / Math.max(1, industryRankings.length)) * 100);
+              const rsc = scoreColor(rankPct);
               return (
                 <div
                   key={r.industry_code}
@@ -853,7 +862,7 @@ function LeftPanel({
             ))}
           </div>
         ) : stores.length === 0 ? (
-          <p className="text-xs text-slate-400">점포 데이터를 불러오는 중...</p>
+          <p className="text-xs text-slate-400">이 상권에 해당 업종 점포 데이터가 없습니다</p>
         ) : (
           <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
             {stores.slice(0, 30).map((s, i) => (
@@ -1527,6 +1536,7 @@ function ExploreContent() {
               loadingRankings={loadingRankings}
               loadingStores={loadingStores}
               onBack={handleBack}
+              onDistrictClick={handleDistrictClick}
             />
           )}
         </div>
@@ -1721,6 +1731,7 @@ function ExploreContent() {
               loadingRankings={loadingRankings}
               loadingStores={loadingStores}
               onBack={handleBack}
+              onDistrictClick={handleDistrictClick}
             />
           )}
         </BottomSheet>

@@ -45,11 +45,16 @@ def _load_stores_by_industry(industry_code: str) -> dict[str, dict[str, Any]]:
             if ind not in _INDUSTRY_NAMES:
                 continue
             dc = str(row.get("TRDAR_CD", ""))
+            store_count = int(row.get("STOR_CO", 0) or 0)
+            # FRC_STOR_CO is district-wide franchise count (not per-industry)
+            # Clamp to store_count to prevent franchise > total stores
+            raw_franchise = int(row.get("FRC_STOR_CO", 0) or 0)
+            franchise = min(raw_franchise, store_count)
             by_industry[ind][dc] = {
-                "store_count": int(row.get("STOR_CO", 0) or 0),
+                "store_count": store_count,
                 "new_stores": int(row.get("OPBIZ_STOR_CO", 0) or 0),
                 "closed_stores": int(row.get("CLSBIZ_STOR_CO", 0) or 0),
-                "franchise_stores": int(row.get("FRC_STOR_CO", 0) or 0),
+                "franchise_stores": franchise,
                 "similar_stores": int(row.get("SIMILR_INDUTY_STOR_CO", 0) or 0),
                 "industry_name": row.get("SVC_INDUTY_CD_NM", ""),
             }
@@ -313,7 +318,8 @@ def industry_ranking(
         store_count = int(row.get("STOR_CO", 0))
         new_stores = int(row.get("OPBIZ_STOR_CO", 0))
         closed_stores = int(row.get("CLSBIZ_STOR_CO", 0))
-        franchise_stores = int(row.get("FRC_STOR_CO", 0))
+        raw_franchise = int(row.get("FRC_STOR_CO", 0))
+        franchise_stores = min(raw_franchise, store_count)  # clamp
         similar_count = int(row.get("SIMILR_INDUTY_STOR_CO", 0))
 
         industry_data[ind_code] = {
@@ -517,16 +523,42 @@ async def get_stores(
     """
     from api.services.data_service import get_data_service
 
-    svc = get_data_service("CS100010")
-    district = svc.get_district(str(district_code))
+    # Use cafe data_service for shared location data (lat/lng/district_name)
+    base_svc = get_data_service("CS100010")
+    district = base_svc.get_district(str(district_code))
     if not district:
         return {"stores": [], "total": 0, "district_name": "", "error": "상권을 찾을 수 없습니다"}
 
     district_name = district.get("district_name", "")
     lat = district.get("lat", 0.0)
     lng = district.get("lng", 0.0)
-    monthly_sales = district.get("monthly_sales", 0)
-    store_count_stat = max(1, district.get("store_count", 1))
+
+    # Per-industry store count from stores_all.json (not cafe data!)
+    stores_data = _load_stores_by_industry(industry_code)
+    sd = stores_data.get(str(district_code), {})
+    store_count_stat = sd.get("store_count", 0) if sd else 0
+
+    # Per-industry estimated monthly sales
+    if industry_code == "CS100010":
+        monthly_sales = district.get("monthly_sales", 0)
+    else:
+        industry_avg_sales = {
+            "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
+            "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
+            "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
+        }
+        per_store = industry_avg_sales.get(industry_code, 25_000_000)
+        monthly_sales = store_count_stat * per_store
+
+    # If 0 stores for this industry in this district, return empty
+    if store_count_stat == 0:
+        return {
+            "stores": [],
+            "total": 0,
+            "district_name": district_name,
+            "is_mock": False,
+            "message": f"이 상권에 {_INDUSTRY_NAMES.get(industry_code, '')} 업종 점포 데이터가 없습니다",
+        }
 
     # Step 1: Try SEMAS API (if service exists)
     stores: list[dict[str, Any]] = []
@@ -568,8 +600,7 @@ async def get_stores(
         logger.info("카카오 로컬 보강 사용 불가: %s", e)
 
     # Step 4: Compute estimated_monthly_sales per store
-    n_stores = max(1, len(stores))
-    estimated_sales = int(monthly_sales / store_count_stat) if monthly_sales > 0 else 0
+    estimated_sales = int(monthly_sales / max(1, store_count_stat)) if monthly_sales > 0 else 0
 
     result_stores: list[dict[str, Any]] = []
     for s in stores:
