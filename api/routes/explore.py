@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
+import random
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Query
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/explore")
 
@@ -411,4 +415,440 @@ def industry_ranking(
         "lng": district_lng,
         "rankings": rankings,
         "total": len(rankings),
+    }
+
+
+# ── Store-level endpoints ─────────────────────────────────────────────────
+
+
+_FRANCHISE_BRANDS: dict[str, list[str]] = {
+    "CS100001": ["본죽", "김가네", "한솥도시락", "명랑핫도그", "놀부부대찌개"],
+    "CS100002": ["홍콩반점", "진짬뽕", "짬뽕지존"],
+    "CS100003": ["스시로", "미소야", "하나미"],
+    "CS100004": ["빕스", "아웃백", "매드포갈릭", "피자헛"],
+    "CS100005": ["파리바게뜨", "뚜레쥬르", "브레댄코"],
+    "CS100006": ["맥도날드", "버거킹", "롯데리아", "맘스터치", "KFC"],
+    "CS100007": ["BBQ", "BHC", "교촌", "굽네치킨", "네네치킨", "페리카나"],
+    "CS100008": ["죠스떡볶이", "국대떡볶이", "신전떡볶이"],
+    "CS100009": ["장수생맥주", "호프집"],
+    "CS100010": ["스타벅스", "투썸플레이스", "이디야", "메가커피", "컴포즈커피", "빽다방", "할리스"],
+}
+
+_INDIE_NAMES: dict[str, list[str]] = {
+    "CS100001": ["엄마손밥집", "고향식당", "정성한상", "황금솥", "우리집밥상", "시골보리밥", "착한정식", "맛있는집"],
+    "CS100002": ["동방반점", "황궁짬뽕", "용문중화", "진미반점"],
+    "CS100003": ["도쿄라멘", "사쿠라스시", "하루이자카야", "미소라멘"],
+    "CS100004": ["로마키친", "파스타팩토리", "리틀다이닝", "그린테이블"],
+    "CS100005": ["달콤빵집", "행복베이커리", "마을제과", "해피브레드"],
+    "CS100006": ["퀵버거", "파워치킨", "빅원버거"],
+    "CS100007": ["황금치킨", "바삭통닭", "맛나치킨", "우리동네치킨", "참좋은치킨"],
+    "CS100008": ["엄마떡볶이", "할머니분식", "왕김밥", "고향분식"],
+    "CS100009": ["별밤호프", "달빛포차", "오늘밤한잔", "소나무맥주"],
+    "CS100010": ["마을커피", "숲속카페", "언덕로스터스", "하늘브루잉", "감성카페", "작은찻집"],
+}
+
+
+def _generate_mock_stores_inline(
+    lat: float,
+    lng: float,
+    industry_code: str,
+    store_count_stat: int,
+) -> list[dict[str, Any]]:
+    """현실적 Mock 점포 데이터 생성 (SEMAS API 불가 시 폴백)."""
+    try:
+        from api.services.semas_store_service import _generate_mock_stores
+        return _generate_mock_stores(lat, lng, industry_code, count=None)
+    except Exception:
+        pass
+
+    rng = random.Random(hash(f"{lat:.4f}{lng:.4f}{industry_code}"))
+    count = max(8, min(30, store_count_stat + rng.randint(-3, 5)))
+    industry_name = _INDUSTRY_NAMES.get(industry_code, "카페")
+
+    franchises = _FRANCHISE_BRANDS.get(industry_code, [])
+    indies = _INDIE_NAMES.get(industry_code, [f"{industry_name}가게"])
+
+    n_fc = max(1, int(count * 0.3))
+    stores: list[dict[str, Any]] = []
+    used_names: set[str] = set()
+
+    for i in range(count):
+        is_fc = i < n_fc and len(franchises) > 0
+        if is_fc:
+            name = franchises[i % len(franchises)]
+            if name in used_names:
+                name = f"{name} {rng.choice(['역점', '본점', '2호점'])}"
+            cat = f"프랜차이즈 {industry_name}"
+        else:
+            name = rng.choice(indies)
+            if name in used_names:
+                name = f"{name} {rng.choice(['본점', '역전점', '중앙점'])}"
+            cat = industry_name
+        used_names.add(name)
+
+        dlat = rng.uniform(-0.003, 0.003)
+        dlng = rng.uniform(-0.004, 0.004)
+        stores.append({
+            "store_name": name,
+            "category": cat,
+            "address": "",
+            "lat": round(lat + dlat, 7),
+            "lng": round(lng + dlng, 7),
+            "is_franchise": is_fc,
+            "place_url": None,
+            "phone": None,
+        })
+    return stores
+
+
+@router.get("/stores")
+async def get_stores(
+    district_code: str = Query(..., description="상권 코드"),
+    industry_code: str = Query("CS100010", description="업종 코드"),
+):
+    """
+    상권 내 개별 점포 목록.
+
+    Flow:
+    1. data_service에서 상권 좌표/매출 가져오기
+    2. SEMAS API로 점포 목록 시도
+    3. 카카오 로컬로 place_url 보강
+    4. 실패 시 Mock 데이터 fallback
+    """
+    from api.services.data_service import get_data_service
+
+    svc = get_data_service("CS100010")
+    district = svc.get_district(str(district_code))
+    if not district:
+        return {"stores": [], "total": 0, "district_name": "", "error": "상권을 찾을 수 없습니다"}
+
+    district_name = district.get("district_name", "")
+    lat = district.get("lat", 0.0)
+    lng = district.get("lng", 0.0)
+    monthly_sales = district.get("monthly_sales", 0)
+    store_count_stat = max(1, district.get("store_count", 1))
+
+    # Step 1: Try SEMAS API (if service exists)
+    stores: list[dict[str, Any]] = []
+    try:
+        from api.services.semas_store_service import fetch_stores_in_district
+        stores = await fetch_stores_in_district(str(district_code), industry_code)
+    except Exception as e:
+        logger.info("SEMAS API 사용 불가 (mock fallback): %s", e)
+
+    # Step 2: If SEMAS returned nothing, generate realistic mock stores
+    use_mock = len(stores) == 0
+    if use_mock:
+        stores = _generate_mock_stores_inline(lat, lng, industry_code, store_count_stat)
+
+    # Step 3: Try Kakao Local enrichment (if service exists)
+    try:
+        from api.services.kakao_local_service import search_places_in_area
+        kakao_places = await search_places_in_area(
+            lat=lat, lng=lng,
+            industry_code=industry_code,
+            radius=500,
+            max_pages=3,
+        )
+        kakao_lookup: dict[str, dict[str, Any]] = {}
+        for p in kakao_places:
+            kakao_lookup[p["place_name"]] = p
+        for store in stores:
+            name = store["store_name"]
+            matched = kakao_lookup.get(name)
+            if not matched:
+                for kname, kdata in kakao_lookup.items():
+                    if name in kname or kname in name:
+                        matched = kdata
+                        break
+            if matched:
+                store["place_url"] = matched.get("place_url") or store.get("place_url")
+                store["phone"] = matched.get("phone") or store.get("phone")
+    except Exception as e:
+        logger.info("카카오 로컬 보강 사용 불가: %s", e)
+
+    # Step 4: Compute estimated_monthly_sales per store
+    n_stores = max(1, len(stores))
+    estimated_sales = int(monthly_sales / store_count_stat) if monthly_sales > 0 else 0
+
+    result_stores: list[dict[str, Any]] = []
+    for s in stores:
+        result_stores.append({
+            "store_name": s.get("store_name", ""),
+            "category": s.get("category", ""),
+            "address": s.get("address", ""),
+            "lat": s.get("lat", 0.0),
+            "lng": s.get("lng", 0.0),
+            "is_franchise": s.get("is_franchise", False),
+            "place_url": s.get("place_url"),
+            "phone": s.get("phone"),
+            "estimated_monthly_sales": estimated_sales,
+        })
+
+    return {
+        "stores": result_stores,
+        "total": len(result_stores),
+        "district_name": district_name,
+        "is_mock": use_mock,
+    }
+
+
+# ── Sales Breakdown ───────────────────────────────────────────────────────
+
+# 업종별 현실적 매출 패턴 기본값
+_INDUSTRY_SALES_PATTERNS: dict[str, dict[str, Any]] = {
+    "CS100001": {  # 한식
+        "by_gender": {"male_pct": 48, "female_pct": 52},
+        "by_age": {"10s": 3, "20s": 18, "30s": 25, "40s": 28, "50s": 18, "60s_plus": 8},
+        "by_time": {"00_06": 1, "06_11": 10, "11_14": 38, "14_17": 15, "17_21": 28, "21_24": 8},
+        "by_day": {"mon": 14, "tue": 14, "wed": 15, "thu": 15, "fri": 16, "sat": 15, "sun": 11},
+    },
+    "CS100002": {  # 중식
+        "by_gender": {"male_pct": 52, "female_pct": 48},
+        "by_age": {"10s": 3, "20s": 20, "30s": 28, "40s": 26, "50s": 16, "60s_plus": 7},
+        "by_time": {"00_06": 1, "06_11": 5, "11_14": 40, "14_17": 12, "17_21": 32, "21_24": 10},
+        "by_day": {"mon": 13, "tue": 14, "wed": 14, "thu": 15, "fri": 16, "sat": 16, "sun": 12},
+    },
+    "CS100003": {  # 일식
+        "by_gender": {"male_pct": 45, "female_pct": 55},
+        "by_age": {"10s": 2, "20s": 22, "30s": 30, "40s": 25, "50s": 14, "60s_plus": 7},
+        "by_time": {"00_06": 1, "06_11": 3, "11_14": 35, "14_17": 12, "17_21": 38, "21_24": 11},
+        "by_day": {"mon": 12, "tue": 13, "wed": 14, "thu": 15, "fri": 17, "sat": 17, "sun": 12},
+    },
+    "CS100004": {  # 양식
+        "by_gender": {"male_pct": 42, "female_pct": 58},
+        "by_age": {"10s": 4, "20s": 28, "30s": 30, "40s": 22, "50s": 11, "60s_plus": 5},
+        "by_time": {"00_06": 1, "06_11": 5, "11_14": 32, "14_17": 15, "17_21": 35, "21_24": 12},
+        "by_day": {"mon": 12, "tue": 13, "wed": 14, "thu": 14, "fri": 17, "sat": 18, "sun": 12},
+    },
+    "CS100005": {  # 베이커리
+        "by_gender": {"male_pct": 35, "female_pct": 65},
+        "by_age": {"10s": 5, "20s": 25, "30s": 28, "40s": 24, "50s": 13, "60s_plus": 5},
+        "by_time": {"00_06": 2, "06_11": 22, "11_14": 20, "14_17": 25, "17_21": 22, "21_24": 9},
+        "by_day": {"mon": 13, "tue": 13, "wed": 14, "thu": 14, "fri": 16, "sat": 17, "sun": 13},
+    },
+    "CS100006": {  # 패스트푸드
+        "by_gender": {"male_pct": 48, "female_pct": 52},
+        "by_age": {"10s": 12, "20s": 32, "30s": 22, "40s": 18, "50s": 10, "60s_plus": 6},
+        "by_time": {"00_06": 3, "06_11": 12, "11_14": 30, "14_17": 18, "17_21": 25, "21_24": 12},
+        "by_day": {"mon": 13, "tue": 13, "wed": 14, "thu": 14, "fri": 16, "sat": 17, "sun": 13},
+    },
+    "CS100007": {  # 치킨
+        "by_gender": {"male_pct": 50, "female_pct": 50},
+        "by_age": {"10s": 8, "20s": 28, "30s": 25, "40s": 22, "50s": 12, "60s_plus": 5},
+        "by_time": {"00_06": 3, "06_11": 2, "11_14": 15, "14_17": 12, "17_21": 40, "21_24": 28},
+        "by_day": {"mon": 12, "tue": 12, "wed": 13, "thu": 14, "fri": 18, "sat": 18, "sun": 13},
+    },
+    "CS100008": {  # 분식
+        "by_gender": {"male_pct": 42, "female_pct": 58},
+        "by_age": {"10s": 15, "20s": 30, "30s": 22, "40s": 18, "50s": 10, "60s_plus": 5},
+        "by_time": {"00_06": 2, "06_11": 8, "11_14": 28, "14_17": 22, "17_21": 28, "21_24": 12},
+        "by_day": {"mon": 14, "tue": 14, "wed": 14, "thu": 14, "fri": 15, "sat": 16, "sun": 13},
+    },
+    "CS100009": {  # 호프/주점
+        "by_gender": {"male_pct": 62, "female_pct": 38},
+        "by_age": {"10s": 1, "20s": 25, "30s": 28, "40s": 25, "50s": 15, "60s_plus": 6},
+        "by_time": {"00_06": 8, "06_11": 1, "11_14": 5, "14_17": 5, "17_21": 35, "21_24": 46},
+        "by_day": {"mon": 10, "tue": 11, "wed": 13, "thu": 15, "fri": 20, "sat": 19, "sun": 12},
+    },
+    "CS100010": {  # 카페
+        "by_gender": {"male_pct": 42, "female_pct": 58},
+        "by_age": {"10s": 5, "20s": 32, "30s": 28, "40s": 20, "50s": 10, "60s_plus": 5},
+        "by_time": {"00_06": 2, "06_11": 25, "11_14": 22, "14_17": 20, "17_21": 22, "21_24": 9},
+        "by_day": {"mon": 14, "tue": 14, "wed": 15, "thu": 15, "fri": 16, "sat": 15, "sun": 11},
+    },
+}
+
+
+def _compute_sales_breakdown_from_district(
+    district: dict[str, Any],
+) -> dict[str, Any]:
+    """실제 coffee_districts.json 데이터에서 매출 비율 계산."""
+    total = max(1, district.get("monthly_sales", 1))
+
+    # Gender
+    male_ratio = district.get("male_ratio", 0.42)
+    female_ratio = district.get("female_ratio", 0.58)
+    # Normalize — sometimes male_ratio + female_ratio < 1 (missing data)
+    g_sum = male_ratio + female_ratio
+    if g_sum > 0:
+        male_pct = round(male_ratio / g_sum * 100)
+        female_pct = 100 - male_pct
+    else:
+        male_pct, female_pct = 42, 58
+
+    # Age
+    age_fields = [
+        ("10s", "age_10_sales"),
+        ("20s", "age_20_sales"),
+        ("30s", "age_30_sales"),
+        ("40s", "age_40_sales"),
+        ("50s", "age_50_sales"),
+        ("60s_plus", "age_60_sales"),
+    ]
+    by_age: dict[str, int] = {}
+    age_total = sum(district.get(f, 0) for _, f in age_fields)
+    if age_total > 0:
+        for label, field in age_fields:
+            by_age[label] = round(district.get(field, 0) / age_total * 100)
+    else:
+        by_age = {"10s": 5, "20s": 32, "30s": 28, "40s": 20, "50s": 10, "60s_plus": 5}
+    # Ensure sums to 100
+    diff = 100 - sum(by_age.values())
+    if diff != 0:
+        # Adjust the largest bucket
+        largest_key = max(by_age, key=lambda k: by_age[k])
+        by_age[largest_key] += diff
+
+    # Time
+    time_fields = [
+        ("00_06", "time_00_06_sales"),
+        ("06_11", "time_06_11_sales"),
+        ("11_14", "time_11_14_sales"),
+        ("14_17", "time_14_17_sales"),
+        ("17_21", "time_17_21_sales"),
+        ("21_24", "time_21_24_sales"),
+    ]
+    by_time: dict[str, int] = {}
+    time_total = sum(district.get(f, 0) for _, f in time_fields)
+    if time_total > 0:
+        for label, field in time_fields:
+            by_time[label] = round(district.get(field, 0) / time_total * 100)
+    else:
+        by_time = {"00_06": 2, "06_11": 25, "11_14": 22, "14_17": 20, "17_21": 22, "21_24": 9}
+    diff = 100 - sum(by_time.values())
+    if diff != 0:
+        largest_key = max(by_time, key=lambda k: by_time[k])
+        by_time[largest_key] += diff
+
+    # Day
+    day_fields = [
+        ("mon", "mon_sales"),
+        ("tue", "tue_sales"),
+        ("wed", "wed_sales"),
+        ("thu", "thu_sales"),
+        ("fri", "fri_sales"),
+        ("sat", "sat_sales"),
+        ("sun", "sun_sales"),
+    ]
+    by_day: dict[str, int] = {}
+    day_total = sum(district.get(f, 0) for _, f in day_fields)
+    if day_total > 0:
+        for label, field in day_fields:
+            by_day[label] = round(district.get(field, 0) / day_total * 100)
+    else:
+        by_day = {"mon": 14, "tue": 14, "wed": 15, "thu": 15, "fri": 16, "sat": 15, "sun": 11}
+    diff = 100 - sum(by_day.values())
+    if diff != 0:
+        largest_key = max(by_day, key=lambda k: by_day[k])
+        by_day[largest_key] += diff
+
+    return {
+        "by_gender": {"male_pct": male_pct, "female_pct": female_pct},
+        "by_age": by_age,
+        "by_time": by_time,
+        "by_day": by_day,
+    }
+
+
+def _generate_mock_sales_breakdown(
+    industry_code: str,
+    district_code: str,
+) -> dict[str, Any]:
+    """업종별 현실적 Mock 매출 분석 데이터 생성."""
+    base = _INDUSTRY_SALES_PATTERNS.get(industry_code, _INDUSTRY_SALES_PATTERNS["CS100010"])
+
+    # Deterministic but varied per district
+    rng = random.Random(hash(f"{district_code}:{industry_code}"))
+
+    def _jitter(d: dict[str, int], amount: int = 3) -> dict[str, int]:
+        """Add small random variation while maintaining sum = 100."""
+        result = {}
+        for k, v in d.items():
+            result[k] = max(0, v + rng.randint(-amount, amount))
+        total = sum(result.values())
+        if total > 0:
+            # Normalize to 100
+            factor = 100.0 / total
+            normalized = {k: max(0, round(v * factor)) for k, v in result.items()}
+            diff = 100 - sum(normalized.values())
+            if diff != 0:
+                largest = max(normalized, key=lambda k: normalized[k])
+                normalized[largest] += diff
+            return normalized
+        return dict(d)
+
+    return {
+        "by_gender": {
+            "male_pct": max(15, min(85, base["by_gender"]["male_pct"] + rng.randint(-3, 3))),
+            "female_pct": 0,  # filled below
+        },
+        "by_age": _jitter(base["by_age"], 3),
+        "by_time": _jitter(base["by_time"], 3),
+        "by_day": _jitter(base["by_day"], 2),
+    }
+
+
+@router.get("/sales-breakdown")
+def sales_breakdown(
+    district_code: str = Query(..., description="상권 코드"),
+    industry_code: str = Query("CS100010", description="업종 코드"),
+):
+    """
+    상권의 성별/연령/시간대/요일별 매출 비율.
+
+    카페(CS100010)는 coffee_districts.json의 실데이터를 사용.
+    다른 업종은 업종 특성에 맞는 현실적 패턴을 생성.
+    """
+    from api.services.data_service import get_data_service
+
+    svc = get_data_service("CS100010")
+    district = svc.get_district(str(district_code))
+    if not district:
+        return {
+            "district_code": district_code,
+            "district_name": "",
+            "industry_code": industry_code,
+            "breakdown": {},
+            "is_real_data": False,
+            "error": "상권을 찾을 수 없습니다",
+        }
+
+    district_name = district.get("district_name", "")
+    is_real_data = False
+
+    # 카페(CS100010)는 실데이터 사용
+    if industry_code == "CS100010":
+        breakdown = _compute_sales_breakdown_from_district(district)
+        is_real_data = True
+    else:
+        # 다른 업종은 업종 전용 데이터 파일이 있을 때만 실데이터 사용
+        # (data_service는 카페 데이터로 폴백하므로, 파일 존재 여부를 직접 확인)
+        industry_file = Path(__file__).parent.parent.parent / "data" / "processed" / f"{industry_code}_districts.json"
+        if industry_file.exists():
+            try:
+                ind_svc = get_data_service(industry_code)
+                ind_district = ind_svc.get_district(str(district_code))
+                if ind_district and ind_district.get("monthly_sales", 0) > 0:
+                    breakdown = _compute_sales_breakdown_from_district(ind_district)
+                    is_real_data = True
+                else:
+                    breakdown = _generate_mock_sales_breakdown(industry_code, str(district_code))
+            except Exception:
+                breakdown = _generate_mock_sales_breakdown(industry_code, str(district_code))
+        else:
+            breakdown = _generate_mock_sales_breakdown(industry_code, str(district_code))
+
+    # Ensure female_pct = 100 - male_pct
+    gender = breakdown.get("by_gender", {})
+    if gender.get("female_pct", 0) == 0:
+        gender["female_pct"] = 100 - gender.get("male_pct", 50)
+
+    return {
+        "district_code": district_code,
+        "district_name": district_name,
+        "industry_code": industry_code,
+        "industry_name": _INDUSTRY_NAMES.get(industry_code, ""),
+        "breakdown": breakdown,
+        "is_real_data": is_real_data,
     }

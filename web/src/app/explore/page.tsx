@@ -134,6 +134,25 @@ interface IndustryRank {
   rank: number;
 }
 
+interface StoreInfo {
+  store_name: string;
+  category: string;
+  address: string;
+  lat: number;
+  lng: number;
+  is_franchise: boolean;
+  place_url?: string;
+  phone?: string;
+  estimated_monthly_sales?: number;
+}
+
+interface SalesBreakdown {
+  by_gender: { male_pct: number; female_pct: number };
+  by_age: Record<string, number>;
+  by_time: Record<string, number>;
+  by_day: Record<string, number>;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -311,7 +330,7 @@ function GuMarker({
           <div className="bg-slate-800/95 backdrop-blur-sm text-white rounded-xl px-3.5 py-2.5 shadow-xl text-xs whitespace-nowrap min-w-[160px]">
             <p className="font-bold text-sm mb-1.5">{gu.gu_name}</p>
             <div className="space-y-1 text-slate-200">
-              <p>📊 종합 <span className="text-white font-semibold">{Math.round(colorScore)}점</span></p>
+              <p>📊 종합 <span className="text-white font-semibold">{Math.round(gu.avg_score)}점</span></p>
               <p>💰 평균매출 <span className="text-white font-semibold">{formatManShort(gu.avg_monthly_sales)}</span></p>
               <p>👥 유동인구 <span className="text-white font-semibold">{formatTraffic(gu.total_foot_traffic)}</span></p>
               <p>🏪 점포 <span className="text-white font-semibold">{gu.total_store_count}개</span></p>
@@ -333,17 +352,19 @@ function GuMarker({
 
 function DistrictMarker({
   district,
-  colorScore,
+  colorRank,
+  displayScore,
   isSelected,
   onClick,
 }: {
   district: DistrictGeo;
-  colorScore: number;
+  colorRank: number;
+  displayScore: number;
   isSelected: boolean;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const sc = scoreColor(colorScore);
+  const sc = scoreColor(colorRank);
 
   return (
     <div
@@ -364,7 +385,7 @@ function DistrictMarker({
         style={{ width: 34, height: 34 }}
       >
         <span className="text-white font-bold text-[10px]">
-          {Math.round(colorScore)}
+          {Math.round(displayScore)}
         </span>
       </button>
 
@@ -399,8 +420,13 @@ function LeftPanel({
   districts,
   industryRankings,
   industryCode,
+  guColorScores,
+  districtColorScores,
+  stores,
+  salesBreakdown,
   loadingDistricts,
   loadingRankings,
+  loadingStores,
   onBack,
 }: {
   selectedGu: GuSummary | null;
@@ -409,8 +435,13 @@ function LeftPanel({
   districts: DistrictGeo[];
   industryRankings: IndustryRank[];
   industryCode: string;
+  guColorScores: Record<string, number>;
+  districtColorScores: Record<string, number>;
+  stores: StoreInfo[];
+  salesBreakdown: SalesBreakdown | null;
   loadingDistricts: boolean;
   loadingRankings: boolean;
+  loadingStores: boolean;
   onBack: () => void;
 }) {
   // Default: show Seoul overview
@@ -456,7 +487,7 @@ function LeftPanel({
           </h3>
           <div className="space-y-1.5">
             {guData.slice(0, 5).map((gu, i) => {
-              const sc = scoreColor(gu.avg_score);
+              const sc = scoreColor(guColorScores[gu.gu_name] ?? 50);
               return (
                 <div
                   key={gu.gu_name}
@@ -487,7 +518,7 @@ function LeftPanel({
 
   // Selected gu — show gu detail
   if (!selectedDistrict) {
-    const sc = scoreColor(selectedGu.avg_score);
+    const sc = scoreColor(guColorScores[selectedGu.gu_name] ?? 50);
     return (
       <div className="h-full overflow-y-auto p-4 space-y-4">
         <button
@@ -519,11 +550,7 @@ function LeftPanel({
             <div
               className={cn(
                 "h-full rounded-full bg-gradient-to-r transition-all duration-500",
-                selectedGu.avg_score >= 80
-                  ? "from-emerald-500 to-emerald-400"
-                  : selectedGu.avg_score >= 60
-                    ? "from-amber-500 to-amber-400"
-                    : "from-rose-500 to-rose-400"
+                sc.gradient,
               )}
               style={{ width: `${Math.min(100, selectedGu.avg_score)}%` }}
             />
@@ -600,8 +627,8 @@ function LeftPanel({
           ) : (
             <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
               {districts.map((d) => {
-                const dScore = districtScore(d, "score");
-                const dsc = scoreColor(dScore);
+                const dRank = districtColorScores[d.district_code] ?? 50;
+                const dsc = scoreColor(dRank);
                 return (
                   <div
                     key={d.district_code}
@@ -631,7 +658,8 @@ function LeftPanel({
 
   // District detail
   const dScore = districtScore(selectedDistrict, "score");
-  const dsc = scoreColor(dScore);
+  const dRank = districtColorScores[selectedDistrict.district_code] ?? 50;
+  const dsc = scoreColor(dRank);
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
@@ -668,11 +696,7 @@ function LeftPanel({
         <div
           className={cn(
             "h-full rounded-full bg-gradient-to-r",
-            dScore >= 80
-              ? "from-emerald-500 to-emerald-400"
-              : dScore >= 60
-                ? "from-amber-500 to-amber-400"
-                : "from-rose-500 to-rose-400"
+            dsc.gradient,
           )}
           style={{ width: `${Math.min(100, dScore)}%` }}
         />
@@ -808,6 +832,173 @@ function LeftPanel({
           </div>
         )}
       </div>
+
+      {/* Store list — 이 상권의 점포들 */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Store size={14} className="text-blue-500" />
+          <h3 className="text-sm font-bold text-slate-700">
+            점포 현황
+          </h3>
+          {stores.length > 0 && (
+            <span className="text-[10px] text-slate-400 ml-auto">
+              {stores.filter(s => s.is_franchise).length}개 프랜차이즈 / {stores.filter(s => !s.is_franchise).length}개 독립
+            </span>
+          )}
+        </div>
+        {loadingStores ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((k) => (
+              <div key={k} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : stores.length === 0 ? (
+          <p className="text-xs text-slate-400">점포 데이터를 불러오는 중...</p>
+        ) : (
+          <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+            {stores.slice(0, 30).map((s, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 transition-colors"
+              >
+                <span className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0",
+                  s.is_franchise ? "bg-purple-500" : "bg-blue-500"
+                )}>
+                  {s.is_franchise ? "F" : "I"}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-slate-700 truncate">
+                    {s.store_name}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">{s.category}</p>
+                </div>
+                {s.place_url ? (
+                  <a
+                    href={s.place_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-blue-500 hover:text-blue-700 flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    지도 →
+                  </a>
+                ) : s.estimated_monthly_sales ? (
+                  <span className="text-[10px] text-slate-400 flex-shrink-0">
+                    ~{formatManShort(s.estimated_monthly_sales)}
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sales breakdown charts */}
+      {salesBreakdown && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 size={14} className="text-indigo-500" />
+            <h3 className="text-sm font-bold text-slate-700">매출 분석</h3>
+          </div>
+          <div className="space-y-3">
+            {/* Gender */}
+            <div className="bg-white rounded-xl border border-slate-100 p-3">
+              <p className="text-[10px] font-semibold text-slate-500 mb-2">성별 비중</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-500"
+                    style={{ width: `${salesBreakdown.by_gender.male_pct}%` }}
+                  />
+                  <div
+                    className="h-full bg-pink-500 transition-all duration-500"
+                    style={{ width: `${salesBreakdown.by_gender.female_pct}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between mt-1 text-[10px]">
+                <span className="text-blue-600">남성 {salesBreakdown.by_gender.male_pct}%</span>
+                <span className="text-pink-600">여성 {salesBreakdown.by_gender.female_pct}%</span>
+              </div>
+            </div>
+
+            {/* Age distribution */}
+            <div className="bg-white rounded-xl border border-slate-100 p-3">
+              <p className="text-[10px] font-semibold text-slate-500 mb-2">연령대별 매출</p>
+              <div className="space-y-1">
+                {Object.entries(salesBreakdown.by_age).map(([age, pct]) => (
+                  <div key={age} className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 w-10 flex-shrink-0">{age}</span>
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, (pct as number) * 2.5)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-600 w-8 text-right">{pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Time distribution */}
+            <div className="bg-white rounded-xl border border-slate-100 p-3">
+              <p className="text-[10px] font-semibold text-slate-500 mb-2">시간대별 매출</p>
+              <div className="flex items-end gap-1 h-16">
+                {Object.entries(salesBreakdown.by_time).map(([time, pct]) => {
+                  const label = time.replace("t_", "").replace("_", "~");
+                  const maxPct = Math.max(...Object.values(salesBreakdown.by_time).map(Number));
+                  const height = maxPct > 0 ? ((pct as number) / maxPct) * 100 : 0;
+                  const isMax = pct === maxPct;
+                  return (
+                    <div key={time} className="flex-1 flex flex-col items-center gap-0.5">
+                      <span className={cn("text-[8px]", isMax ? "text-indigo-600 font-bold" : "text-slate-400")}>
+                        {pct}%
+                      </span>
+                      <div
+                        className={cn(
+                          "w-full rounded-t transition-all duration-500",
+                          isMax ? "bg-indigo-500" : "bg-indigo-200"
+                        )}
+                        style={{ height: `${height}%`, minHeight: 2 }}
+                      />
+                      <span className="text-[7px] text-slate-400">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Day of week */}
+            <div className="bg-white rounded-xl border border-slate-100 p-3">
+              <p className="text-[10px] font-semibold text-slate-500 mb-2">요일별 매출</p>
+              <div className="flex items-end gap-1 h-12">
+                {Object.entries(salesBreakdown.by_day).map(([day, pct]) => {
+                  const maxPct = Math.max(...Object.values(salesBreakdown.by_day).map(Number));
+                  const height = maxPct > 0 ? ((pct as number) / maxPct) * 100 : 0;
+                  const isMax = pct === maxPct;
+                  return (
+                    <div key={day} className="flex-1 flex flex-col items-center gap-0.5">
+                      <span className={cn("text-[8px]", isMax ? "text-indigo-600 font-bold" : "text-slate-400")}>
+                        {pct}%
+                      </span>
+                      <div
+                        className={cn(
+                          "w-full rounded-t transition-all duration-500",
+                          isMax ? "bg-indigo-500" : "bg-indigo-200"
+                        )}
+                        style={{ height: `${height}%`, minHeight: 2 }}
+                      />
+                      <span className="text-[7px] text-slate-400">{day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -948,6 +1139,11 @@ function ExploreContent() {
     null
   );
 
+  // Store-level data
+  const [stores, setStores] = useState<StoreInfo[]>([]);
+  const [salesBreakdown, setSalesBreakdown] = useState<SalesBreakdown | null>(null);
+  const [loadingStores, setLoadingStores] = useState(false);
+
   // Loading
   const [loadingGu, setLoadingGu] = useState(true);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
@@ -960,6 +1156,9 @@ function ExploreContent() {
   // Mobile bottom sheet
   const [sheetHeight, setSheetHeight] = useState<SheetHeight>("collapsed");
 
+  // Districts prefetch cache: "industryCode:guName" → DistrictGeo[]
+  const districtsCacheRef = useRef<Record<string, DistrictGeo[]>>({});
+
   // Guide hint
   const [showGuide, setShowGuide] = useState(true);
 
@@ -970,6 +1169,30 @@ function ExploreContent() {
       return () => clearTimeout(t);
     }
   }, [showGuide]);
+
+  // ── Prefetch all districts in background for instant transitions ──
+  useEffect(() => {
+    if (guData.length === 0) return;
+    let cancelled = false;
+    const prefetch = async () => {
+      for (const gu of guData) {
+        if (cancelled) break;
+        const key = `${industryCode}:${gu.gu_name}`;
+        if (districtsCacheRef.current[key]) continue;
+        try {
+          const res = await fetch(
+            `${API_BASE}/explore/districts-geo?industry_code=${industryCode}&gu=${encodeURIComponent(gu.gu_name)}`
+          );
+          if (res.ok && !cancelled) {
+            const data = await res.json();
+            districtsCacheRef.current[key] = data.districts || [];
+          }
+        } catch { /* ignore prefetch errors */ }
+      }
+    };
+    prefetch();
+    return () => { cancelled = true; };
+  }, [guData, industryCode]);
 
   // ── Fetch gu summary ──
   const fetchGuSummary = useCallback(async (code: string) => {
@@ -988,9 +1211,15 @@ function ExploreContent() {
     }
   }, []);
 
-  // ── Fetch districts for a gu ──
+  // ── Fetch districts for a gu (with prefetch cache) ──
   const fetchDistricts = useCallback(
     async (gu: string) => {
+      const cacheKey = `${industryCode}:${gu}`;
+      const cached = districtsCacheRef.current[cacheKey];
+      if (cached && cached.length > 0) {
+        setDistricts(cached);
+        return;
+      }
       setLoadingDistricts(true);
       try {
         const res = await fetch(
@@ -998,7 +1227,9 @@ function ExploreContent() {
         );
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
-        setDistricts(data.districts || []);
+        const result = data.districts || [];
+        setDistricts(result);
+        districtsCacheRef.current[cacheKey] = result;
       } catch {
         setDistricts([]);
       } finally {
@@ -1024,6 +1255,37 @@ function ExploreContent() {
       setLoadingRankings(false);
     }
   }, []);
+
+  // ── Fetch stores + sales breakdown for a district ──
+  const fetchStores = useCallback(
+    async (districtCode: string) => {
+      setLoadingStores(true);
+      try {
+        const [storesRes, salesRes] = await Promise.all([
+          fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`),
+          fetch(`${API_BASE}/explore/sales-breakdown?district_code=${districtCode}&industry_code=${industryCode}`),
+        ]);
+        if (storesRes.ok) {
+          const data = await storesRes.json();
+          setStores(data.stores || []);
+        } else {
+          setStores([]);
+        }
+        if (salesRes.ok) {
+          const data = await salesRes.json();
+          setSalesBreakdown(data.breakdown || null);
+        } else {
+          setSalesBreakdown(null);
+        }
+      } catch {
+        setStores([]);
+        setSalesBreakdown(null);
+      } finally {
+        setLoadingStores(false);
+      }
+    },
+    [industryCode]
+  );
 
   // ── Initial load + industry change ──
   useEffect(() => {
@@ -1088,6 +1350,8 @@ function ExploreContent() {
     (d: DistrictGeo) => {
       setSelectedDistrict(d);
       setSheetHeight("half");
+      setStores([]);
+      setSalesBreakdown(null);
 
       mapRef.current?.flyTo({
         center: [d.lng, d.lat],
@@ -1096,8 +1360,9 @@ function ExploreContent() {
       });
 
       fetchRankings(d.district_code);
+      fetchStores(d.district_code);
     },
-    [fetchRankings]
+    [fetchRankings, fetchStores]
   );
 
   // ── Handle back ──
@@ -1105,6 +1370,8 @@ function ExploreContent() {
     if (selectedDistrict) {
       setSelectedDistrict(null);
       setIndustryRankings([]);
+      setStores([]);
+      setSalesBreakdown(null);
       if (selectedGu) {
         mapRef.current?.flyTo({
           center: [selectedGu.center_lng, selectedGu.center_lat],
@@ -1154,7 +1421,7 @@ function ExploreContent() {
           // Reset flag after fetch
           setTimeout(() => { isAutoSelectingRef.current = false; }, 1000);
         }
-      }, 400); // 400ms debounce
+      }, 150); // fast with prefetch cache
     }
 
     // When zoom < 12.5 and gu is selected, auto-deselect
@@ -1252,9 +1519,13 @@ function ExploreContent() {
               districts={districts}
               industryRankings={industryRankings}
               industryCode={industryCode}
-
+              guColorScores={guColorScores}
+              districtColorScores={districtColorScores}
+              stores={stores}
+              salesBreakdown={salesBreakdown}
               loadingDistricts={loadingDistricts}
               loadingRankings={loadingRankings}
+              loadingStores={loadingStores}
               onBack={handleBack}
             />
           )}
@@ -1346,15 +1617,45 @@ function ExploreContent() {
                 >
                   <DistrictMarker
                     district={d}
-                    colorScore={
-                      districtColorScores[d.district_code] ??
-                      districtScore(d, "score")
+                    colorRank={
+                      districtColorScores[d.district_code] ?? 50
                     }
+                    displayScore={districtScore(d, dataLayer)}
                     isSelected={
                       selectedDistrict?.district_code === d.district_code
                     }
                     onClick={() => handleDistrictClick(d)}
                   />
+                </Marker>
+              ))}
+            {/* Store-level pins (zoom >= 15 with selected district) */}
+            {zoom >= 15 && selectedDistrict && stores.length > 0 &&
+              stores.map((s, i) => (
+                <Marker
+                  key={`store-${i}`}
+                  longitude={s.lng}
+                  latitude={s.lat}
+                  anchor="bottom"
+                >
+                  <div className="group relative cursor-pointer">
+                    <div className={cn(
+                      "w-5 h-5 rounded-full border-2 border-white shadow-md flex items-center justify-center text-[8px] font-bold",
+                      s.is_franchise
+                        ? "bg-purple-500 text-white"
+                        : "bg-blue-500 text-white"
+                    )}>
+                      {s.is_franchise ? "F" : "I"}
+                    </div>
+                    {/* Hover tooltip */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block z-50 pointer-events-none">
+                      <div className="bg-slate-800/95 text-white rounded-lg px-2.5 py-1.5 shadow-xl text-[10px] whitespace-nowrap">
+                        <p className="font-bold">{s.store_name}</p>
+                        <p className="text-slate-300">{s.category}</p>
+                        {s.is_franchise && <p className="text-purple-300">프랜차이즈</p>}
+                        {s.place_url && <p className="text-blue-300">클릭하여 상세보기</p>}
+                      </div>
+                    </div>
+                  </div>
                 </Marker>
               ))}
           </Map>
@@ -1412,9 +1713,13 @@ function ExploreContent() {
               districts={districts}
               industryRankings={industryRankings}
               industryCode={industryCode}
-
+              guColorScores={guColorScores}
+              districtColorScores={districtColorScores}
+              stores={stores}
+              salesBreakdown={salesBreakdown}
               loadingDistricts={loadingDistricts}
               loadingRankings={loadingRankings}
+              loadingStores={loadingStores}
               onBack={handleBack}
             />
           )}
