@@ -203,7 +203,6 @@ function CostRow({
 
 function BulletList({
   icon,
-  iconColor,
   titleColor,
   title,
   items,
@@ -211,7 +210,6 @@ function BulletList({
   bulletChar,
 }: {
   icon: React.ReactNode;
-  iconColor: string;
   titleColor: string;
   title: string;
   items: string[];
@@ -419,7 +417,7 @@ export default function FranchisePage() {
                   {/* Pros */}
                   <BulletList
                     icon={<ShieldCheck size={14} className="text-emerald-500" />}
-                    iconColor="text-emerald-500"
+
                     titleColor="text-emerald-700"
                     title="장점"
                     items={FRANCHISE_PROS}
@@ -430,7 +428,7 @@ export default function FranchisePage() {
                   {/* Risks */}
                   <BulletList
                     icon={<AlertTriangle size={14} className="text-amber-500" />}
-                    iconColor="text-amber-500"
+
                     titleColor="text-amber-700"
                     title="리스크"
                     items={FRANCHISE_RISKS}
@@ -477,7 +475,7 @@ export default function FranchisePage() {
                   {/* Pros */}
                   <BulletList
                     icon={<ShieldCheck size={14} className="text-emerald-500" />}
-                    iconColor="text-emerald-500"
+
                     titleColor="text-emerald-700"
                     title="장점"
                     items={INDEPENDENT_PROS}
@@ -488,7 +486,7 @@ export default function FranchisePage() {
                   {/* Risks */}
                   <BulletList
                     icon={<AlertTriangle size={14} className="text-amber-500" />}
-                    iconColor="text-amber-500"
+
                     titleColor="text-amber-700"
                     title="리스크"
                     items={INDEPENDENT_RISKS}

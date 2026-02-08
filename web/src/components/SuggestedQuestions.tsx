@@ -332,7 +332,7 @@ export function InitialQuestions({ onSelect, industryCode }: { onSelect: (q: str
           break;
       }
     },
-    [handleClick]
+    [handleClick, questions]
   );
 
   useEffect(() => {

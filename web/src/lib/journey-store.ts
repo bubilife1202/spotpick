@@ -48,6 +48,7 @@ interface JourneyState {
   districts: string[];
   selectedDistrict: SelectedDistrict | null;
   franchiseChoice: "franchise" | "independent" | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   matchedPrograms: any[];
 
   setStep: (step: JourneyStep) => void;
@@ -56,6 +57,7 @@ interface JourneyState {
   setDistricts: (districts: string[]) => void;
   selectDistrict: (district: SelectedDistrict) => void;
   setFranchiseChoice: (choice: "franchise" | "independent") => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMatchedPrograms: (programs: any[]) => void;
   goToFranchise: () => string;
   goToSupport: () => string;
