@@ -1360,7 +1360,6 @@ async def _section_franchise_comparison(
 
     franchise_startup_costs = franchise_bm.get("startup_costs", [])
     avg_franchise_total = franchise_bm.get("avg_total_startup_cost", 0)
-    avg_franchise_interior = franchise_bm.get("avg_interior_cost", 0)
     brand_count = franchise_bm.get("brand_count", 0)
     franchise_store_count = franchise_bm.get("store_count", 0)
     source = franchise_bm.get("source", "")
@@ -1374,17 +1373,16 @@ async def _section_franchise_comparison(
     # Franchise table
     franchise_table = ""
     if has_franchise:
-        franchise_table = "\n### 프랜차이즈 브랜드별 창업비용\n\n"
-        franchise_table += "| 브랜드 | 가맹비 | 교육비 | 보증금 | 인테리어 | 총 창업비 |\n"
-        franchise_table += "|--------|--------|--------|--------|----------|----------|\n"
+        franchise_table = "\n### 프랜차이즈 업종별 평균 창업비용\n\n"
+        franchise_table += "| 업종 | 가맹금 | 가맹비(교육) | 기타 가입비 | 합계 |\n"
+        franchise_table += "|------|--------|-------------|------------|------|\n"
         for cost in franchise_startup_costs[:10]:
             franchise_table += (
                 f"| {cost.get('name', '-')} "
                 f"| {_fmt_man(cost.get('franchise_fee', 0))} "
                 f"| {_fmt_man(cost.get('education_fee', 0))} "
-                f"| {_fmt_man(cost.get('deposit', 0))} "
-                f"| {_fmt_man(cost.get('interior_cost', 0))} "
-                f"| {_fmt_man(cost.get('total_startup_cost', 0))} |\n"
+                f"| {_fmt_man(cost.get('other_fee', 0))} "
+                f"| {_fmt_man(cost.get('total_joining_cost', 0))} |\n"
             )
         if source:
             franchise_table += f"\n> 출처: {source}\n"
@@ -1395,8 +1393,7 @@ async def _section_franchise_comparison(
 
 | 구분 | 독립창업 | 프랜차이즈 (평균) |
 |------|----------|-------------------|
-| **총 창업비** | {_fmt_man(independent_total)} | {_fmt_man(avg_franchise_total) if avg_franchise_total else '데이터 없음'} |
-| **인테리어** | {_fmt_man(startup['interior'])} | {_fmt_man(avg_franchise_interior) if avg_franchise_interior else '데이터 없음'} |
+| **총 가입비(가맹금+교육+기타)** | {_fmt_man(independent_total)} | {_fmt_man(avg_franchise_total) if avg_franchise_total else '데이터 없음'} |
 | **가맹비/교육비** | 없음 | {'있음 (브랜드별 상이)' if has_franchise else '데이터 없음'} |
 | **월 로열티** | 없음 | 매출의 2~5% (월 {_fmt_man(int(monthly_rev * 0.03))}~{_fmt_man(int(monthly_rev * 0.05))} 추정) |
 | **메뉴 자율성** | 완전 자유 | 본사 규정 준수 |
@@ -1410,7 +1407,7 @@ async def _section_franchise_comparison(
     # Gemini prompt
     brand_details = ""
     if franchise_startup_costs:
-        lines = [f"- {c.get('name')}: 총 {_fmt_man(c.get('total_startup_cost', 0))}, 가맹비 {_fmt_man(c.get('franchise_fee', 0))}, 인테리어 {_fmt_man(c.get('interior_cost', 0))}"
+        lines = [f"- {c.get('name')}: 합계 {_fmt_man(c.get('total_joining_cost', 0))}, 가맹금 {_fmt_man(c.get('franchise_fee', 0))}, 기타 {_fmt_man(c.get('other_fee', 0))}"
                  for c in franchise_startup_costs[:5]]
         brand_details = "브랜드별 상세:\n" + "\n".join(lines)
 

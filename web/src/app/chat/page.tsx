@@ -834,9 +834,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                     const costs = fb.startup_costs!;
                                     const avgFranchiseFee = Math.round(costs.reduce((s, c) => s + c.franchise_fee, 0) / costs.length);
                                     const avgEducationFee = Math.round(costs.reduce((s, c) => s + c.education_fee, 0) / costs.length);
-                                    const avgDeposit = Math.round(costs.reduce((s, c) => s + c.deposit, 0) / costs.length);
-                                    const avgInterior = Math.round(costs.reduce((s, c) => s + c.interior_cost, 0) / costs.length);
-                                    const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_startup_cost, 0) / costs.length);
+                                    const avgOtherFee = Math.round(costs.reduce((s, c) => s + c.other_fee, 0) / costs.length);
+                                    const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_joining_cost, 0) / costs.length);
                                     return (
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {/* 왼쪽: 독립창업 예상 */}
@@ -882,12 +881,8 @@ function ChatHome({ onSwitchToSearch, onGoHome, initialQuery }: { onSwitchToSear
                                               <span className="text-slate-600 font-medium">{avgEducationFee > 0 ? formatMan(avgEducationFee) : "-"}</span>
                                             </div>
                                             <div className="flex justify-between">
-                                              <span className="text-slate-400">보증금</span>
-                                              <span className="text-slate-600 font-medium">{avgDeposit > 0 ? formatMan(avgDeposit) : "-"}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-slate-400">인테리어</span>
-                                              <span className="text-slate-600 font-medium">{avgInterior > 0 ? formatMan(avgInterior) : "-"}</span>
+                                              <span className="text-slate-400">기타 가입비</span>
+                                              <span className="text-slate-600 font-medium">{avgOtherFee > 0 ? formatMan(avgOtherFee) : "-"}</span>
                                             </div>
                                           </div>
                                           <div className="flex justify-between pt-1 border-t border-slate-200/60 text-[11px]">

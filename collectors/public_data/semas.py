@@ -35,7 +35,7 @@ class BusinessStore:
 
 
 class SemasCollector(BaseCollector):
-    BASE_URL = "http://apis.data.go.kr/B553077/api/open"
+    BASE_URL = "https://apis.data.go.kr/B553077/api/open/sdsc2"
 
     def __init__(self, api_key: str):
         super().__init__(name="semas", base_url=self.BASE_URL)
@@ -55,6 +55,10 @@ class SemasCollector(BaseCollector):
     async def _collect_stores(self, params: dict[str, Any]) -> CollectionResult[BusinessStore]:
         region_code = params.get("region_code", "11")  # Default: Seoul
         page_size = params.get("page_size", 1000)
+        # sdsc2: storeListInDong(행정동코드 기반), storeListInArea(상권번호 기반)
+        # region_code가 행정동코드이면 storeListInDong, 상권번호이면 storeListInArea
+        query_type = params.get("query_type", "dong")  # "dong" or "area"
+        endpoint = "storeListInDong" if query_type == "dong" else "storeListInArea"
 
         stores: list[BusinessStore] = []
         errors: list[str] = []
@@ -63,16 +67,20 @@ class SemasCollector(BaseCollector):
         while True:
             async with self.rate_limiter:
                 try:
+                    api_params: dict[str, Any] = {
+                        "serviceKey": self.api_key,
+                        "key": region_code,
+                        "pageNo": page,
+                        "numOfRows": page_size,
+                        "type": "json",
+                    }
+                    # storeListInDong uses divId; storeListInArea does not
+                    if query_type == "dong":
+                        api_params["divId"] = "adongCd"
+
                     response = await self.fetch_json(
-                        f"{self.BASE_URL}/storeListInArea",
-                        params={
-                            "serviceKey": self.api_key,
-                            "divId": "adongCd",
-                            "key": region_code,
-                            "pageNo": page,
-                            "numOfRows": page_size,
-                            "type": "json",
-                        },
+                        f"{self.BASE_URL}/{endpoint}",
+                        params=api_params,
                     )
 
                     items = response.get("body", {}).get("items", [])

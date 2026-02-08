@@ -86,7 +86,6 @@ class CompetitionResponse(BaseModel):
 class FranchiseBenchmarkResponse(BaseModel):
     source: Optional[str] = None
     avg_total_startup_cost: Optional[int] = None
-    avg_interior_cost: Optional[int] = None
     brand_count: Optional[int] = None
     store_count: Optional[int] = None
 

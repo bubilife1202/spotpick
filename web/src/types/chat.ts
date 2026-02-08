@@ -320,17 +320,15 @@ export interface FranchiseStartupCostItem {
   name: string;
   franchise_fee: number;
   education_fee: number;
-  deposit: number;
   other_fee: number;
   total_joining_cost: number;
-  interior_cost: number;
-  total_startup_cost: number;
+  franchise_count?: number;
+  store_count?: number;
 }
 
 export interface FranchiseBenchmark {
   source: string;
   avg_total_startup_cost?: number;
-  avg_interior_cost?: number;
   brand_count?: number;
   store_count?: number;
   startup_costs?: FranchiseStartupCostItem[];

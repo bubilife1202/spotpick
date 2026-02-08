@@ -476,9 +476,8 @@ function ProfitabilitySection({
             const costs = fb.startup_costs!;
             const avgFranchiseFee = Math.round(costs.reduce((s, c) => s + c.franchise_fee, 0) / costs.length);
             const avgEducationFee = Math.round(costs.reduce((s, c) => s + c.education_fee, 0) / costs.length);
-            const avgDeposit = Math.round(costs.reduce((s, c) => s + c.deposit, 0) / costs.length);
-            const avgInterior = Math.round(costs.reduce((s, c) => s + c.interior_cost, 0) / costs.length);
-            const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_startup_cost, 0) / costs.length);
+            const avgOtherFee = Math.round(costs.reduce((s, c) => s + c.other_fee, 0) / costs.length);
+            const avgTotal = fb.avg_total_startup_cost || Math.round(costs.reduce((s, c) => s + c.total_joining_cost, 0) / costs.length);
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-2">
@@ -507,8 +506,7 @@ function ProfitabilitySection({
                     {[
                       ["가맹비", avgFranchiseFee > 0 ? formatMan(avgFranchiseFee) : "-"],
                       ["교육비", avgEducationFee > 0 ? formatMan(avgEducationFee) : "-"],
-                      ["보증금", avgDeposit > 0 ? formatMan(avgDeposit) : "-"],
-                      ["인테리어", avgInterior > 0 ? formatMan(avgInterior) : "-"],
+                      ["기타 가입비", avgOtherFee > 0 ? formatMan(avgOtherFee) : "-"],
                     ].map(([k, v]) => (
                       <div key={k} className="flex justify-between">
                         <span className="text-slate-400">{k}</span>

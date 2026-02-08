@@ -2,7 +2,12 @@
 SEMAS (소상공인시장진흥공단) Store API Service
 
 개별 점포 데이터 조회: 상권 내 점포 목록, 반경 검색.
-API: apis.data.go.kr/B553077/api/open/sdsc
+API: apis.data.go.kr/B553077/api/open/sdsc2
+
+NOTE: 2025년 하반기 SEMAS API가 /sdsc → /sdsc2 로 마이그레이션됨.
+  - 업종분류: 837개 → 247개 (표준산업분류 10차 기반)
+  - 상가업소번호 재생성 (과거 데이터와 비호환)
+  - 응답 필드명은 동일 유지 (bizesNm, lat, lon 등)
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 DATA_GO_KR_API_KEY = os.getenv("DATA_GO_KR_API_KEY", "")
 
-SEMAS_BASE_URL = "http://apis.data.go.kr/B553077/api/open/sdsc"
+SEMAS_BASE_URL = "https://apis.data.go.kr/B553077/api/open/sdsc2"
 
 # ---------------------------------------------------------------------------
 # 업종 매핑: SEMAS 대분류코드 <-> 우리 CS 코드

@@ -537,8 +537,6 @@ class SimulationService:
                 }
                 if benchmark.get("avg_total_startup_cost"):
                     franchise_info["avg_total_startup_cost"] = benchmark["avg_total_startup_cost"]
-                if benchmark.get("avg_interior_cost"):
-                    franchise_info["avg_interior_cost"] = benchmark["avg_interior_cost"]
                 # 개별 소분류별 창업비용 상세 (프론트엔드 비교표용)
                 if benchmark.get("startup_costs"):
                     franchise_info["startup_costs"] = benchmark["startup_costs"]

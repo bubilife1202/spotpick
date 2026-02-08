@@ -33,23 +33,31 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 // Types (matches franchise_data_service.py response)
 // ---------------------------------------------------------------------------
 
-interface StartupCosts {
+interface StartupCostItem {
+  name: string;
   franchise_fee: number;
   education_fee: number;
-  deposit: number;
-  interior_cost: number;
-  total_startup_cost: number;
+  other_fee: number;
+  total_joining_cost: number;
+  franchise_count?: number;
+  store_count?: number;
 }
 
-interface IndustryStatus {
+interface IndustryStatusItem {
+  name: string;
+  hq_count: number;
   brand_count: number;
   store_count: number;
-  avg_sales: number;
+  closed_store_count: number;
 }
 
 interface FranchiseBenchmark {
-  startup_costs: StartupCosts;
-  industry_status: IndustryStatus;
+  source: string;
+  available: boolean;
+  year?: string;
+  startup_costs: StartupCostItem[];
+  industry_status: IndustryStatusItem[];
+  avg_total_startup_cost?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,16 +97,17 @@ function getIndustryPros(code: string, type: "franchise" | "independent"): strin
   return INDUSTRY_INDEPENDENT_PROS[code] || DEFAULT_INDEPENDENT_PROS;
 }
 
-function generateFranchiseInsight(data: FranchiseBenchmark, independentTotal: number): string {
-  const diff = data.startup_costs.total_startup_cost - independentTotal;
-  const avgSalesMan = Math.round(data.industry_status.avg_sales / 10000);
-  if (data.industry_status.brand_count > 100) {
-    return `${data.industry_status.brand_count}개 브랜드가 경쟁 중인 레드오션 업종입니다. 프랜차이즈 선택 시 브랜드 차별화가 핵심입니다.`;
+function generateFranchiseInsight(data: FranchiseBenchmark): string {
+  const avgCost = data.avg_total_startup_cost || 0;
+  const totalBrands = data.industry_status.reduce((s, st) => s + st.brand_count, 0);
+  const totalStores = data.industry_status.reduce((s, st) => s + st.store_count, 0);
+  if (totalBrands > 100) {
+    return `${totalBrands}개 브랜드가 경쟁 중인 업종입니다. 프랜차이즈 선택 시 브랜드 차별화가 핵심입니다.`;
   }
-  if (diff > 30000000) {
-    return `프랜차이즈가 독립 창업 대비 ${formatManWon(diff)} 더 들지만, 평균 월매출 ${avgSalesMan}만원의 안정적 수익이 기대됩니다.`;
+  if (avgCost > 0) {
+    return `프랜차이즈 평균 가입비(합계) ${formatManWon(avgCost)}, 가맹점 ${totalStores.toLocaleString()}개 운영 중입니다.`;
   }
-  return `프랜차이즈 평균 초기비용 ${formatManWon(data.startup_costs.total_startup_cost)}, 가맹점 ${data.industry_status.store_count.toLocaleString()}개 운영 중. 평균 월매출 ${avgSalesMan}만원입니다.`;
+  return `가맹점 ${totalStores.toLocaleString()}개 운영 중인 업종입니다.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,11 +310,14 @@ export default function FranchisePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [industryCode]);
 
-  // Derived independent costs
-  const independentInterior = data
-    ? Math.round(data.startup_costs.interior_cost * 0.7)
-    : 0;
-  const independentTotal = independentInterior;
+  // Derived: average franchise joining cost
+  const avgJoiningCost = data?.avg_total_startup_cost || 0;
+  // Aggregate industry status
+  const totalHqCount = data?.industry_status.reduce((s, st) => s + st.hq_count, 0) || 0;
+  const totalStoreCount = data?.industry_status.reduce((s, st) => s + st.store_count, 0) || 0;
+  const totalClosedCount = data?.industry_status.reduce((s, st) => s + st.closed_store_count, 0) || 0;
+  // Pick first matching startup cost entry for display
+  const primaryCost = data?.startup_costs?.[0];
 
   // Choice handlers
   const handleFranchiseChoice = () => {
@@ -385,7 +397,7 @@ export default function FranchisePage() {
         {/* Comparison cards */}
         {!loading && !error && data && (
           <>
-            <AiInsightBanner message={generateFranchiseInsight(data, independentTotal)} className="mb-2" />
+            <AiInsightBanner message={generateFranchiseInsight(data)} className="mb-2" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* LEFT -- Franchise Card */}
               <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
@@ -407,27 +419,29 @@ export default function FranchisePage() {
 
                   {/* Cost breakdown */}
                   <div className="bg-slate-50 rounded-xl p-4">
-                    <CostRow
-                      label="가맹비"
-                      value={formatManWon(data.startup_costs.franchise_fee)}
-                    />
-                    <CostRow
-                      label="교육비"
-                      value={formatManWon(data.startup_costs.education_fee)}
-                    />
-                    <CostRow
-                      label="보증금"
-                      value={formatManWon(data.startup_costs.deposit)}
-                    />
-                    <CostRow
-                      label="인테리어"
-                      value={formatManWon(data.startup_costs.interior_cost)}
-                    />
-                    <CostRow
-                      label="총 초기비용"
-                      value={formatManWon(data.startup_costs.total_startup_cost)}
-                      bold
-                    />
+                    {primaryCost ? (
+                      <>
+                        <CostRow
+                          label="가맹금(가입비)"
+                          value={formatManWon(primaryCost.franchise_fee)}
+                        />
+                        <CostRow
+                          label="가맹비(교육 포함)"
+                          value={formatManWon(primaryCost.education_fee)}
+                        />
+                        <CostRow
+                          label="기타 가입비"
+                          value={formatManWon(primaryCost.other_fee)}
+                        />
+                        <CostRow
+                          label="합계"
+                          value={formatManWon(primaryCost.total_joining_cost)}
+                          bold
+                        />
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-400 text-center py-2">데이터 없음</p>
+                    )}
                   </div>
 
                   {/* Pros */}
@@ -474,16 +488,12 @@ export default function FranchisePage() {
 
                   {/* Cost breakdown */}
                   <div className="bg-slate-50 rounded-xl p-4">
-                    <CostRow label="가맹비" value="0원" highlight />
-                    <CostRow label="교육비" value="0원" highlight />
-                    <CostRow label="보증금" value="0원" highlight />
+                    <CostRow label="가맹금" value="0원" highlight />
+                    <CostRow label="가맹비(교육)" value="0원" highlight />
+                    <CostRow label="기타 가입비" value="0원" highlight />
                     <CostRow
-                      label="인테리어"
-                      value={formatManWon(independentInterior)}
-                    />
-                    <CostRow
-                      label="총 초기비용"
-                      value={formatManWon(independentTotal)}
+                      label="합계"
+                      value="0원"
                       bold
                     />
                   </div>
@@ -514,14 +524,12 @@ export default function FranchisePage() {
             </div>
 
             {/* Savings highlight */}
-            {data.startup_costs.total_startup_cost > independentTotal && (
+            {avgJoiningCost > 0 && (
               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5 text-center">
                 <p className="text-sm text-emerald-700">
-                  독립 창업 시{" "}
+                  독립 창업 시 가맹 가입비{" "}
                   <span className="font-extrabold text-emerald-800 text-lg">
-                    {formatManWon(
-                      data.startup_costs.total_startup_cost - independentTotal
-                    )}
+                    {formatManWon(avgJoiningCost)}
                   </span>{" "}
                   절약 가능
                 </p>
@@ -538,7 +546,7 @@ export default function FranchisePage() {
                 <div className="bg-slate-50 rounded-xl p-4 text-center">
                   <p className="text-xs text-slate-500 mb-1">가맹본부 수</p>
                   <p className="text-2xl font-extrabold text-slate-800">
-                    {data.industry_status.brand_count.toLocaleString()}
+                    {totalHqCount.toLocaleString()}
                     <span className="text-sm font-medium text-slate-500 ml-0.5">
                       개
                     </span>
@@ -547,18 +555,18 @@ export default function FranchisePage() {
                 <div className="bg-slate-50 rounded-xl p-4 text-center">
                   <p className="text-xs text-slate-500 mb-1">가맹점 수</p>
                   <p className="text-2xl font-extrabold text-slate-800">
-                    {data.industry_status.store_count.toLocaleString()}
+                    {totalStoreCount.toLocaleString()}
                     <span className="text-sm font-medium text-slate-500 ml-0.5">
                       개
                     </span>
                   </p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-slate-500 mb-1">평균 매출</p>
+                  <p className="text-xs text-slate-500 mb-1">폐점 수</p>
                   <p className="text-2xl font-extrabold text-slate-800">
-                    {formatManWon(data.industry_status.avg_sales)}
+                    {totalClosedCount.toLocaleString()}
                     <span className="text-sm font-medium text-slate-500 ml-0.5">
-                      /월
+                      개
                     </span>
                   </p>
                 </div>

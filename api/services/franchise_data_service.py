@@ -52,26 +52,44 @@ INDUSTRY_KEYWORD_MAP: dict[str, list[str]] = {
 
 
 class FranchiseStartupCost(TypedDict):
-    """공정위 기준 가맹사업 창업비용 (단위: 천원 → 원으로 변환)"""
+    """공정위 기준 가맹사업 창업비용 (단위: 천원 → 원으로 변환)
+
+    API 실제 필드:
+      avrgFrcsAmt  – 평균 가맹비(교육비 포함)
+      avrgFntnAmt  – 평균 가맹금(가입비)
+      avrgJngEtcAmt – 평균 기타 가입비
+      smtnAmt      – 합계
+    """
     year: str
     industry_name: str
-    franchise_fee: int          # 가맹비
-    education_fee: int          # 교육비
-    deposit: int                # 보증금
-    other_fee: int              # 기타 가입비
-    total_joining_cost: int     # 가입비 합계
-    interior_cost: int          # 인테리어 비용 (있을 경우)
-    total_startup_cost: int     # 총 창업비용 (있을 경우)
+    franchise_fee: int          # avrgFntnAmt – 가맹금(가입비)
+    education_fee: int          # avrgFrcsAmt – 가맹비(교육비 포함)
+    other_fee: int              # avrgJngEtcAmt – 기타 가입비
+    total_joining_cost: int     # smtnAmt – 합계
+    franchise_count: int        # jnghdqrtrsCnt – 가맹본부 수
+    store_count: int            # frcsCnt – 가맹점 수
     raw: dict[str, Any]         # API 원본 데이터
 
 
 class FranchiseIndustryStatus(TypedDict):
-    """공정위 기준 업종 개황"""
+    """공정위 기준 업종 개황
+
+    API 실제 필드 (getIndutySttusOutStats):
+      jnghdqrtrsCnt     – 가맹본부 수
+      jnghdqrtrsCntRate – 가맹본부 비율(%)
+      brandCnt          – 브랜드 수
+      brandCntRate      – 브랜드 비율(%)
+      frcsCnt           – 가맹점 수
+      frcsCntRate       – 가맹점 비율(%)
+      droperStorCnt     – 폐점 수
+      droperStorCntRate – 폐점 비율(%)
+    """
     year: str
     industry_name: str
-    brand_count: int            # 가맹본부 수
-    store_count: int            # 가맹점 수
-    avg_sales: int              # 평균 매출액 (있을 경우)
+    hq_count: int               # jnghdqrtrsCnt – 가맹본부 수
+    brand_count: int             # brandCnt – 브랜드 수
+    store_count: int             # frcsCnt – 가맹점 수
+    closed_store_count: int      # droperStorCnt – 폐점 수
     raw: dict[str, Any]
 
 
@@ -129,9 +147,38 @@ async def _call_api(
         logger.error("공정위 API 호출 실패: %s", e)
         return []
 
-    # data.go.kr 응답 구조: response.body.items or items.item
+    # ---------------------------------------------------------------
+    # 공정위 가맹사업 API 응답 구조 (2가지 형태 모두 처리)
+    #   (A) 플랫 형태 : {"resultCode":"00", "items":[...]}
+    #   (B) 중첩 형태 : {"response":{"header":..., "body":{"items":{"item":[...]}}}}
+    # ---------------------------------------------------------------
     try:
-        body = data.get("response", data).get("body", data)
+        # (A) 에러 코드 확인 (플랫 형태)
+        result_code = data.get("resultCode") or ""
+        if str(result_code) != "00" and str(result_code) != "":
+            result_msg = data.get("resultMsg", "UNKNOWN")
+            logger.error(
+                "공정위 API 오류 응답: resultCode=%s, resultMsg=%s, url=%s",
+                result_code, result_msg, url,
+            )
+            return []
+
+        # (A) 플랫 형태 → items 키가 최상위에 있으면 바로 반환
+        if "items" in data and isinstance(data["items"], list):
+            return data["items"]
+
+        # (B) 중첩 형태 → response.body.items.item
+        body = data.get("response", {}).get("body", {})
+        # 중첩 형태의 에러 체크
+        header = data.get("response", {}).get("header", {})
+        h_code = header.get("resultCode", "")
+        if str(h_code) != "00" and str(h_code) != "":
+            logger.error(
+                "공정위 API 오류 응답: resultCode=%s, resultMsg=%s, url=%s",
+                h_code, header.get("resultMsg", ""), url,
+            )
+            return []
+
         items = body.get("items", [])
         if isinstance(items, dict):
             items = items.get("item", [])
@@ -216,11 +263,14 @@ async def fetch_franchise_startup_costs(
                 industry_name=item.get("indutyMlsfcNm", ""),
                 franchise_fee=_safe_int(item.get("avrgFntnAmt", 0)),
                 education_fee=_safe_int(item.get("avrgFrcsAmt", 0)),
-                deposit=_safe_int(item.get("avrgBznsmrtAmt", 0)),
                 other_fee=_safe_int(item.get("avrgJngEtcAmt", 0)),
                 total_joining_cost=_safe_int(item.get("smtnAmt", 0)),
-                interior_cost=_safe_int(item.get("avrgIntrrAmt", 0)),
-                total_startup_cost=_safe_int(item.get("smtnFntnAmt", 0)),
+                franchise_count=_safe_int(
+                    item.get("jnghdqrtrsCnt", 0), unit_cheonwon=False,
+                ),
+                store_count=_safe_int(
+                    item.get("frcsCnt", 0), unit_cheonwon=False,
+                ),
                 raw=item,
             )
             all_results.append(result)
@@ -263,9 +313,18 @@ async def fetch_franchise_industry_status(
             result = FranchiseIndustryStatus(
                 year=yr,
                 industry_name=item.get("indutyMlsfcNm", item.get("indutyNm", "")),
-                brand_count=_safe_int(item.get("frchsHdofcCnt", 0), unit_cheonwon=False),
-                store_count=_safe_int(item.get("frchsStorCnt", 0), unit_cheonwon=False),
-                avg_sales=_safe_int(item.get("avrgSlsAmt", 0)),
+                hq_count=_safe_int(
+                    item.get("jnghdqrtrsCnt", 0), unit_cheonwon=False,
+                ),
+                brand_count=_safe_int(
+                    item.get("brandCnt", 0), unit_cheonwon=False,
+                ),
+                store_count=_safe_int(
+                    item.get("frcsCnt", 0), unit_cheonwon=False,
+                ),
+                closed_store_count=_safe_int(
+                    item.get("droperStorCnt", 0), unit_cheonwon=False,
+                ),
                 raw=item,
             )
             all_results.append(result)
@@ -303,29 +362,26 @@ async def get_franchise_benchmark(
                 "name": c["industry_name"],
                 "franchise_fee": c["franchise_fee"],
                 "education_fee": c["education_fee"],
-                "deposit": c["deposit"],
                 "other_fee": c["other_fee"],
                 "total_joining_cost": c["total_joining_cost"],
-                "interior_cost": c["interior_cost"],
-                "total_startup_cost": c["total_startup_cost"],
+                "franchise_count": c["franchise_count"],
+                "store_count": c["store_count"],
             }
             for c in costs
         ]
-        # 평균 창업비용 산출
-        valid_totals = [c["total_startup_cost"] for c in costs if c["total_startup_cost"] > 0]
+        # 평균 창업비용(합계) 산출
+        valid_totals = [c["total_joining_cost"] for c in costs if c["total_joining_cost"] > 0]
         if valid_totals:
             benchmark["avg_total_startup_cost"] = sum(valid_totals) // len(valid_totals)
-        valid_interior = [c["interior_cost"] for c in costs if c["interior_cost"] > 0]
-        if valid_interior:
-            benchmark["avg_interior_cost"] = sum(valid_interior) // len(valid_interior)
 
     if status:
         benchmark["industry_status"] = [
             {
                 "name": s["industry_name"],
+                "hq_count": s["hq_count"],
                 "brand_count": s["brand_count"],
                 "store_count": s["store_count"],
-                "avg_sales": s["avg_sales"],
+                "closed_store_count": s["closed_store_count"],
             }
             for s in status
         ]

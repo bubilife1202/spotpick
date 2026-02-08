@@ -64,8 +64,11 @@ class KosisCollector(BaseCollector):
                         "apiKey": self.api_key,
                         "format": "json",
                         "jsonVD": "Y",
+                        "jsonMVD": "Y",
                         "orgId": "101",
                         "tblId": "DT_1B040A3",  # 주민등록인구현황
+                        "objL1": "ALL",
+                        "itmId": "ALL",
                         "prdSe": "Y",
                         "startPrdDe": str(year),
                         "endPrdDe": str(year),

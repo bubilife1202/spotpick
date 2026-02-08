@@ -5,10 +5,17 @@ KOSIS (국가통계포털) 외식업체경영실태조사 데이터 서비스
 시뮬레이션의 하드코딩 원가율을 실제 정부 조사 데이터로 대체하기 위한 서비스.
 
 사용 통계표 (orgId=114, 외식업체경영실태조사):
-- DT_114054_029: 수익성·생산성 분석
-- DT_114054_028: 사업실적 (매출액/식재료비/인건비/임차료)
-- DT_114054_031: 식재료비 사용
-- DT_114054_022: 객단가
+- DT_114054_029: 수익성·생산성 분석  (분류1: A/특성별, 항목: T001~T006)
+- DT_114054_028: 사업실적 (매출액/식재료비/인건비/임차료) (분류1: A/사업실적별, 분류2: B/특성별)
+- DT_114054_031: 식재료비 사용  (분류1+분류2)
+- DT_114054_022: 객단가  (분류1: A/특성별, 분류2: B/객단가분포별)
+
+KOSIS API 파라미터 주의사항:
+- objL1/objL2 에 "ALL" 을 넣어야 전체 조회 (구체 코드는 A01, B01 등 — T1, 01 같은 축약형 불가)
+- itmId 에 "ALL" 사용 가능 (구체 코드는 T001, T002 등)
+- 2-레벨 분류 테이블은 objL2 누락 시 에러 20 ("필수요청변수값이 누락")
+- 잘못된 코드 전달 시 에러 21 ("잘못된 요청 변수를 호출 하였습니다")
+- prdSe="Y" (연간), startPrdDe/endPrdDe 로 조회 기간 지정
 """
 
 from __future__ import annotations
@@ -18,9 +25,14 @@ import os
 import time
 from typing import Any, TypedDict
 
+import requests as _requests
+
 logger = logging.getLogger(__name__)
 
 KOSIS_API_KEY = os.getenv("KOSIS_API_KEY", "")
+
+# 최신 이용 가능 연도 (외식업체경영실태조사: 2018~2024)
+DEFAULT_YEAR = "2024"
 
 # ---------------------------------------------------------------------------
 # 우리 업종코드 → KOSIS 업종명 매핑
@@ -140,11 +152,23 @@ def _set_cached(key: str, val: Any) -> None:
 
 
 # ---------------------------------------------------------------------------
-# KOSIS API 호출 (PublicDataReader 사용)
+# KOSIS API 호출
+# ---------------------------------------------------------------------------
+# PublicDataReader 라이브러리가 있으면 사용하고, 없으면 직접 HTTP 호출.
+#
+# PublicDataReader 내부 동작 (kosis.py):
+#   URL = "https://kosis.kr/openapi/Param/statisticsParameterData.do?method=getList"
+#   params = {apiKey: unquote(key), format: "json", jsonVD: "Y", jsonMVD: "Y", ...kwargs}
+#   → requests.get(url, params=params) → JSON 파싱 → DataFrame
+#
+# 직접 호출 시에도 동일한 파라미터를 사용한다.
 # ---------------------------------------------------------------------------
 
+_KOSIS_STAT_URL = "https://kosis.kr/openapi/Param/statisticsParameterData.do"
+
+
 def _get_kosis_client():
-    """Kosis 클라이언트를 생성. 임포트 에러 시 None 반환."""
+    """Kosis 클라이언트를 생성. PublicDataReader 미설치 시 None 반환."""
     if not KOSIS_API_KEY:
         logger.warning("KOSIS_API_KEY 미설정")
         return None
@@ -152,57 +176,127 @@ def _get_kosis_client():
         from PublicDataReader import Kosis  # type: ignore[import-not-found]
         return Kosis(KOSIS_API_KEY)
     except ImportError:
-        logger.warning("PublicDataReader 패키지 미설치")
+        logger.info("PublicDataReader 미설치 — 직접 HTTP 호출 모드로 전환")
         return None
     except Exception as e:
-        logger.warning("Kosis 클라이언트 생성 실패: %s", e)
+        logger.warning("Kosis 클라이언트 생성 실패: %s — 직접 HTTP 호출 모드로 전환", e)
         return None
+
+
+def _fetch_raw_json(api_params: dict[str, str]) -> list[dict] | None:
+    """
+    PublicDataReader 없이 KOSIS REST API를 직접 호출한다.
+    성공 시 list[dict], 에러/빈 데이터 시 None.
+    """
+    params = {
+        "method": "getList",
+        "apiKey": _requests.utils.unquote(KOSIS_API_KEY),
+        "format": "json",
+        "jsonVD": "Y",
+        "jsonMVD": "Y",
+        **api_params,
+    }
+    try:
+        resp = _requests.get(_KOSIS_STAT_URL, params=params, timeout=30, verify=False)
+        data = resp.json()
+    except Exception as e:
+        logger.warning("KOSIS HTTP 요청 실패: %s", e)
+        return None
+
+    if isinstance(data, dict):
+        err = data.get("err")
+        err_msg = data.get("errMsg", "")
+        if err:
+            logger.warning("KOSIS API 에러 (err=%s): %s  [params: orgId=%s, tblId=%s]",
+                           err, err_msg, api_params.get("orgId"), api_params.get("tblId"))
+        return None
+
+    if isinstance(data, list) and len(data) > 0:
+        return data
+    return None
+
+
+def _raw_json_to_df(rows: list[dict]) -> Any:
+    """list[dict] → pandas DataFrame (한글 컬럼명으로 변환)."""
+    import pandas as pd  # type: ignore[import-not-found]
+
+    rename = {
+        "ORG_ID": "기관ID", "TBL_ID": "통계표ID", "TBL_NM": "통계표명",
+        "C1_OBJ_NM": "분류명1", "C1_NM": "분류값명1", "C1": "분류값ID1",
+        "C2_OBJ_NM": "분류명2", "C2_NM": "분류값명2", "C2": "분류값ID2",
+        "C3_OBJ_NM": "분류명3", "C3_NM": "분류값명3", "C3": "분류값ID3",
+        "ITM_ID": "항목ID", "ITM_NM": "항목명", "ITM_NM_ENG": "항목영문명",
+        "UNIT_NM": "단위명", "UNIT_NM_ENG": "단위영문명", "UNIT_ID": "단위ID",
+        "PRD_SE": "수록주기", "PRD_DE": "수록시점", "DT": "수치값",
+    }
+    df = pd.DataFrame(rows).rename(columns=rename)
+    return df.dropna(axis=1, how="all")
 
 
 # 2개 분류 레벨이 있는 테이블 (objL2 필요)
 _TWO_LEVEL_TABLES = {"DT_114054_028", "DT_114054_022", "DT_114054_031"}
 
 
-def _fetch_table(tbl_id: str, year: str = "2023") -> Any:
+def _fetch_table(tbl_id: str, year: str = DEFAULT_YEAR) -> Any:
     """
     KOSIS 통계표 조회 → pandas DataFrame 반환.
     실패 시 None.
 
     일부 테이블은 분류 레벨이 1개(objL1만), 일부는 2개(objL1+objL2).
     잘못된 파라미터 전달 시 KOSIS API가 에러를 반환하므로 구분 처리.
+
+    **중요 파라미터 규칙:**
+    - objL1, objL2, itmId 에는 반드시 "ALL" 또는 유효한 분류값ID (예: A01, B0101, T001)를 사용.
+      축약형(01, T1 등)은 에러 21("잘못된 요청 변수")을 발생시킴.
+    - 2-레벨 분류 테이블에서 objL2를 누락하면 에러 20("필수요청변수값이 누락")이 발생.
     """
     cache_key = f"kosis_raw:{tbl_id}:{year}"
     cached = _get_cached(cache_key)
     if cached is not None:
         return cached
 
+    api_params: dict[str, str] = {
+        "orgId": "114",
+        "tblId": tbl_id,
+        "objL1": "ALL",
+        "itmId": "ALL",
+        "prdSe": "Y",
+        "startPrdDe": year,
+        "endPrdDe": year,
+    }
+    if tbl_id in _TWO_LEVEL_TABLES:
+        api_params["objL2"] = "ALL"
+
+    # 방법 1: PublicDataReader 사용
     client = _get_kosis_client()
-    if client is None:
+    if client is not None:
+        try:
+            df = client.get_data(service_name="통계자료", **api_params)
+            if df is not None and len(df) > 0:
+                _set_cached(cache_key, df)
+                logger.debug("KOSIS %s (%s): PublicDataReader로 %d행 조회 성공", tbl_id, year, len(df))
+                return df
+        except Exception as e:
+            logger.warning("KOSIS %s PublicDataReader 조회 실패: %s — 직접 HTTP로 재시도", tbl_id, e)
+
+    # 방법 2: 직접 HTTP 호출 (PublicDataReader 미설치 또는 실패 시)
+    if not KOSIS_API_KEY:
+        logger.warning("KOSIS_API_KEY 미설정")
         return None
 
-    try:
-        params: dict[str, str] = {
-            "service_name": "통계자료",
-            "orgId": "114",
-            "tblId": tbl_id,
-            "objL1": "ALL",
-            "itmId": "ALL",
-            "prdSe": "Y",
-            "startPrdDe": year,
-            "endPrdDe": year,
-        }
-        if tbl_id in _TWO_LEVEL_TABLES:
-            params["objL2"] = "ALL"
+    raw = _fetch_raw_json(api_params)
+    if raw:
+        try:
+            df = _raw_json_to_df(raw)
+            if len(df) > 0:
+                _set_cached(cache_key, df)
+                logger.debug("KOSIS %s (%s): 직접 HTTP로 %d행 조회 성공", tbl_id, year, len(df))
+                return df
+        except Exception as e:
+            logger.warning("KOSIS %s JSON→DataFrame 변환 실패: %s", tbl_id, e)
 
-        df = client.get_data(**params)
-        if df is not None and len(df) > 0:
-            _set_cached(cache_key, df)
-            return df
-        logger.info("KOSIS %s (%s): 데이터 없음", tbl_id, year)
-        return None
-    except Exception as e:
-        logger.warning("KOSIS %s 조회 실패: %s", tbl_id, e)
-        return None
+    logger.info("KOSIS %s (%s): 데이터 없음", tbl_id, year)
+    return None
 
 
 def _match_industry_rows(df: Any, industry_code: str) -> Any:
@@ -246,7 +340,7 @@ def _safe_float(val: Any) -> float | None:
 
 async def get_cost_structure(
     industry_code: str,
-    year: str = "2023",
+    year: str = DEFAULT_YEAR,
 ) -> CostStructure | None:
     """
     DT_114054_028 (사업실적)에서 식재료비·인건비·임차료 비율 추출.
@@ -331,7 +425,7 @@ async def get_cost_structure(
 
 async def get_profitability(
     industry_code: str,
-    year: str = "2023",
+    year: str = DEFAULT_YEAR,
 ) -> Profitability | None:
     """
     DT_114054_029 (수익성·생산성 분석)에서 영업이익률, 식재료+인건비 비율 등 추출.
@@ -395,7 +489,7 @@ async def get_profitability(
 
 async def get_avg_ticket(
     industry_code: str,
-    year: str = "2023",
+    year: str = DEFAULT_YEAR,
 ) -> AvgTicket | None:
     """
     DT_114054_022 (객단가)에서 업종별 평균 객단가 추출.
@@ -453,7 +547,7 @@ async def get_avg_ticket(
 
 async def get_all_benchmarks(
     industry_code: str,
-    year: str = "2023",
+    year: str = DEFAULT_YEAR,
 ) -> KosisBenchmark | None:
     """
     원가구조 + 수익성 + 객단가 통합 조회.
@@ -699,10 +793,11 @@ async def get_region_household_ratios(year: str = "2025") -> dict[str, float]:
 # ---------------------------------------------------------------------------
 
 async def health_check() -> dict[str, Any]:
-    """KOSIS API 연결 상태 확인"""
+    """KOSIS API 연결 상태 확인 — PublicDataReader 또는 직접 HTTP 모두 테스트"""
     status: dict[str, Any] = {
         "service": "kosis_data",
         "api_key_configured": bool(KOSIS_API_KEY),
+        "default_year": DEFAULT_YEAR,
     }
 
     if not KOSIS_API_KEY:
@@ -710,28 +805,19 @@ async def health_check() -> dict[str, Any]:
         return status
 
     try:
-        client = _get_kosis_client()
-        if client is None:
-            status["status"] = "client_error"
-            return status
-
-        # 가벼운 테스트 쿼리 (1행만)
-        df = client.get_data(
-            service_name="통계자료",
-            orgId="114",
-            tblId="DT_114054_029",
-            objL1="ALL",
-            itmId="ALL",
-            prdSe="Y",
-            startPrdDe="2023",
-            endPrdDe="2023",
-        )
+        # _fetch_table 은 PublicDataReader → 직접 HTTP 순으로 fallback 한다
+        df = _fetch_table("DT_114054_029", DEFAULT_YEAR)
         if df is not None and len(df) > 0:
             status["status"] = "ok"
             status["sample_rows"] = len(df)
             status["columns"] = list(df.columns)
+            status["year"] = DEFAULT_YEAR
         else:
             status["status"] = "no_data"
+            status["hint"] = (
+                "KOSIS API 응답이 비었습니다. API Key가 유효한지, "
+                "orgId=114/tblId=DT_114054_029 테이블이 존재하는지 확인하세요."
+            )
     except Exception as e:
         status["status"] = "error"
         status["error"] = str(e)
