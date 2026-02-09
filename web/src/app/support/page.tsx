@@ -296,7 +296,9 @@ function SupportPageInner() {
           );
         }
 
-        const data: SupportProgram[] = await res.json();
+        const json = await res.json();
+        // API returns { programs: [...], total: N }
+        const data: SupportProgram[] = Array.isArray(json) ? json : (json.programs || []);
         setPrograms(data);
         setMatchedPrograms(data);
       } catch (e: unknown) {

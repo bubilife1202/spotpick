@@ -870,11 +870,16 @@ function SupportSection({ data, loading, industryCode }: { data: any; loading: b
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (prog: any, i: number) => (
               <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
-                <p className="text-xs font-semibold text-slate-900">{prog.name || prog.program_name}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">{prog.organization || prog.provider}</p>
-                {(prog.max_amount || prog.amount) && (
+                <p className="text-xs font-semibold text-slate-900">{prog.program_name || prog.name}</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">{prog.managing_org || prog.organization || ""}</p>
+                {prog.max_amount_man > 0 && (
                   <p className="mt-1 text-xs font-bold text-green-700">
-                    최대 {formatWon(prog.max_amount || prog.amount)}
+                    최대 {prog.max_amount_man >= 10000 ? `${(prog.max_amount_man / 10000).toFixed(1)}억원` : `${prog.max_amount_man.toLocaleString()}만원`}
+                  </p>
+                )}
+                {prog.support_amount && !prog.max_amount_man && (
+                  <p className="mt-1 text-xs font-bold text-green-700">
+                    {prog.support_amount}
                   </p>
                 )}
               </div>
@@ -971,7 +976,9 @@ function ReportContent() {
             survival_rate: r.survival_rate,
             scorecard_total: r.scorecard_total,
             key_factors: r.key_factors || [],
-            coordinates: r.lat && r.lng ? { lat: r.lat, lng: r.lng } : undefined,
+            coordinates: typeof r.lat === "number" && typeof r.lng === "number" && !(r.lat === 0 && r.lng === 0)
+              ? { lat: r.lat, lng: r.lng }
+              : undefined,
           }),
         );
         setTopDistricts(results);

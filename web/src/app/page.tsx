@@ -603,15 +603,6 @@ function PipelineSection() {
           })}
         </div>
 
-        <div className="mt-10 text-center">
-          <Link
-            href="/analyze"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
-          >
-            무료로 시작하기
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
       </div>
     </section>
   );
@@ -878,7 +869,7 @@ function BetaBannerSection() {
           href="/analyze"
           className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50 hover:shadow-xl"
         >
-          무료로 시작하기
+          지금 바로 분석하기
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

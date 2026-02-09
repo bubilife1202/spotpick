@@ -28,6 +28,8 @@ class SupportProgramResponse(BaseModel):
     executing_org: str
     detail_url: str
     days_until_deadline: int
+    program_type: str = "기타"
+    max_amount_man: int = 0
 
 
 class SupportProgramListResponse(BaseModel):
