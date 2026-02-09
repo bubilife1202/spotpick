@@ -44,7 +44,7 @@ export default function OnboardingPage() {
     // Sync with journey store
     const store = useJourneyStore.getState();
     if (data.industryCode) store.setIndustry(data.industryCode);
-    store.setBudget(data.budgetMin, data.budgetMax);
+    store.setBudget(data.budgetMax || data.budgetMin || 5000);
     store.setDistricts(data.districts);
     store.setStep(2);
     router.push(store.goToFranchise());

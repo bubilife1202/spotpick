@@ -53,7 +53,7 @@ interface JourneyState {
 
   setStep: (step: JourneyStep) => void;
   setIndustry: (code: string) => void;
-  setBudget: (min: number, max: number) => void;
+  setBudget: (budget: number) => void;
   setDistricts: (districts: string[]) => void;
   selectDistrict: (district: SelectedDistrict) => void;
   setFranchiseChoice: (choice: "franchise" | "independent") => void;
@@ -92,7 +92,7 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
     }
   },
 
-  setBudget: (min, max) => set({ budgetMin: min, budgetMax: max }),
+  setBudget: (budget) => set({ budgetMin: budget, budgetMax: budget }),
 
   setDistricts: (districts) => set({ districts }),
 

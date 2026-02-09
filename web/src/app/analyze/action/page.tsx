@@ -30,8 +30,7 @@ function ActionContent() {
 
   const industryCode = searchParams?.get("industry_code") || store.industryCode;
   const districtCode = searchParams?.get("district_code") || store.selectedDistrictCode;
-  const budgetMin = Number(searchParams?.get("budget_min")) || store.budgetMin;
-  const budgetMax = Number(searchParams?.get("budget_max")) || store.budgetMax;
+  const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
 
   const [sections, setSections] = useState<BusinessPlanSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +57,7 @@ function ActionContent() {
           body: JSON.stringify({
             industry_code: industryCode,
             district_code: districtCode,
-            budget: Math.round((budgetMin + budgetMax) / 2),
+            budget,
             area_pyeong: 15,
           }),
         });
@@ -91,7 +90,7 @@ function ActionContent() {
         body: JSON.stringify({
           industry_code: industryCode,
           district_code: districtCode,
-          budget: Math.round((budgetMin + budgetMax) / 2),
+          budget,
           sections: sections,
         }),
       });
@@ -130,7 +129,7 @@ function ActionContent() {
             <span className="text-lg font-bold text-slate-900">SpotPick</span>
           </Link>
           <Link
-            href={`/analyze/report?industry_code=${industryCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
+            href={`/analyze/report?industry_code=${industryCode}&budget=${budget}`}
             className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700"
           >
             <ArrowLeft className="h-4 w-4" />

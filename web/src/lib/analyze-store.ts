@@ -45,8 +45,7 @@ interface AnalyzeState {
   industryCode: string;
   industryName: string;
   industryIcon: string;
-  budgetMin: number;
-  budgetMax: number;
+  budget: number;
   preferredDistricts: string[];
 
   topDistricts: TopDistrict[];
@@ -57,7 +56,7 @@ interface AnalyzeState {
 
   setStep: (step: AnalyzeStep) => void;
   setIndustry: (code: string) => void;
-  setBudget: (min: number, max: number) => void;
+  setBudget: (budget: number) => void;
   setPreferredDistricts: (districts: string[]) => void;
   setTopDistricts: (districts: TopDistrict[]) => void;
   setSelectedDistrict: (code: string) => void;
@@ -88,8 +87,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   industryCode: "CS100010",
   industryName: "카페",
   industryIcon: "☕",
-  budgetMin: 3000,
-  budgetMax: 10000,
+  budget: 5000,
   preferredDistricts: [],
 
   topDistricts: [],
@@ -106,7 +104,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
     set({ industryCode: code, industryName: name, industryIcon: icon });
   },
 
-  setBudget: (min, max) => set({ budgetMin: min, budgetMax: max }),
+  setBudget: (budget) => set({ budget }),
 
   setPreferredDistricts: (districts) => set({ preferredDistricts: districts }),
 
@@ -141,8 +139,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       industryCode: "CS100010",
       industryName: "카페",
       industryIcon: "☕",
-      budgetMin: 3000,
-      budgetMax: 10000,
+      budget: 5000,
       preferredDistricts: [],
       topDistricts: [],
       selectedDistrictCode: "",
@@ -151,22 +148,20 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
     }),
 
   getReportUrl: () => {
-    const { industryCode, budgetMin, budgetMax } = get();
+    const { industryCode, budget } = get();
     const p = new URLSearchParams({
       industry_code: industryCode,
-      budget_min: String(budgetMin),
-      budget_max: String(budgetMax),
+      budget: String(budget),
     });
     return `/analyze/report?${p.toString()}`;
   },
 
   getActionUrl: () => {
-    const { industryCode, selectedDistrictCode, budgetMin, budgetMax } = get();
+    const { industryCode, selectedDistrictCode, budget } = get();
     const p = new URLSearchParams({
       industry_code: industryCode,
       district_code: selectedDistrictCode,
-      budget_min: String(budgetMin),
-      budget_max: String(budgetMax),
+      budget: String(budget),
     });
     return `/analyze/action?${p.toString()}`;
   },

@@ -21,10 +21,10 @@ const INDUSTRY_OPTIONS = Object.entries(INDUSTRY_NAMES).map(([code, name]) => ({
 }));
 
 const BUDGET_PRESETS = [
-  { label: "3천~5천만원", min: 3000, max: 5000 },
-  { label: "5천~1억원", min: 5000, max: 10000 },
-  { label: "1억~2억원", min: 10000, max: 20000 },
-  { label: "2억 이상", min: 20000, max: 50000 },
+  { label: "3천만원", value: 3000 },
+  { label: "5천만원", value: 5000 },
+  { label: "1억원", value: 10000 },
+  { label: "2억원", value: 20000 },
 ];
 
 export default function AnalyzePage() {
@@ -33,30 +33,28 @@ export default function AnalyzePage() {
   const journeyStore = useJourneyStore();
 
   const [selectedIndustry, setSelectedIndustry] = useState(analyzeStore.industryCode);
-  const [budgetMin, setBudgetMin] = useState(analyzeStore.budgetMin);
-  const [budgetMax, setBudgetMax] = useState(analyzeStore.budgetMax);
+  const [budget, setBudget] = useState(analyzeStore.budget);
   const [customBudget, setCustomBudget] = useState(false);
 
   const handleStart = () => {
     // Save to analyze store
     analyzeStore.setIndustry(selectedIndustry);
-    analyzeStore.setBudget(budgetMin, budgetMax);
+    analyzeStore.setBudget(budget);
     analyzeStore.setStep(2);
 
     // Sync with journey store for backward compatibility
     journeyStore.setIndustry(selectedIndustry);
-    journeyStore.setBudget(budgetMin, budgetMax);
+    journeyStore.setBudget(budget);
 
     const params = new URLSearchParams({
       industry_code: selectedIndustry,
-      budget_min: String(budgetMin),
-      budget_max: String(budgetMax),
+      budget: String(budget),
     });
     router.push(`/analyze/report?${params.toString()}`);
   };
 
   const selectedPreset = BUDGET_PRESETS.find(
-    (p) => p.min === budgetMin && p.max === budgetMax,
+    (p) => p.value === budget,
   );
 
   return (
@@ -124,14 +122,11 @@ export default function AnalyzePage() {
 
           {!customBudget ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {BUDGET_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
-                    onClick={() => {
-                      setBudgetMin(preset.min);
-                      setBudgetMax(preset.max);
-                    }}
+                    onClick={() => setBudget(preset.value)}
                     className={cn(
                       "rounded-xl border-2 px-4 py-3 text-sm font-semibold transition",
                       selectedPreset?.label === preset.label
@@ -152,40 +147,17 @@ export default function AnalyzePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="mb-1 block text-xs text-slate-500">
-                    최소
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={budgetMin}
-                      onChange={(e) => setBudgetMin(Number(e.target.value))}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                      min={1000}
-                      step={1000}
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
-                  </div>
-                </div>
-                <span className="mt-5 text-slate-400">~</span>
-                <div className="flex-1">
-                  <label className="mb-1 block text-xs text-slate-500">
-                    최대
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={budgetMax}
-                      onChange={(e) => setBudgetMax(Number(e.target.value))}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                      min={1000}
-                      step={1000}
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
-                  </div>
-                </div>
+              <div className="relative max-w-xs">
+                <input
+                  type="number"
+                  value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value) || 3000)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  min={1000}
+                  step={1000}
+                  placeholder="예: 5000"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
               </div>
               <button
                 onClick={() => setCustomBudget(false)}

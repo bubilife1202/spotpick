@@ -901,8 +901,7 @@ function ReportContent() {
   const store = useAnalyzeStore();
 
   const industryCode = searchParams?.get("industry_code") || store.industryCode;
-  const budgetMin = Number(searchParams?.get("budget_min")) || store.budgetMin;
-  const budgetMax = Number(searchParams?.get("budget_max")) || store.budgetMax;
+  const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
 
   const [top3Loading, setTop3Loading] = useState(true);
   const [topDistricts, setTopDistricts] = useState<TopDistrict[]>([]);
@@ -953,8 +952,7 @@ function ReportContent() {
       try {
         const params = new URLSearchParams({
           industry_code: industryCode,
-          budget_min: String(budgetMin),
-          budget_max: String(budgetMax),
+          budget_max: String(budget),
           limit: "3",
         });
         const res = await fetch(`${API_BASE}/recommendations/dashboard?${params}`);
@@ -990,7 +988,7 @@ function ReportContent() {
     };
     fetchTop3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [industryCode, budgetMin, budgetMax]);
+  }, [industryCode, budget]);
 
   // Phase 2: Fetch section data when district changes
   const fetchSectionData = useCallback(
@@ -1246,7 +1244,7 @@ function ReportContent() {
             {store.industryIcon || "🍽️"} {store.industryName || "카페"} 창업 분석 리포트
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            예산 {budgetMin.toLocaleString()}만 ~ {budgetMax.toLocaleString()}만원 · 서울 1,077개 상권 중 AI 추천 TOP 3
+            예산 {budget.toLocaleString()}만원 · 서울 1,077개 상권 중 AI 추천 TOP 3
           </p>
         </div>
 
@@ -1364,7 +1362,7 @@ function ReportContent() {
         {selectedCode && (
           <div className="mt-8 flex flex-col items-center gap-4">
             <Link
-              href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
+              href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget=${budget}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
             >
               <Sparkles className="h-5 w-5" />

@@ -20,7 +20,6 @@ import {
   MessageCircle,
   Utensils,
   Zap,
-  Crown,
   Loader2,
   TrendingUp,
   Shield,
@@ -860,151 +859,28 @@ function EntryPointSection() {
 }
 
 /* ─────────────────────────────────────────────
-   Section 5 -- Pricing
+   Section 5 -- Beta Free Banner
    ───────────────────────────────────────────── */
-function PricingSection() {
+function BetaBannerSection() {
   return (
-    <section className="bg-slate-50 py-20 sm:py-24">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            합리적인 요금제
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
-            베타 기간 중 모든 기능을 무료로 이용하세요
-          </p>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          {/* Free tier */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-                <Zap className="h-5 w-5 text-slate-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-slate-900">무료</p>
-                <p className="text-2xl font-extrabold text-slate-900">&#8361;0</p>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">월 1회 기본 분석</p>
-            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                기본 상권 분석 (TOP 3)
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                종합점수 + 월매출 요약
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                경쟁 점포수 + 주요 연령
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                지원금 TOP 2
-              </li>
-            </ul>
-            <Link
-              href="/analyze"
-              className="mt-6 block w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-            >
-              무료로 시작하기
-            </Link>
-          </div>
-
-          {/* Pro Single tier */}
-          <div className="relative rounded-2xl border-2 border-blue-600 bg-white p-6 shadow-md">
-            <div className="absolute -top-3 right-5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-0.5 text-xs font-bold text-white">
-              추천
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                <Crown className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-slate-900">Pro 건당</p>
-                <p className="text-2xl font-extrabold text-slate-900">
-                  &#8361;4,900<span className="text-sm font-medium text-slate-500">/건</span>
-                </p>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">전체 리포트 1건</p>
-            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                5대 카테고리 레이더
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                워터폴 수익 구조
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                경쟁지도 + LOCALDATA
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                입지·임대료·고객 전체 차트
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                AI 리스크 판정 + 지원금 전체
-              </li>
-            </ul>
-            <Link
-              href="/analyze"
-              className="mt-6 block w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-            >
-              Pro 시작하기
-            </Link>
-          </div>
-
-          {/* Pro Monthly tier */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50">
-                <Sparkles className="h-5 w-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-slate-900">Pro 구독</p>
-                <p className="text-2xl font-extrabold text-slate-900">
-                  &#8361;19,900<span className="text-sm font-medium text-slate-500">/월</span>
-                </p>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">무제한 분석</p>
-            <ul className="mt-5 space-y-2.5 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                Pro 건당 모든 기능
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                무제한 상권 분석
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                사업계획서 PDF 다운로드
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                우선 지원
-              </li>
-            </ul>
-            <Link
-              href="/analyze"
-              className="mt-6 block w-full rounded-xl border border-indigo-300 bg-indigo-50 py-3 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-            >
-              구독 시작하기
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-sm text-slate-400">
-          * 베타 기간 전체 무료 · 결제 시스템 준비 중
+    <section className="bg-gradient-to-r from-blue-600 to-indigo-600 py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+        <Sparkles className="mx-auto h-8 w-8 text-white/80" />
+        <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
+          베타 기간 전체 무료
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-base text-blue-100 sm:text-lg">
+          AI 리포트 · 사업계획서 · PDF 다운로드까지
+          <br />
+          지금 가입하면 모든 기능을 무료로 이용할 수 있습니다
         </p>
+        <Link
+          href="/analyze"
+          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50 hover:shadow-xl"
+        >
+          무료로 시작하기
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
     </section>
   );
@@ -1040,7 +916,7 @@ export default function LandingPage() {
       <main>
         <HeroSection />
         <PipelineSection />
-        <PricingSection />
+        <BetaBannerSection />
       </main>
       <Footer />
     </div>
