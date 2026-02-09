@@ -2,9 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { ANALYZE_STEPS, type AnalyzeStep } from "@/lib/analyze-store";
-import { ClipboardList, FileBarChart, Building2, GitCompareArrows, Rocket, Check } from "lucide-react";
+import { ClipboardList, FileBarChart, Rocket, Check } from "lucide-react";
 
-const STEP_ICONS = [ClipboardList, FileBarChart, Building2, GitCompareArrows, Rocket];
+const STEP_ICONS = [ClipboardList, FileBarChart, Rocket];
 
 export function AnalyzeStepper({
   currentStep,

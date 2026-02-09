@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import {
   MapPin,
   Loader2,
@@ -13,7 +12,6 @@ import {
   Building2,
   Store,
   Banknote,
-  TrendingUp,
   FileText,
 } from "lucide-react";
 
@@ -116,13 +114,7 @@ function CostCompareContent() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
-        <AnalyzeStepper currentStep={4} className="mb-8" />
-
         <div className="mb-8 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Step 4
-          </span>
           <h1 className="mt-3 text-2xl font-extrabold text-slate-900 sm:text-3xl">
             프랜차이즈 vs 독립창업
           </h1>

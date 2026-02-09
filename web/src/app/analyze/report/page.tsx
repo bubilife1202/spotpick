@@ -189,11 +189,13 @@ function Top3Section({
   selectedCode,
   onSelect,
   loading,
+  industryName,
 }: {
   districts: TopDistrict[];
   selectedCode: string;
   onSelect: (code: string) => void;
   loading: boolean;
+  industryName: string;
 }) {
   if (loading) {
     return (
@@ -260,19 +262,19 @@ function Top3Section({
 
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] text-slate-400">종합점수</p>
-                  <p className="text-sm font-extrabold text-slate-900">{d.scorecard_total}</p>
+                  <p className="text-[10px] font-medium text-slate-500">AI 종합 점수</p>
+                  <p className="text-sm font-extrabold text-slate-900">{d.scorecard_total}<span className="text-[10px] font-normal text-slate-400">/100</span></p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] text-slate-400">생존율</p>
+                  <p className="text-[10px] font-medium text-slate-500">2년 생존율</p>
                   <p className="text-sm font-extrabold text-slate-900">{(d.survival_rate * 100).toFixed(0)}%</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] text-slate-400">월매출</p>
+                  <p className="text-[10px] font-medium text-slate-500">{industryName} 월 매출</p>
                   <p className="text-sm font-extrabold text-slate-900">{formatWon(d.monthly_sales)}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] text-slate-400">경쟁점포</p>
+                  <p className="text-[10px] font-medium text-slate-500">{industryName} 점포 수</p>
                   <p className="text-sm font-extrabold text-slate-900">{d.store_count}개</p>
                 </div>
               </div>
@@ -287,26 +289,19 @@ function Top3Section({
         })}
       </div>
 
-      {/* Map visualization */}
-      {districts.some((d) => d.coordinates) && (
-        <MiniMap
-          markers={districts
-            .filter(
-              (d): d is TopDistrict & { coordinates: { lat: number; lng: number } } =>
-                !!d.coordinates,
-            )
-            .map((d, i) => ({
-              lat: d.coordinates.lat,
-              lng: d.coordinates.lng,
-              label: d.district_name,
-              type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
-              rank: i + 1,
-              successProbability: d.success_probability,
-            }))}
-          height={280}
-          zoom={12}
-        />
-      )}
+      {/* Map visualization — always show */}
+      <MiniMap
+        markers={districts.map((d, i) => ({
+          lat: d.coordinates?.lat || 37.5665,
+          lng: d.coordinates?.lng || 126.9780,
+          label: d.district_name,
+          type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
+          rank: i + 1,
+          successProbability: d.success_probability,
+        }))}
+        height={280}
+        zoom={12}
+      />
     </div>
   );
 }
@@ -366,12 +361,7 @@ function ScorecardSection({ data, loading }: { data: any; loading: boolean }) {
         )}
       </div>
 
-      <Link
-        href={`/report?district_code=${data.district_code}&industry_code=${data.industry_code}`}
-        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-      >
-        상세 스코어카드 보기 <ChevronRight className="h-3 w-3" />
-      </Link>
+      <p className="mt-4 text-[10px] text-slate-400">5대 카테고리 가중 평균 점수</p>
     </div>
   );
 }
@@ -455,12 +445,12 @@ function RevenueSection({ data, loading }: { data: any; loading: boolean }) {
         </div>
       </div>
 
-      <Link
-        href={`/simulator?district_code=${data.district_code}&industry_code=${data.industry_code}`}
+      <a
+        href="#section-c"
         className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
       >
-        상세 시뮬레이터 <ChevronRight className="h-3 w-3" />
-      </Link>
+        시뮬레이터로 조정해보기 <ChevronRight className="h-3 w-3" />
+      </a>
     </div>
   );
 }
@@ -620,7 +610,7 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
 
 // ─── Section B7: Franchise Comparison ──────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FranchiseSection({ data, loading, industryCode }: { data: any; loading: boolean; industryCode: string }) {
+function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
   if (loading) return <SectionSkeleton title="프랜차이즈 vs 독립" />;
   if (!data) return null;
 
@@ -656,15 +646,10 @@ function FranchiseSection({ data, loading, industryCode }: { data: any; loading:
           )}
         </div>
       ) : (
-        <p className="text-sm text-slate-500">프랜차이즈 데이터를 불러올 수 없습니다</p>
+        <p className="text-sm text-slate-400">해당 업종의 프랜차이즈 공시 데이터를 준비 중입니다</p>
       )}
 
-      <Link
-        href={`/franchise?industry_code=${industryCode}`}
-        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-      >
-        프랜차이즈 상세 비교 <ChevronRight className="h-3 w-3" />
-      </Link>
+      <p className="mt-4 text-[10px] text-slate-400">출처: 공정거래위원회 정보공개서</p>
     </div>
   );
 }
@@ -673,14 +658,10 @@ function FranchiseSection({ data, loading, industryCode }: { data: any; loading:
 function InlineSimulatorSection({
   defaults,
   loading,
-  districtCode,
-  industryCode,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaults: any;
   loading: boolean;
-  districtCode: string;
-  industryCode: string;
 }) {
   const [salesMultiplier, setSalesMultiplier] = useState(1.0);
   const [rentMultiplier, setRentMultiplier] = useState(1.0);
@@ -794,12 +775,7 @@ function InlineSimulatorSection({
         </div>
       </div>
 
-      <Link
-        href={`/simulator?district_code=${districtCode}&industry_code=${industryCode}`}
-        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-      >
-        상세 시뮬레이터 <ChevronRight className="h-3 w-3" />
-      </Link>
+      <p className="mt-4 text-[10px] text-slate-400">슬라이더를 조정하여 다양한 시나리오를 확인하세요</p>
     </div>
   );
 }
@@ -812,9 +788,19 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
 
   const sections = data.sections || data.analysis?.sections || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const riskSection = sections.find((s: any) => s.title?.includes("리스크") || s.title?.includes("위험"));
+  const riskSection = sections.find((s: any) =>
+    s.title?.includes("리스크") || s.title?.includes("위험") || s.title?.includes("약점") || s.title?.includes("threat") || s.title?.includes("risk")
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const oppSection = sections.find((s: any) => s.title?.includes("기회") || s.title?.includes("강점") || s.title?.includes("장점"));
+  const oppSection = sections.find((s: any) =>
+    s.title?.includes("기회") || s.title?.includes("강점") || s.title?.includes("장점") || s.title?.includes("opportunity") || s.title?.includes("strength")
+  );
+
+  // Fallback: use first two sections if keyword matching fails
+  const fallbackRisk = !riskSection && sections.length > 0 ? sections[sections.length - 1] : null;
+  const fallbackOpp = !oppSection && sections.length > 1 ? sections[0] : null;
+  const displayRisk = riskSection || fallbackRisk;
+  const displayOpp = oppSection || fallbackOpp;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -826,32 +812,32 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Risk */}
         <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-4">
-          <p className="mb-2 text-xs font-bold text-rose-700">주요 리스크</p>
-          {riskSection ? (
+          <p className="mb-2 text-xs font-bold text-rose-700">{displayRisk?.title || "주요 리스크"}</p>
+          {displayRisk?.content ? (
             <p className="text-xs leading-relaxed text-rose-900/80">
-              {riskSection.content?.slice(0, 200)}...
+              {displayRisk.content.slice(0, 300)}{displayRisk.content.length > 300 ? "..." : ""}
             </p>
           ) : (
-            <p className="text-xs text-rose-500">분석 데이터 없음</p>
+            <p className="text-xs text-rose-500">AI 분석 로딩 중이거나 해당 상권의 특이 리스크가 없습니다</p>
           )}
         </div>
 
         {/* Opportunity */}
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4">
-          <p className="mb-2 text-xs font-bold text-emerald-700">주요 기회</p>
-          {oppSection ? (
+          <p className="mb-2 text-xs font-bold text-emerald-700">{displayOpp?.title || "주요 기회"}</p>
+          {displayOpp?.content ? (
             <p className="text-xs leading-relaxed text-emerald-900/80">
-              {oppSection.content?.slice(0, 200)}...
+              {displayOpp.content.slice(0, 300)}{displayOpp.content.length > 300 ? "..." : ""}
             </p>
           ) : (
-            <p className="text-xs text-emerald-500">분석 데이터 없음</p>
+            <p className="text-xs text-emerald-500">AI 분석 로딩 중이거나 추가 기회 요인을 탐색 중입니다</p>
           )}
         </div>
       </div>
 
       {sections.length > 0 && (
         <p className="mt-3 text-[10px] text-slate-400">
-          Powered by Gemini AI - {sections.length}개 섹션 분석 완료
+          Powered by Gemini AI · {sections.length}개 섹션 분석 완료
         </p>
       )}
     </div>
@@ -1257,10 +1243,10 @@ function ReportContent() {
         {/* Title */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">
-            AI 원페이지 리포트
+            {store.industryIcon || "🍽️"} {store.industryName || "카페"} 창업 분석 리포트
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {store.industryName || "카페"} / 예산 {(budgetMin / 10000 * 10000 / 10000).toLocaleString()}만~{(budgetMax / 10000 * 10000 / 10000).toLocaleString()}만원
+            예산 {budgetMin.toLocaleString()}만 ~ {budgetMax.toLocaleString()}만원 · 서울 1,077개 상권 중 AI 추천 TOP 3
           </p>
         </div>
 
@@ -1271,6 +1257,7 @@ function ReportContent() {
             selectedCode={selectedCode}
             onSelect={handleDistrictSelect}
             loading={top3Loading}
+            industryName={store.industryName || "카페"}
           />
         </div>
 
@@ -1345,7 +1332,7 @@ function ReportContent() {
             {/* Row 3: B7 Franchise */}
             <div id="section-b7">
               <ProGateSection feature="franchise_comparison">
-                <FranchiseSection data={franchiseData} loading={franchiseLoading} industryCode={industryCode} />
+                <FranchiseSection data={franchiseData} loading={franchiseLoading} />
               </ProGateSection>
             </div>
 
@@ -1355,8 +1342,6 @@ function ReportContent() {
                 <InlineSimulatorSection
                   defaults={simulationData}
                   loading={simulationLoading}
-                  districtCode={selectedCode}
-                  industryCode={industryCode}
                 />
               </ProGateSection>
             </div>
@@ -1375,35 +1360,30 @@ function ReportContent() {
           </div>
         )}
 
-        {/* Action: Go to Step 3 (Property) */}
+        {/* Action: Go to Step 3 (Action Plan) */}
         {selectedCode && (
-          <div className="mt-8 flex flex-col items-center gap-3">
+          <div className="mt-8 flex flex-col items-center gap-4">
             <Link
-              href={`/property?district_code=${selectedCode}&industry_code=${industryCode}`}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:shadow-xl"
+              href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
             >
-              <Building2 className="h-5 w-5" />
-              매물 찾아보기
+              <Sparkles className="h-5 w-5" />
+              사업계획서 생성하기
               <ArrowRight className="h-5 w-5" />
             </Link>
             <div className="flex flex-wrap justify-center gap-3">
               <Link
+                href={`/property?district_code=${selectedCode}&industry_code=${industryCode}`}
+                className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
+              >
+                매물 탐색
+              </Link>
+              <span className="text-xs text-slate-300">·</span>
+              <Link
                 href={`/cost-compare?industry_code=${industryCode}&district_code=${selectedCode}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
               >
-                비용 비교하기
-              </Link>
-              <Link
-                href={`/timeline?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budgetMax}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                창업 타임라인
-              </Link>
-              <Link
-                href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                사업계획서 생성
+                비용 비교
               </Link>
             </div>
           </div>

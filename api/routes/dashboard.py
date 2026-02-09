@@ -136,11 +136,12 @@ async def dashboard_recommendations(
             svc._rent_ranges, industry_code=industry_code,
         )
 
-        # Rent range filter
+        # Rent range filter — soft: flag but don't exclude
+        budget_fit = True
         if rent_min_won is not None and est_rent < rent_min_won:
-            continue
+            budget_fit = False
         if rent_max_won is not None and est_rent > rent_max_won:
-            continue
+            budget_fit = False
 
         # Success probability
         prob = svc._calculate_success_probability(d)
@@ -157,12 +158,13 @@ async def dashboard_recommendations(
             "success_probability": prob,
             "scorecard_total": scorecard_total,
             "key_factors": key_factors,
+            "budget_fit": budget_fit,
         })
 
     total_available = len(candidates)
 
-    # Sort by success probability descending
-    candidates.sort(key=lambda c: c["success_probability"], reverse=True)
+    # Sort: budget-fitting first, then by success probability descending
+    candidates.sort(key=lambda c: (c["budget_fit"], c["success_probability"]), reverse=True)
 
     results = []
     for rank, c in enumerate(candidates[:limit], 1):
@@ -193,6 +195,7 @@ async def dashboard_recommendations(
             "lng": d.get("lng", 0.0),
             "scorecard_total": c["scorecard_total"],
             "key_factors": c["key_factors"],
+            "budget_fit": c.get("budget_fit", True),
         })
 
     filters_applied: dict[str, Any] = {"industry_code": industry_code}

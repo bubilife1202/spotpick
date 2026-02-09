@@ -1,14 +1,12 @@
 import { create } from "zustand";
 import { INDUSTRY_NAMES, INDUSTRY_ICONS } from "./journey-store";
 
-export type AnalyzeStep = 1 | 2 | 3 | 4 | 5;
+export type AnalyzeStep = 1 | 2 | 3;
 
 export const ANALYZE_STEPS = [
   { num: 1 as const, label: "입력", short: "업종/예산" },
-  { num: 2 as const, label: "리포트", short: "AI 분석" },
-  { num: 3 as const, label: "매물", short: "매물 탐색" },
-  { num: 4 as const, label: "비교", short: "비용 비교" },
-  { num: 5 as const, label: "액션", short: "사업계획서" },
+  { num: 2 as const, label: "AI 리포트", short: "종합 분석" },
+  { num: 3 as const, label: "액션 플랜", short: "사업계획서" },
 ] as const;
 
 export interface TopDistrict {

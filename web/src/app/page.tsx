@@ -75,21 +75,6 @@ function Header() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          <Link href="/explore" className="transition hover:text-slate-900">
-            탐색
-          </Link>
-          <Link href="/results" className="transition hover:text-slate-900">
-            랭킹
-          </Link>
-          <Link href="/simulator" className="transition hover:text-slate-900">
-            시뮬레이터
-          </Link>
-          <Link href="/support" className="transition hover:text-slate-900">
-            지원금
-          </Link>
-          <Link href="/compare" className="transition hover:text-slate-900">
-            비교
-          </Link>
         </nav>
 
         <Link
@@ -108,10 +93,10 @@ function Header() {
    ───────────────────────────────────────────── */
 function HeroSection() {
   const stats = [
-    { value: "1,077", label: "분석상권" },
-    { value: "10개", label: "지원업종" },
-    { value: "23개", label: "정부지원" },
-    { value: "5분", label: "플랜완성" },
+    { value: "1,077", label: "서울 전체 상권" },
+    { value: "10종", label: "외식업 전 업종" },
+    { value: "7대", label: "공공 빅데이터" },
+    { value: "3분", label: "분석 완료" },
   ];
 
   return (
@@ -136,10 +121,10 @@ function HeroSection() {
 
         <p className="animate-slide-up animation-delay-100 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
           서울 <strong className="text-slate-800">1,077개 상권</strong> ·{" "}
-          <strong className="text-slate-800">10개 업종</strong> ·{" "}
-          <strong className="text-slate-800">7종 공공데이터</strong>
+          <strong className="text-slate-800">외식업 전 업종</strong> ·{" "}
+          <strong className="text-slate-800">7대 공공 빅데이터</strong>
           <br />
-          AI가 모든 창업 의사결정을 도와드립니다
+          업종과 예산만 입력하면, AI가 최적 입지를 찾아드립니다
         </p>
 
         <div className="animate-slide-up animation-delay-200 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -229,6 +214,7 @@ function formatSalesMan(wonValue: number): string {
   return `${Math.round(wonValue / 10000).toLocaleString()}만원`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LiveDemoSection() {
   const [industryCode, setIndustryCode] = useState("CS100010");
   const [districts, setDistricts] = useState<DemoDistrictResult[]>([]);
@@ -688,6 +674,7 @@ function StatusIcon({ status }: { status: CellStatus }) {
   return <XCircle className="mx-auto h-5 w-5 text-slate-300" />;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ComparisonSection() {
   return (
     <section className="bg-slate-50 py-20 sm:py-24">
@@ -811,6 +798,7 @@ const ENTRY_POINTS = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function EntryPointSection() {
   return (
     <section className="bg-white py-20 sm:py-24">
@@ -1044,10 +1032,7 @@ export default function LandingPage() {
       <Header />
       <main>
         <HeroSection />
-        <LiveDemoSection />
         <PipelineSection />
-        <ComparisonSection />
-        <EntryPointSection />
         <PricingSection />
       </main>
       <Footer />

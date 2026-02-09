@@ -155,30 +155,36 @@ export default function AnalyzePage() {
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-slate-500">
-                    최소 (만원)
+                    최소
                   </label>
-                  <input
-                    type="number"
-                    value={budgetMin}
-                    onChange={(e) => setBudgetMin(Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    min={1000}
-                    step={1000}
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={budgetMin}
+                      onChange={(e) => setBudgetMin(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      min={1000}
+                      step={1000}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
+                  </div>
                 </div>
                 <span className="mt-5 text-slate-400">~</span>
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-slate-500">
-                    최대 (만원)
+                    최대
                   </label>
-                  <input
-                    type="number"
-                    value={budgetMax}
-                    onChange={(e) => setBudgetMax(Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    min={1000}
-                    step={1000}
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={budgetMax}
+                      onChange={(e) => setBudgetMax(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      min={1000}
+                      step={1000}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
+                  </div>
                 </div>
               </div>
               <button

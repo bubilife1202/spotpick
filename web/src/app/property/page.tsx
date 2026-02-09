@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import {
   MapPin,
   Loader2,
@@ -101,13 +100,7 @@ function PropertyContent() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
-        <AnalyzeStepper currentStep={3} className="mb-8" />
-
         <div className="mb-8 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <Building2 className="h-3.5 w-3.5" />
-            Step 3
-          </span>
           <h1 className="mt-3 text-2xl font-extrabold text-slate-900 sm:text-3xl">
             매물 탐색
           </h1>
