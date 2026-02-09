@@ -34,7 +34,6 @@ export default function AnalyzePage() {
 
   const [selectedIndustry, setSelectedIndustry] = useState(analyzeStore.industryCode);
   const [budget, setBudget] = useState(analyzeStore.budget);
-  const [customBudget, setCustomBudget] = useState(false);
 
   const handleStart = () => {
     // Save to analyze store
@@ -120,8 +119,7 @@ export default function AnalyzePage() {
             총 투자 예산은 얼마인가요?
           </label>
 
-          {!customBudget ? (
-            <div className="space-y-3">
+          <div className="space-y-3">
               <div className="grid grid-cols-4 gap-2">
                 {BUDGET_PRESETS.map((preset) => (
                   <button
@@ -138,15 +136,6 @@ export default function AnalyzePage() {
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => setCustomBudget(true)}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700"
-              >
-                직접 입력하기
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
               <div className="relative max-w-xs">
                 <input
                   type="number"
@@ -159,14 +148,7 @@ export default function AnalyzePage() {
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">만원</span>
               </div>
-              <button
-                onClick={() => setCustomBudget(false)}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700"
-              >
-                프리셋으로 돌아가기
-              </button>
             </div>
-          )}
         </div>
 
         {/* Start Button */}
