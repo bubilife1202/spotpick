@@ -15,7 +15,7 @@ import {
 export function LocationProfile({ data, loading }: { data: any; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <div className="h-5 w-5 animate-pulse rounded bg-slate-200" />
           <h3 className="text-sm font-bold text-slate-400">입지 분석</h3>
@@ -39,7 +39,7 @@ export function LocationProfile({ data, loading }: { data: any; loading: boolean
   const pop = data.living_population || {};
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <MapPin className="h-5 w-5 text-teal-500" />
         <h3 className="text-sm font-bold text-slate-900">B4. 입지 분석</h3>

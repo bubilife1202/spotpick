@@ -13,7 +13,7 @@ interface QuarterData {
 export function SalesTrendChart({ data, loading }: { data: any; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <div className="h-5 w-5 animate-pulse rounded bg-slate-200" />
           <h3 className="text-sm font-bold text-slate-400">매출 트렌드</h3>
@@ -39,7 +39,7 @@ export function SalesTrendChart({ data, loading }: { data: any; loading: boolean
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <TrendingUp className="h-5 w-5 text-blue-500" />
         <h3 className="text-sm font-bold text-slate-900">매출 트렌드</h3>

@@ -435,7 +435,7 @@ export function MiniMap({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
 
-  // 마커들의 중심점 계산
+  // 마커들의 중심점 및 bounds 계산
   const defaultCenter = center ||
     (markers.length > 0
       ? {
@@ -443,6 +443,16 @@ export function MiniMap({
           lng: markers.reduce((sum, m) => sum + m.lng, 0) / markers.length,
         }
       : { lat: 37.5665, lng: 126.978 }); // 서울 기본값
+
+  // 마커가 2개 이상이면 bounds로 전체를 보여줌
+  const bounds = markers.length >= 2
+    ? [
+        Math.min(...markers.map((m) => m.lng)),
+        Math.min(...markers.map((m) => m.lat)),
+        Math.max(...markers.map((m) => m.lng)),
+        Math.max(...markers.map((m) => m.lat)),
+      ] as [number, number, number, number]
+    : null;
 
   const handleMarkerClick = useCallback((marker: MapMarker) => {
     setSelectedMarker((prev) =>
@@ -492,11 +502,11 @@ export function MiniMap({
 
         {/* 지도 */}
         <Map
-          initialViewState={{
-            longitude: defaultCenter.lng,
-            latitude: defaultCenter.lat,
-            zoom,
-          }}
+          initialViewState={
+            bounds
+              ? { bounds, fitBoundsOptions: { padding: 60, maxZoom: 14 } }
+              : { longitude: defaultCenter.lng, latitude: defaultCenter.lat, zoom }
+          }
           style={{ width: "100%", height }}
           mapStyle={MAP_STYLE}
           onLoad={() => setIsMapReady(true)}

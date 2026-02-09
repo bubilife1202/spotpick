@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function RentTrendChart({ data, loading }: { data: any; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <div className="h-5 w-5 animate-pulse rounded bg-slate-200" />
           <h3 className="text-sm font-bold text-slate-400">임대료 트렌드</h3>
@@ -30,7 +30,7 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
   const maxRent = Math.max(...quarterly.map((q: { rent_per_sqm: number }) => q.rent_per_sqm), 1);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-rose-500" />
@@ -79,29 +79,34 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
       {quarterly.length > 0 && (
         <div>
           <p className="mb-2 text-[10px] font-semibold text-slate-400">분기별 추이</p>
-          <div className="flex items-end gap-0.5" style={{ height: "80px" }}>
+          <div className="flex items-end gap-[2px]" style={{ height: "80px" }}>
             {quarterly.map((q: { period: string; rent_per_sqm: number }, i: number) => {
               const pct = (q.rent_per_sqm / maxRent) * 100;
               const isLatest = i === quarterly.length - 1;
               return (
-                <div key={i} className="flex flex-1 flex-col items-center">
-                  <div className="w-full overflow-hidden rounded-t bg-slate-100" style={{ height: "60px" }}>
-                    <div
-                      className={cn(
-                        "w-full rounded-t transition-all duration-300",
-                        isLatest ? "bg-rose-400" : "bg-rose-200",
-                      )}
-                      style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
-                    />
+                <div key={i} className="group relative flex-1">
+                  <div
+                    className={cn(
+                      "w-full rounded-t transition-all duration-300",
+                      isLatest ? "bg-rose-400" : "bg-rose-200",
+                    )}
+                    style={{ height: `${Math.max(4, pct)}%` }}
+                  />
+                  <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[8px] text-white shadow group-hover:block">
+                    {q.rent_per_sqm.toFixed(1)}천원/㎡
                   </div>
-                  {(i === 0 || i === quarterly.length - 1 || i % 4 === 0) && (
-                    <p className="mt-0.5 text-[7px] text-slate-400">
-                      {q.period.slice(0, 4)}.{q.period.slice(4)}
-                    </p>
-                  )}
                 </div>
               );
             })}
+          </div>
+          <div className="mt-1 flex justify-between text-[7px] text-slate-400">
+            <span>{quarterly[0].period.slice(0, 4)}.{quarterly[0].period.slice(4)}</span>
+            {quarterly.length > 4 && (
+              <span>
+                {quarterly[Math.floor(quarterly.length / 2)].period.slice(0, 4)}.{quarterly[Math.floor(quarterly.length / 2)].period.slice(4)}
+              </span>
+            )}
+            <span>{quarterly[quarterly.length - 1].period.slice(0, 4)}.{quarterly[quarterly.length - 1].period.slice(4)}</span>
           </div>
         </div>
       )}

@@ -36,18 +36,19 @@ export default function AnalyzePage() {
   const [budget, setBudget] = useState(analyzeStore.budget);
 
   const handleStart = () => {
+    const finalBudget = budget || 5000;
     // Save to analyze store
     analyzeStore.setIndustry(selectedIndustry);
-    analyzeStore.setBudget(budget);
+    analyzeStore.setBudget(finalBudget);
     analyzeStore.setStep(2);
 
     // Sync with journey store for backward compatibility
     journeyStore.setIndustry(selectedIndustry);
-    journeyStore.setBudget(budget);
+    journeyStore.setBudget(finalBudget);
 
     const params = new URLSearchParams({
       industry_code: selectedIndustry,
-      budget: String(budget),
+      budget: String(finalBudget),
     });
     router.push(`/analyze/report?${params.toString()}`);
   };
@@ -140,7 +141,7 @@ export default function AnalyzePage() {
                 <input
                   type="number"
                   value={budget}
-                  onChange={(e) => setBudget(Number(e.target.value) || 3000)}
+                  onChange={(e) => setBudget(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-12 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   min={1000}
                   step={1000}

@@ -50,7 +50,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function SectionSkeleton({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Skeleton className="h-5 w-5" />
         <h3 className="text-sm font-bold text-slate-400">{title}</h3>
@@ -317,7 +317,7 @@ function ScorecardSection({ data, loading }: { data: any; loading: boolean }) {
   const verdict = getVerdictStyle(total);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Target className="h-5 w-5 text-blue-500" />
         <h3 className="text-sm font-bold text-slate-900">B1. 성공 점수</h3>
@@ -335,7 +335,7 @@ function ScorecardSection({ data, loading }: { data: any; loading: boolean }) {
           <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-bold", verdict.bg, verdict.color)}>
             {verdict.label}
           </span>
-          <p className="mt-1 text-xs text-slate-500">서울 평균 대비 상위 {data.percentile ?? "-"}%</p>
+          <p className="mt-1 text-xs text-slate-500">서울 평균 대비 상위 {data.percentile != null ? Math.max(1, Math.round(100 - data.percentile)) : "-"}%</p>
         </div>
       </div>
 
@@ -389,7 +389,7 @@ function RevenueSection({ data, loading }: { data: any; loading: boolean }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <TrendingUp className="h-5 w-5 text-emerald-500" />
         <h3 className="text-sm font-bold text-slate-900">B2. 예상 수익 구조</h3>
@@ -470,7 +470,7 @@ function CompetitionSection({ data, loading, localdataData, localdataLoading }: 
   const netGrowth = newStores - closedStores;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Store className="h-5 w-5 text-purple-500" />
         <h3 className="text-sm font-bold text-slate-900">B3. 경쟁 환경</h3>
@@ -538,7 +538,7 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5 text-cyan-500" />
         <h3 className="text-sm font-bold text-slate-900">B5. 고객 분석</h3>
@@ -617,7 +617,7 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
   const brands = data.brands || data.top_brands || [];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Building2 className="h-5 w-5 text-orange-500" />
         <h3 className="text-sm font-bold text-slate-900">B7. 프랜차이즈 vs 독립 창업</h3>
@@ -683,7 +683,7 @@ function InlineSimulatorSection({
   const adjustedProfit = adjustedSales - totalCost;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <SlidersHorizontal className="h-5 w-5 text-indigo-500" />
         <h3 className="text-sm font-bold text-slate-900">C. 수익 시뮬레이터</h3>
@@ -803,7 +803,7 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
   const displayOpp = oppSection || fallbackOpp;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-amber-500" />
         <h3 className="text-sm font-bold text-slate-900">D. AI 리스크 & 기회 분석</h3>
@@ -853,7 +853,7 @@ function SupportSection({ data, loading, industryCode }: { data: any; loading: b
   const programs = data.programs || data.matched_programs || [];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Gift className="h-5 w-5 text-green-500" />
         <h3 className="text-sm font-bold text-slate-900">E. 지원금 매칭</h3>
