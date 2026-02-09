@@ -311,11 +311,11 @@ function CostCompareContent() {
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
               >
                 <FileText className="h-5 w-5" />
-                사업계획서 생성
+                다음 단계: AI 사업계획서 만들기
                 <ArrowRight className="h-5 w-5" />
               </Link>
               <p className="text-[10px] text-slate-400">
-                선택한 조건으로 사업계획서를 자동 생성합니다
+                위 비교 결과를 포함한 AI 사업계획서를 자동으로 생성합니다
               </p>
             </div>
           </div>

@@ -14,6 +14,7 @@ import {
   Loader2,
   CheckCircle2,
   RefreshCw,
+  Database,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -84,14 +85,36 @@ function ActionContent() {
     if (!districtCode || sections.length === 0) return;
     setPdfLoading(true);
     try {
+      // Build conversation_data matching the backend PDFReportRequest schema
+      const cachedData = store.sectionData[districtCode] || {};
+      const conversationData = {
+        recommendations: store.topDistricts.map((d) => ({
+          district_code: d.district_code,
+          district_name: d.district_name,
+          scorecard_total: d.scorecard_total,
+          monthly_sales: d.monthly_sales,
+          store_count: d.store_count,
+          survival_rate: d.survival_rate,
+        })),
+        simulation: cachedData.simulation || {},
+        competitive: cachedData.competition || {},
+        charts: {},
+        context: {
+          industry_code: industryCode,
+          industry_name: store.industryName || "카페",
+          district_code: districtCode,
+          district_name: selectedDistrict?.district_name || "",
+          budget,
+          sections: sections.map((s) => ({ title: s.title, content: s.content })),
+        },
+      };
+
       const res = await fetch(`${API_BASE}/pdf/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          industry_code: industryCode,
-          district_code: districtCode,
-          budget,
-          sections: sections,
+          conversation_data: conversationData,
+          industry_name: store.industryName || "카페",
         }),
       });
 
@@ -100,14 +123,14 @@ function ActionContent() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SpotPick_사업계획서_${districtCode}.pdf`;
+      a.download = `SpotPick_사업계획서_${selectedDistrict?.district_name || districtCode}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF download error:", err);
-      alert("PDF 다운로드에 실패했습니다. 다시 시도해주세요.");
+      alert("사업계획서 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setPdfLoading(false);
     }
@@ -154,6 +177,24 @@ function ActionContent() {
           )}
         </div>
 
+        {/* AI Consultation Context Card */}
+        {selectedDistrict && (
+          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <Database className="h-4 w-4 text-blue-500" />
+              <p className="text-xs font-bold text-blue-900">AI 상담 기반 데이터</p>
+            </div>
+            <p className="text-xs leading-relaxed text-blue-800">
+              AI 상담은 아래 데이터를 기반으로 답변합니다:
+            </p>
+            <ul className="mt-1 space-y-0.5 text-xs text-blue-700">
+              <li>· {selectedDistrict.district_name} 상권 분석 결과</li>
+              <li>· {store.industryName || "카페"} 업종 매출·경쟁·입지 데이터</li>
+              <li>· 서울시 공공데이터 (상권분석서비스)</li>
+            </ul>
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row">
           <button
@@ -174,6 +215,11 @@ function ActionContent() {
           >
             <MessageCircle className="h-4 w-4" />
             AI 상담 시작
+            {selectedDistrict && (
+              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                {selectedDistrict.district_name} · {store.industryName}
+              </span>
+            )}
           </Link>
         </div>
 

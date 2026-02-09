@@ -3,8 +3,14 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function formatWon(value: number): string {
+  if (value >= 100_000_000) return `${(value / 100_000_000).toFixed(1)}억원`;
+  if (value >= 10_000) return `${Math.round(value / 10_000).toLocaleString()}만원`;
+  return `${value.toLocaleString()}원`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function RentTrendChart({ data, loading }: { data: any; loading: boolean }) {
+export function RentTrendChart({ data, loading, districtName }: { data: any; loading: boolean; districtName?: string }) {
   if (loading) {
     return (
       <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
@@ -25,16 +31,29 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
   const quarterly = data.quarterly_rent || [];
   const yoyChange = data.yoy_change || 0;
   const percentile = data.seoul_avg_percentile || 50;
+  const currentRent = data.current_rent_per_sqm || 0;
 
   // Find max for chart scaling
   const maxRent = Math.max(...quarterly.map((q: { rent_per_sqm: number }) => q.rent_per_sqm), 1);
+
+  const headerName = districtName ? `B6. ${districtName} 임대료 트렌드` : "B6. 임대료 트렌드";
+
+  // Trend interpretation
+  const trendText = yoyChange > 2
+    ? "상승"
+    : yoyChange < -2
+      ? "하락"
+      : "유지";
+
+  // Estimate monthly rent (per sqm * ~33sqm for 10평 typical store)
+  const estimatedMonthlyRent = currentRent > 0 ? currentRent * 1000 * 33 : 0;
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-rose-500" />
-          <h3 className="text-sm font-bold text-slate-900">B6. 임대료 트렌드</h3>
+          <h3 className="text-sm font-bold text-slate-900">{headerName}</h3>
         </div>
         <div className="flex items-center gap-1.5">
           {yoyChange > 0 ? (
@@ -60,7 +79,7 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
         <div className="rounded-lg bg-slate-50 p-2 text-center">
           <p className="text-[10px] text-slate-400">현재 임대료</p>
           <p className="text-sm font-extrabold text-slate-900">
-            {data.current_rent_per_sqm?.toFixed(1)}천원/㎡
+            {currentRent.toFixed(1)}천원/㎡
           </p>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center">
@@ -110,6 +129,16 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
           </div>
         </div>
       )}
+
+      {/* Trend interpretation */}
+      <div className="mt-3 rounded-lg bg-rose-50/50 p-3">
+        <p className="text-xs leading-relaxed text-rose-800">
+          최근 {quarterly.length}분기 동안 임대료가 {trendText} 추세입니다.
+          {estimatedMonthlyRent > 0 && ` 현재 추정 월 임대료는 ${formatWon(estimatedMonthlyRent)}입니다 (10평 기준).`}
+        </p>
+      </div>
+
+      <p className="mt-4 text-[10px] text-slate-400">출처: KOSIS 국가통계포털</p>
     </div>
   );
 }

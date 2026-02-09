@@ -31,6 +31,7 @@ import {
   Gift,
   SlidersHorizontal,
   ChevronRight,
+  ChevronDown,
   CreditCard,
 } from "lucide-react";
 
@@ -64,6 +65,11 @@ function SectionSkeleton({ title }: { title: string }) {
   );
 }
 
+// ─── Data source label ────────────────────────────────────────────────
+function DataSource({ text }: { text: string }) {
+  return <p className="mt-4 text-[10px] text-slate-400">출처: {text}</p>;
+}
+
 // ─── Format helpers ────────────────────────────────────────────────────
 function formatWon(value: number): string {
   if (value >= 100_000_000) return `${(value / 100_000_000).toFixed(1)}억원`;
@@ -77,14 +83,22 @@ function getVerdictStyle(score: number) {
   return { label: "주의", color: "text-rose-700", bg: "bg-rose-50 border-rose-200" };
 }
 
+function getScoreInterpretation(score: number): string {
+  if (score >= 80) return "매우 우수한 수준입니다";
+  if (score >= 60) return "양호한 수준입니다";
+  if (score >= 40) return "보통 수준입니다";
+  return "주의가 필요합니다";
+}
+
 // ─── AI Briefing Card ──────────────────────────────────────────────────
 function BriefingCard({ districtCode, industryCode }: { districtCode: string; industryCode: string }) {
   const [briefing, setBriefing] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!districtCode) return;
     setLoading(true);
+    setBriefing("");
     fetch(`${API_BASE}/districts/${districtCode}/briefing?industry_code=${industryCode}`)
       .then((r) => r.json())
       .then((data) => setBriefing(data.briefing || ""))
@@ -94,20 +108,33 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
 
   if (!districtCode) return null;
 
+  // Show skeleton while loading
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-blue-500" />
+          <h3 className="text-sm font-bold text-blue-900">AI 실시간 브리핑</h3>
+        </div>
+        <p className="mb-3 text-xs text-blue-600">AI가 상권을 분석하고 있습니다...</p>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-full !bg-blue-100/80" />
+          <Skeleton className="h-3 w-5/6 !bg-blue-100/80" />
+          <Skeleton className="h-3 w-4/6 !bg-blue-100/80" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!briefing) return null;
+
   return (
     <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
       <div className="mb-2 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-blue-500" />
         <h3 className="text-sm font-bold text-blue-900">AI 실시간 브리핑</h3>
       </div>
-      {loading ? (
-        <div className="flex items-center gap-2 py-3">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-          <span className="text-xs text-blue-600">AI가 상권을 분석하고 있습니다...</span>
-        </div>
-      ) : briefing ? (
-        <p className="text-sm leading-relaxed text-blue-900/80">{briefing}</p>
-      ) : null}
+      <p className="text-sm leading-relaxed text-blue-900/80">{briefing}</p>
     </div>
   );
 }
@@ -306,21 +333,22 @@ function Top3Section({
   );
 }
 
-// ─── Section B1: Scorecard Radar ───────────────────────────────────────
+// ─── Section B1: Scorecard ───────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ScorecardSection({ data, loading }: { data: any; loading: boolean }) {
+function ScorecardSection({ data, loading, districtName, industryName }: { data: any; loading: boolean; districtName: string; industryName: string }) {
   if (loading) return <SectionSkeleton title="성공 점수" />;
   if (!data) return null;
 
   const categories = data.categories || [];
   const total = data.total_score ?? 0;
   const verdict = getVerdictStyle(total);
+  const percentileValue = data.percentile != null ? Math.max(1, Math.round(100 - data.percentile)) : null;
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Target className="h-5 w-5 text-blue-500" />
-        <h3 className="text-sm font-bold text-slate-900">B1. 성공 점수</h3>
+        <h3 className="text-sm font-bold text-slate-900">B1. {districtName} 성공 점수</h3>
         <span className="ml-auto flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-600">
           <CreditCard className="h-2.5 w-2.5" />
           카드매출 기반
@@ -335,68 +363,110 @@ function ScorecardSection({ data, loading }: { data: any; loading: boolean }) {
           <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-bold", verdict.bg, verdict.color)}>
             {verdict.label}
           </span>
-          <p className="mt-1 text-xs text-slate-500">서울 평균 대비 상위 {data.percentile != null ? Math.max(1, Math.round(100 - data.percentile)) : "-"}%</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {percentileValue != null ? `서울 평균 대비 상위 ${percentileValue}%` : ""}
+          </p>
         </div>
+      </div>
+
+      {/* Interpretation */}
+      <div className="mb-4 rounded-lg bg-blue-50/50 p-3">
+        <p className="text-xs leading-relaxed text-blue-800">
+          이 점수는 서울시 {industryName} 전체 상권 중 {percentileValue != null ? `상위 ${percentileValue}%에 해당하며, ` : ""}매출·인구·경쟁·입지 4개 항목을 종합한 결과입니다.
+        </p>
       </div>
 
       <div className="space-y-2">
         {categories.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (cat: any) => (
-            <div key={cat.name} className="flex items-center gap-3">
-              <span className="w-16 text-xs font-medium text-slate-600">{cat.name}</span>
-              <div className="flex-1">
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all duration-500"
-                    style={{ width: `${Math.min(100, (cat.score / cat.max_score) * 100)}%` }}
-                  />
+          (cat: any) => {
+            const score = cat.score ?? 0;
+            const pctWidth = Math.min(100, score);
+            return (
+              <div key={cat.name}>
+                <div className="flex items-center gap-3">
+                  <span className="w-16 text-xs font-medium text-slate-600">{cat.name}</span>
+                  <div className="flex-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          score >= 80 ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                            : score >= 60 ? "bg-gradient-to-r from-blue-400 to-indigo-500"
+                            : score >= 40 ? "bg-gradient-to-r from-amber-400 to-orange-500"
+                            : "bg-gradient-to-r from-rose-400 to-rose-500",
+                        )}
+                        style={{ width: `${pctWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "w-12 text-right text-xs font-bold",
+                    score >= 80 ? "text-emerald-700"
+                      : score >= 60 ? "text-blue-700"
+                      : score >= 40 ? "text-amber-700"
+                      : "text-rose-700",
+                  )}>
+                    {score}점
+                  </span>
                 </div>
+                <p className="ml-[76px] text-[10px] text-slate-400">{getScoreInterpretation(score)}</p>
               </div>
-              <span className="text-xs font-bold text-slate-700">
-                {cat.score}/{cat.max_score}
-              </span>
-            </div>
-          ),
+            );
+          },
         )}
       </div>
 
-      <p className="mt-4 text-[10px] text-slate-400">5대 카테고리 가중 평균 점수</p>
+      <DataSource text="서울시 상권분석서비스 종합" />
     </div>
   );
 }
 
 // ─── Section B2: Revenue Waterfall ─────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function RevenueSection({ data, loading }: { data: any; loading: boolean }) {
+function RevenueSection({ data, loading, districtName, industryName }: { data: any; loading: boolean; districtName: string; industryName: string }) {
   if (loading) return <SectionSkeleton title="예상 수익 구조" />;
   if (!data) return null;
 
   const revenue = data.revenue || {};
   const operating = data.operating_cost || {};
   const breakEven = data.break_even || {};
+  const storeCount = revenue.store_count || data.store_count || 0;
 
   const monthlySales = revenue.monthly_sales_per_store || 0;
   const netProfit = breakEven.monthly_net_profit || 0;
+  const laborAmount = operating.labor || 0;
+  const laborCount = laborAmount > 0 ? Math.round(laborAmount / 2_500_000) : 0;
+  const cogsRatio = monthlySales > 0 ? Math.round((operating.cogs || 0) / monthlySales * 100) : 32;
+  const utilitiesAmount = operating.utilities || 0;
+  const otherAmount = operating.other || 0;
 
   const items = [
-    { label: "월 매출", value: monthlySales, color: "bg-blue-500", type: "positive" },
-    { label: "식재료비", value: -(operating.cogs || 0), color: "bg-orange-400", type: "negative" },
-    { label: "인건비", value: -(operating.labor || 0), color: "bg-amber-400", type: "negative" },
-    { label: "임대료", value: -(operating.rent || 0), color: "bg-rose-400", type: "negative" },
-    { label: "기타비용", value: -((operating.utilities || 0) + (operating.other || 0)), color: "bg-slate-400", type: "negative" },
-    { label: "순이익", value: netProfit, color: netProfit >= 0 ? "bg-emerald-500" : "bg-rose-500", type: "result" },
+    { label: "월 매출", value: monthlySales, color: "bg-blue-500", type: "positive", desc: storeCount > 0 ? `${districtName} ${industryName} 전체 카드매출 ÷ 점포 ${storeCount}개` : "상권 카드매출 데이터 기반" },
+    { label: "식재료비", value: -(operating.cogs || 0), color: "bg-orange-400", type: "negative", desc: `원재료·식자재 구입비 (매출의 ${cogsRatio}%)` },
+    { label: "인건비", value: -laborAmount, color: "bg-amber-400", type: "negative", desc: laborCount > 0 ? `직원 ${laborCount}명 × 250만원 (급여+4대보험)` : "직원 급여 + 4대보험" },
+    { label: "임대료", value: -(operating.rent || 0), color: "bg-rose-400", type: "negative", desc: `${districtName} 상권 등급·면적 기반 추정 월세` },
+    { label: "기타비용", value: -(utilitiesAmount + otherAmount), color: "bg-slate-400", type: "negative", desc: `공과금(${formatWon(utilitiesAmount)}) + 잡비·소모품(${formatWon(otherAmount)})` },
+    { label: "순이익", value: netProfit, color: netProfit >= 0 ? "bg-emerald-500" : "bg-rose-500", type: "result", desc: "매출 - 식재료비 - 인건비 - 임대료 - 기타비용" },
   ];
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <TrendingUp className="h-5 w-5 text-emerald-500" />
-        <h3 className="text-sm font-bold text-slate-900">B2. 예상 수익 구조</h3>
+        <h3 className="text-sm font-bold text-slate-900">B2. {districtName} 예상 수익 구조</h3>
         <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-600">
           <CreditCard className="h-2.5 w-2.5" />
           카드매출 기반
         </span>
+      </div>
+
+      {/* Explanation box */}
+      <div className="mb-4 rounded-lg bg-blue-50/50 p-3">
+        <p className="text-xs leading-relaxed text-blue-800">
+          이 수치는 서울시 공공데이터(카드매출)에서 {districtName} 상권의 {industryName} 실제 월평균 매출을 기반으로 산출했습니다.
+          {storeCount > 0 && ` 점포당 매출은 해당 상권 내 같은 업종 가게 수(${storeCount}개)로 나누어 추정한 값입니다.`}
+        </p>
       </div>
 
       {/* Waterfall visualization */}
@@ -405,19 +475,24 @@ function RevenueSection({ data, loading }: { data: any; loading: boolean }) {
           const absValue = Math.abs(item.value);
           const pct = monthlySales > 0 ? (absValue / monthlySales) * 100 : 0;
           return (
-            <div key={item.label} className="flex items-center gap-3">
-              <span className="w-16 text-xs font-medium text-slate-600">{item.label}</span>
-              <div className="flex-1">
-                <div className="h-5 overflow-hidden rounded bg-slate-50">
-                  <div
-                    className={cn("h-full rounded transition-all duration-500", item.color)}
-                    style={{ width: `${Math.min(100, pct)}%` }}
-                  />
+            <div key={item.label}>
+              <div className="flex items-center gap-3">
+                <span className="w-16 text-xs font-medium text-slate-600">{item.label}</span>
+                <div className="flex-1">
+                  <div className="h-5 overflow-hidden rounded bg-slate-50">
+                    <div
+                      className={cn("h-full rounded transition-all duration-500", item.color)}
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
                 </div>
+                <span className={cn("w-20 text-right text-xs font-bold", item.value >= 0 ? "text-slate-700" : "text-rose-600")}>
+                  {item.value >= 0 ? "" : "-"}{formatWon(absValue)}
+                </span>
               </div>
-              <span className={cn("w-20 text-right text-xs font-bold", item.value >= 0 ? "text-slate-700" : "text-rose-600")}>
-                {item.value >= 0 ? "" : "-"}{formatWon(absValue)}
-              </span>
+              {item.desc && (
+                <p className="ml-[76px] text-[10px] text-slate-400">({item.desc})</p>
+              )}
             </div>
           );
         })}
@@ -451,13 +526,15 @@ function RevenueSection({ data, loading }: { data: any; loading: boolean }) {
       >
         시뮬레이터로 조정해보기 <ChevronRight className="h-3 w-3" />
       </a>
+
+      <DataSource text="서울시 카드매출 데이터 기반 추정" />
     </div>
   );
 }
 
 // ─── Section B3: Competition ───────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CompetitionSection({ data, loading, localdataData, localdataLoading }: { data: any; loading: boolean; localdataData?: any; localdataLoading?: boolean }) {
+function CompetitionSection({ data, loading, localdataData, localdataLoading, districtName, industryName }: { data: any; loading: boolean; localdataData?: any; localdataLoading?: boolean; districtName: string; industryName: string }) {
   if (loading) return <SectionSkeleton title="경쟁 환경" />;
   if (!data) return null;
 
@@ -469,14 +546,27 @@ function CompetitionSection({ data, loading, localdataData, localdataLoading }: 
   const franchiseRatio = storeCount > 0 ? ((franchiseStores / storeCount) * 100).toFixed(0) : "0";
   const netGrowth = newStores - closedStores;
 
+  const strategyText = netGrowth > 0
+    ? "신규 진입이 활발한 상권입니다. 차별화 전략이 중요합니다."
+    : netGrowth < 0
+      ? "폐업이 신규 개업보다 많아 경쟁이 줄어드는 추세입니다."
+      : "점포 수가 안정적으로 유지되고 있습니다.";
+
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Store className="h-5 w-5 text-purple-500" />
-        <h3 className="text-sm font-bold text-slate-900">B3. 경쟁 환경</h3>
+        <h3 className="text-sm font-bold text-slate-900">B3. {districtName} 경쟁 환경</h3>
         <span className="ml-auto flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-semibold text-purple-600">
           LOCALDATA + 카드매출
         </span>
+      </div>
+
+      {/* Interpretation */}
+      <div className="mb-4 rounded-lg bg-purple-50/50 p-3">
+        <p className="text-xs leading-relaxed text-purple-800">
+          현재 {districtName}에는 {industryName} 점포 {storeCount}개가 영업 중입니다. {strategyText}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -515,13 +605,15 @@ function CompetitionSection({ data, loading, localdataData, localdataLoading }: 
 
       {/* LOCALDATA Competition Map */}
       <CompetitionMap data={localdataData} loading={localdataLoading || false} />
+
+      <DataSource text="서울시 상권분석서비스 + 네이버 지도" />
     </div>
   );
 }
 
 // ─── Section B5: Customer Analysis ─────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
+function CustomerSection({ data, loading, districtName, industryName }: { data: any; loading: boolean; districtName: string; industryName: string }) {
   if (loading) return <SectionSkeleton title="고객 분석" />;
   if (!data) return null;
 
@@ -529,6 +621,7 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
   const byAge = breakdown.by_age || {};
   const byTime = breakdown.by_time || {};
   const byGender = breakdown.by_gender || {};
+  const byDay = breakdown.by_day || {};
 
   const ageLabels: Record<string, string> = {
     "10s": "10대", "20s": "20대", "30s": "30대", "40s": "40대", "50s": "50대", "60s_plus": "60+",
@@ -536,16 +629,39 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
   const timeLabels: Record<string, string> = {
     "00_06": "0~6시", "06_11": "6~11시", "11_14": "11~14시", "14_17": "14~17시", "17_21": "17~21시", "21_24": "21~24시",
   };
+  const dayLabels: Record<string, string> = {
+    mon: "월", tue: "화", wed: "수", thu: "목", fri: "금", sat: "토", sun: "일",
+  };
+
+  // Find peak time
+  const peakTimeEntry = Object.entries(byTime).sort(([, a], [, b]) => (b as number) - (a as number))[0];
+  const peakTimeLabel = peakTimeEntry ? timeLabels[peakTimeEntry[0]] || peakTimeEntry[0] : null;
+
+  // Find peak day
+  const peakDayEntry = Object.entries(byDay).sort(([, a], [, b]) => (b as number) - (a as number))[0];
+  const peakDayLabel = peakDayEntry ? dayLabels[peakDayEntry[0]] || peakDayEntry[0] : null;
+
+  // Calculate quarter count from data
+  const quarterCount = data.quarter_count || data.quarters?.length || 0;
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5 text-cyan-500" />
-        <h3 className="text-sm font-bold text-slate-900">B5. 고객 분석</h3>
+        <h3 className="text-sm font-bold text-slate-900">B5. {districtName} 고객 분석</h3>
         <span className="ml-auto flex items-center gap-1 rounded-full bg-cyan-50 px-2 py-0.5 text-[9px] font-semibold text-cyan-600">
           <CreditCard className="h-2.5 w-2.5" />
-          카드매출 6년 36분기
+          {quarterCount > 0 ? `최근 ${quarterCount}분기` : "분기별 카드매출"}
         </span>
+      </div>
+
+      {/* Interpretation */}
+      <div className="mb-4 rounded-lg bg-cyan-50/50 p-3">
+        <p className="text-xs leading-relaxed text-cyan-800">
+          {districtName} 상권에서 {industryName} 업종의 카드 결제 데이터를 분석한 결과입니다.
+          {peakTimeLabel && ` 피크 시간대는 ${peakTimeLabel}입니다.`}
+          {peakDayLabel && ` 가장 매출이 높은 요일은 ${peakDayLabel}요일입니다.`}
+        </p>
       </div>
 
       {/* Gender */}
@@ -584,7 +700,7 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
       </div>
 
       {/* Time distribution */}
-      <div>
+      <div className="mb-4">
         <p className="mb-2 text-xs font-semibold text-slate-500">시간대별 매출 비중</p>
         <div className="flex items-end gap-1">
           {Object.entries(timeLabels).map(([key, label]) => {
@@ -604,14 +720,40 @@ function CustomerSection({ data, loading }: { data: any; loading: boolean }) {
           })}
         </div>
       </div>
+
+      {/* Day distribution (if data exists) */}
+      {Object.keys(byDay).length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold text-slate-500">요일별 매출 비중</p>
+          <div className="flex items-end gap-1">
+            {Object.entries(dayLabels).map(([key, label]) => {
+              const pct = byDay[key] || 0;
+              return (
+                <div key={key} className="flex-1 text-center">
+                  <div className="mx-auto w-full overflow-hidden rounded-t bg-slate-100" style={{ height: "50px" }}>
+                    <div
+                      className="w-full rounded-t bg-gradient-to-t from-violet-500 to-violet-400 transition-all duration-500"
+                      style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[9px] font-medium text-slate-500">{label}</p>
+                  <p className="text-[10px] font-bold text-slate-700">{pct}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <DataSource text="서울시 카드매출 데이터" />
     </div>
   );
 }
 
 // ─── Section B7: Franchise Comparison ──────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
-  if (loading) return <SectionSkeleton title="프랜차이즈 vs 독립" />;
+function FranchiseSection({ data, loading, industryName }: { data: any; loading: boolean; industryName: string }) {
+  if (loading) return <SectionSkeleton title="프랜차이즈 현황" />;
   if (!data) return null;
 
   const brands = data.brands || data.top_brands || [];
@@ -623,11 +765,18 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Building2 className="h-5 w-5 text-orange-500" />
-        <h3 className="text-sm font-bold text-slate-900">B7. 프랜차이즈 vs 독립 창업</h3>
+        <h3 className="text-sm font-bold text-slate-900">B7. {industryName} 프랜차이즈 현황</h3>
       </div>
 
       {hasData ? (
         <div className="space-y-2">
+          <div className="rounded-lg bg-orange-50/50 p-2">
+            <p className="text-[10px] leading-relaxed text-orange-700">
+              아래 금액은 공정거래위원회 정보공개서 기준 <strong>가맹 가입비</strong>만 포함합니다.
+              실제 총 창업비용은 인테리어·보증금·장비비 등이 추가되어 훨씬 높습니다.
+              (비용비교 페이지에서 총 비용을 확인하세요)
+            </p>
+          </div>
           {/* 공정위 startup_costs 데이터 */}
           {startupCosts.length > 0 && startupCosts.map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -639,7 +788,7 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-900">{item.name}</p>
                     <span className="text-xs font-bold text-slate-700">
-                      평균 창업비 {formatWon(item.total_joining_cost || 0)}
+                      가맹 가입비 {formatWon(item.total_joining_cost || 0)}
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-slate-500">
@@ -680,16 +829,20 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
           )}
           {data.avg_total_startup_cost && (
             <div className="mt-2 rounded-lg bg-orange-50 p-2 text-center">
-              <p className="text-[10px] text-orange-500">업종 평균 총 창업비</p>
+              <p className="text-[10px] text-orange-500">업종 평균 가맹 가입비</p>
               <p className="text-sm font-extrabold text-orange-700">{formatWon(data.avg_total_startup_cost)}</p>
+              <p className="text-[9px] text-orange-400">가맹비+교육비+기타 합산 (인테리어·보증금·장비 별도)</p>
             </div>
           )}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">해당 업종의 프랜차이즈 공시 데이터를 준비 중입니다</p>
+        <div className="rounded-lg bg-orange-50/50 p-4 text-center">
+          <p className="text-sm text-slate-500">이 업종의 프랜차이즈 데이터가 아직 없습니다.</p>
+          <p className="mt-1 text-xs text-slate-400">독립창업 기준으로 비용을 산정합니다.</p>
+        </div>
       )}
 
-      <p className="mt-4 text-[10px] text-slate-400">출처: 공정거래위원회 정보공개서 ({data.year || "2024"})</p>
+      <DataSource text={`공정거래위원회 가맹사업 정보 (${data.year || "2024"})`} />
     </div>
   );
 }
@@ -698,10 +851,12 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
 function InlineSimulatorSection({
   defaults,
   loading,
+  districtName,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaults: any;
   loading: boolean;
+  districtName: string;
 }) {
   const [salesMultiplier, setSalesMultiplier] = useState(1.0);
   const [rentMultiplier, setRentMultiplier] = useState(1.0);
@@ -726,7 +881,14 @@ function InlineSimulatorSection({
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <SlidersHorizontal className="h-5 w-5 text-indigo-500" />
-        <h3 className="text-sm font-bold text-slate-900">C. 수익 시뮬레이터</h3>
+        <h3 className="text-sm font-bold text-slate-900">C. {districtName} 수익 시뮬레이터</h3>
+      </div>
+
+      {/* Description */}
+      <div className="mb-4 rounded-lg bg-indigo-50/50 p-3">
+        <p className="text-xs leading-relaxed text-indigo-800">
+          임대료, 인건비, 매출을 조정하면 예상 월 수익이 실시간으로 바뀝니다. 슬라이더를 움직여 다양한 시나리오를 확인해보세요.
+        </p>
       </div>
 
       <div className="space-y-4">
@@ -734,7 +896,7 @@ function InlineSimulatorSection({
         <div>
           <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
             <span>매출 조정</span>
-            <span className="font-bold text-slate-700">{(salesMultiplier * 100).toFixed(0)}%</span>
+            <span className="font-bold text-slate-700">{(salesMultiplier * 100).toFixed(0)}% ({formatWon(adjustedSales)})</span>
           </label>
           <input
             type="range"
@@ -755,7 +917,7 @@ function InlineSimulatorSection({
         {/* Rent slider */}
         <div>
           <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
-            <span>임대료 조정</span>
+            <span>월 임대료 <span className="text-[10px] text-slate-400">(예상 월세, 보증금 별도)</span></span>
             <span className="font-bold text-slate-700">{formatWon(adjustedRent)}</span>
           </label>
           <input
@@ -777,7 +939,7 @@ function InlineSimulatorSection({
         {/* Labor slider */}
         <div>
           <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
-            <span>인건비 조정</span>
+            <span>인건비 <span className="text-[10px] text-slate-400">(직원 급여 + 4대보험)</span></span>
             <span className="font-bold text-slate-700">{formatWon(adjustedLabor)}</span>
           </label>
           <input
@@ -816,7 +978,7 @@ function InlineSimulatorSection({
       </div>
 
       <p className="mt-4 text-[10px] text-slate-400">
-        매출/임대료/인건비를 조정하면 순이익이 자동 계산됩니다. 낙관/비관 시나리오를 직접 확인하세요.
+        순이익 = 매출 - 임대료 - 인건비 - 재료비(매출의 약 35%)
       </p>
     </div>
   );
@@ -824,7 +986,10 @@ function InlineSimulatorSection({
 
 // ─── Section D: Risk & Opportunity ─────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function RiskSection({ data, loading }: { data: any; loading: boolean }) {
+function RiskSection({ data, loading, districtName }: { data: any; loading: boolean; districtName: string }) {
+  const [riskExpanded, setRiskExpanded] = useState(false);
+  const [oppExpanded, setOppExpanded] = useState(false);
+
   if (loading) return <SectionSkeleton title="리스크 & 기회" />;
   if (!data) return null;
 
@@ -848,11 +1013,41 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
   const displayOppText = oppSection?.content || oppContent;
   const hasContent = displayRiskText || displayOppText || customerNote;
 
+  const COLLAPSE_THRESHOLD = 500;
+
+  const renderCollapsibleText = (text: string, expanded: boolean, setExpanded: (v: boolean) => void, colorClass: string) => {
+    const needsCollapse = text.length > COLLAPSE_THRESHOLD;
+    const displayText = !needsCollapse || expanded ? text : text;
+    return (
+      <div>
+        <p className={cn("text-xs leading-relaxed", colorClass)}>
+          {displayText}
+        </p>
+        {needsCollapse && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="mt-1 flex items-center gap-0.5 text-[10px] font-semibold text-slate-500 hover:text-slate-700"
+          >
+            {expanded ? "접기" : "더 보기"}
+            <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-amber-500" />
-        <h3 className="text-sm font-bold text-slate-900">D. AI 리스크 & 기회 분석</h3>
+        <h3 className="text-sm font-bold text-slate-900">D. {districtName} 리스크 & 기회 분석</h3>
+      </div>
+
+      {/* Preamble */}
+      <div className="mb-4 rounded-lg bg-amber-50/50 p-3">
+        <p className="text-xs leading-relaxed text-amber-800">
+          AI가 {districtName} 상권의 잠재적 위험 요소와 기회 요인을 분석했습니다.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -860,9 +1055,7 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
         <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-4">
           <p className="mb-2 text-xs font-bold text-rose-700">{riskSection?.title || "주요 리스크"}</p>
           {displayRiskText ? (
-            <p className="text-xs leading-relaxed text-rose-900/80">
-              {displayRiskText.slice(0, 300)}{displayRiskText.length > 300 ? "..." : ""}
-            </p>
+            renderCollapsibleText(displayRiskText, riskExpanded, setRiskExpanded, "text-rose-900/80")
           ) : (
             <p className="text-xs text-rose-500">해당 상권의 특이 리스크 분석 중입니다</p>
           )}
@@ -872,9 +1065,7 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4">
           <p className="mb-2 text-xs font-bold text-emerald-700">{oppSection?.title || "주요 기회"}</p>
           {displayOppText ? (
-            <p className="text-xs leading-relaxed text-emerald-900/80">
-              {displayOppText.slice(0, 300)}{displayOppText.length > 300 ? "..." : ""}
-            </p>
+            renderCollapsibleText(displayOppText, oppExpanded, setOppExpanded, "text-emerald-900/80")
           ) : (
             <p className="text-xs text-emerald-500">기회 요인을 탐색 중입니다</p>
           )}
@@ -885,24 +1076,18 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
       {customerNote && (
         <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
           <p className="mb-1 text-xs font-bold text-blue-700">고객 분석 인사이트</p>
-          <p className="text-xs leading-relaxed text-blue-900/80">
-            {customerNote.slice(0, 200)}{customerNote.length > 200 ? "..." : ""}
-          </p>
+          <p className="text-xs leading-relaxed text-blue-900/80">{customerNote}</p>
         </div>
       )}
 
-      {hasContent && (
-        <p className="mt-3 text-[10px] text-slate-400">
-          Powered by Gemini AI
-        </p>
-      )}
+      {hasContent && <DataSource text="AI 종합 분석" />}
     </div>
   );
 }
 
 // ─── Section E: Support Programs ───────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SupportSection({ data, loading, industryCode }: { data: any; loading: boolean; industryCode: string }) {
+function SupportSection({ data, loading, industryCode, industryName }: { data: any; loading: boolean; industryCode: string; industryName: string }) {
   if (loading) return <SectionSkeleton title="지원금 매칭" />;
   if (!data) return null;
 
@@ -912,12 +1097,19 @@ function SupportSection({ data, loading, industryCode }: { data: any; loading: b
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <Gift className="h-5 w-5 text-green-500" />
-        <h3 className="text-sm font-bold text-slate-900">E. 지원금 매칭</h3>
+        <h3 className="text-sm font-bold text-slate-900">E. {industryName} 창업 지원금</h3>
         {programs.length > 0 && (
           <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
             {programs.length}건
           </span>
         )}
+      </div>
+
+      {/* Interpretation */}
+      <div className="mb-4 rounded-lg bg-green-50/50 p-3">
+        <p className="text-xs leading-relaxed text-green-800">
+          현재 신청 가능한 정부·지자체 창업 지원 프로그램입니다. 대부분의 지원금은 사업계획서 제출이 필수입니다.
+        </p>
       </div>
 
       {programs.length > 0 ? (
@@ -938,6 +1130,11 @@ function SupportSection({ data, loading, industryCode }: { data: any; loading: b
                     {prog.support_amount}
                   </p>
                 )}
+                {prog.deadline && (
+                  <p className="mt-1 text-[10px] font-semibold text-rose-600">
+                    신청 마감: {prog.deadline}
+                  </p>
+                )}
               </div>
             ),
           )}
@@ -952,6 +1149,8 @@ function SupportSection({ data, loading, industryCode }: { data: any; loading: b
       >
         전체 지원금 보기 <ChevronRight className="h-3 w-3" />
       </Link>
+
+      <DataSource text="중소벤처기업부 비즈인포" />
     </div>
   );
 }
@@ -963,6 +1162,7 @@ function ReportContent() {
 
   const industryCode = searchParams?.get("industry_code") || store.industryCode;
   const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
+  const industryName = store.industryName || "카페";
 
   const [top3Loading, setTop3Loading] = useState(true);
   const [topDistricts, setTopDistricts] = useState<TopDistrict[]>([]);
@@ -1060,6 +1260,8 @@ function ReportContent() {
 
       // Check cache
       const cached = store.sectionData[districtCode];
+      const selectedDist = store.topDistricts.find((d) => d.district_code === districtCode);
+      const distName = selectedDist?.district_name || "";
 
       // B1: Scorecard
       if (!cached?.scorecard) {
@@ -1100,7 +1302,7 @@ function ReportContent() {
         setSimulationData({ ...cached.simulation, district_code: districtCode, industry_code: industryCode });
       }
 
-      // B3: Competition (stores data)
+      // B3: Competition (stores data + competitive analysis with query param)
       if (!cached?.competition) {
         setCompetitionLoading(true);
         fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
@@ -1113,8 +1315,9 @@ function ReportContent() {
               closed_stores: 0,
               franchise_stores: 0,
             };
-            // Get from competitive analysis
-            return fetch(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}`)
+            // Get from competitive analysis — include query param
+            const query = encodeURIComponent(`${distName} ${industryName}`);
+            return fetch(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}&query=${query}`)
               .then((r2) => r2.json())
               .then((comp) => {
                 const merged = { stores: { ...storesInfo, ...comp } };
@@ -1177,10 +1380,11 @@ function ReportContent() {
         setRiskData(cached.risk);
       }
 
-      // E: Support
+      // E: Support — include district name for regional filter
       if (!cached?.support) {
         setSupportLoading(true);
-        fetch(`${API_BASE}/support/programs?industry_code=${industryCode}`)
+        const districtParam = distName ? `&district=${encodeURIComponent(distName)}` : "";
+        fetch(`${API_BASE}/support/programs?industry_code=${industryCode}${districtParam}`)
           .then((r) => r.json())
           .then((data) => {
             setSupportData(data);
@@ -1261,7 +1465,7 @@ function ReportContent() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [industryCode],
+    [industryCode, industryName],
   );
 
   useEffect(() => {
@@ -1276,6 +1480,7 @@ function ReportContent() {
   };
 
   const selectedDistrict = topDistricts.find((d) => d.district_code === selectedCode);
+  const districtName = selectedDistrict?.district_name || "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -1304,7 +1509,7 @@ function ReportContent() {
         {/* Title */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">
-            {store.industryIcon || "🍽️"} {store.industryName || "카페"} 창업 분석 리포트
+            {store.industryIcon || "🍽️"} {industryName} 창업 분석 리포트
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             예산 {budget.toLocaleString()}만원 · 서울 1,077개 상권 중 AI 추천 TOP 3
@@ -1318,17 +1523,26 @@ function ReportContent() {
             selectedCode={selectedCode}
             onSelect={handleDistrictSelect}
             loading={top3Loading}
-            industryName={store.industryName || "카페"}
+            industryName={industryName}
           />
         </div>
 
-        {/* Selected district header */}
+        {/* Context Bar: district + industry + budget */}
         {selectedDistrict && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
-            <Sparkles className="h-4 w-4 text-blue-500" />
-            <p className="text-sm font-semibold text-blue-900">
-              <span className="font-extrabold">{selectedDistrict.district_name}</span> 상세 분석
-            </p>
+          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-500" />
+                <p className="text-sm font-extrabold text-blue-900">{districtName}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 text-xs text-blue-700">
+                <span>상권: {districtName} ({selectedDistrict.district_type})</span>
+                <span className="text-blue-300">|</span>
+                <span>업종: {industryName}</span>
+                <span className="text-blue-300">|</span>
+                <span>예산: {budget.toLocaleString()}만원</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1340,82 +1554,83 @@ function ReportContent() {
           </div>
         )}
 
-        {/* Report sections B~E */}
+        {/* Report sections B~E — Corrected order: B1+B2, B3+B4, B5+B6, Trends, B7, C, D+E */}
         {selectedCode && (
           <div className="space-y-4">
             {/* Row 1: B1 + B2 */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div id="section-b1">
                 <ProGateSection feature="detailed_scorecard">
-                  <ScorecardSection data={scorecardData} loading={scorecardLoading} />
+                  <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
                 </ProGateSection>
               </div>
               <div id="section-b2">
                 <ProGateSection feature="revenue_waterfall">
-                  <RevenueSection data={simulationData} loading={simulationLoading} />
+                  <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
                 </ProGateSection>
               </div>
             </div>
 
-            {/* Row 2: B3 + B5 */}
+            {/* Row 2: B3 (경쟁 환경) + B4 (입지 분석) */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div id="section-b3">
                 <ProGateSection feature="competition_map">
-                  <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} />
+                  <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} districtName={districtName} industryName={industryName} />
                 </ProGateSection>
               </div>
-              <div id="section-b5">
-                <ProGateSection feature="full_customer_charts">
-                  <CustomerSection data={customerData} loading={customerLoading} />
+              <div id="section-b4">
+                <ProGateSection feature="location_profile">
+                  <LocationProfile data={locationData} loading={locationLoading} districtName={districtName} />
                 </ProGateSection>
               </div>
             </div>
 
-            {/* Row 2.5: B4 Location + B6 Rent */}
+            {/* Row 3: B5 (고객 분석) + B6 (임대료 트렌드) */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div id="section-b4">
-                <ProGateSection feature="location_profile">
-                  <LocationProfile data={locationData} loading={locationLoading} />
+              <div id="section-b5">
+                <ProGateSection feature="full_customer_charts">
+                  <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
                 </ProGateSection>
               </div>
               <div id="section-b6">
                 <ProGateSection feature="rent_trend">
-                  <RentTrendChart data={rentData} loading={rentLoading} />
+                  <RentTrendChart data={rentData} loading={rentLoading} districtName={districtName} />
                 </ProGateSection>
               </div>
             </div>
 
-            {/* Row 2.75: Sales Trend */}
+            {/* Row 3.5: Sales Trend (매출 트렌드) */}
             <div id="section-trend">
-              <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} />
+              <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} districtName={districtName} industryName={industryName} />
             </div>
 
-            {/* Row 3: B7 Franchise */}
+            {/* Row 4: B7 Franchise */}
             <div id="section-b7">
               <ProGateSection feature="franchise_comparison">
-                <FranchiseSection data={franchiseData} loading={franchiseLoading} />
+                <FranchiseSection data={franchiseData} loading={franchiseLoading} industryName={industryName} />
               </ProGateSection>
             </div>
 
-            {/* Row 4: C Simulator */}
+            {/* Row 5: C Simulator */}
             <div id="section-c">
               <ProGateSection feature="simulator_full">
                 <InlineSimulatorSection
                   defaults={simulationData}
                   loading={simulationLoading}
+                  districtName={districtName}
                 />
               </ProGateSection>
             </div>
 
-            {/* Row 5: D Risk + E Support */}
+            {/* Row 6: D Risk + E Support */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div id="section-d">
                 <ProGateSection feature="risk_full">
-                  <RiskSection data={riskData} loading={riskLoading} />
+                  <RiskSection data={riskData} loading={riskLoading} districtName={districtName} />
                 </ProGateSection>
               </div>
               <div id="section-e">
-                <SupportSection data={supportData} loading={supportLoading} industryCode={industryCode} />
+                <SupportSection data={supportData} loading={supportLoading} industryCode={industryCode} industryName={industryName} />
               </div>
             </div>
           </div>

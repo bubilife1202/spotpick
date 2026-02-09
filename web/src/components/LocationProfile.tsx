@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function LocationProfile({ data, loading }: { data: any; loading: boolean }) {
+export function LocationProfile({ data, loading, districtName }: { data: any; loading: boolean; districtName?: string }) {
   if (loading) {
     return (
       <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
@@ -38,11 +38,20 @@ export function LocationProfile({ data, loading }: { data: any; loading: boolean
   const bus = data.bus || {};
   const pop = data.living_population || {};
 
+  const headerName = districtName ? `B4. ${districtName} 입지 분석` : "B4. 입지 분석";
+
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <MapPin className="h-5 w-5 text-teal-500" />
-        <h3 className="text-sm font-bold text-slate-900">B4. 입지 분석</h3>
+        <h3 className="text-sm font-bold text-slate-900">{headerName}</h3>
+      </div>
+
+      {/* Interpretation */}
+      <div className="mb-4 rounded-lg bg-teal-50/50 p-3">
+        <p className="text-xs leading-relaxed text-teal-800">
+          이 상권의 유동인구, 배후인구, 교통접근성 등을 종합한 입지 정보입니다.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -143,17 +152,19 @@ export function LocationProfile({ data, loading }: { data: any; loading: boolean
           <p className="text-sm font-semibold text-slate-900">
             일 평균 {(bus.avg_daily_passengers || 0).toLocaleString()}명
           </p>
+          <p className="text-[10px] text-slate-400">하루 평균 이 상권을 이용하는 버스 승객 수</p>
         </div>
 
         {/* Living Population */}
         <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
           <div className="mb-1 flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-rose-500" />
-            <p className="text-[10px] font-bold text-slate-500">생활인구</p>
+            <p className="text-[10px] font-bold text-slate-500">생활인구 (배후인구)</p>
           </div>
           <p className="text-sm font-semibold text-slate-900">
             {(pop.total || 0).toLocaleString()}명
           </p>
+          <p className="text-[10px] text-slate-400">이 상권 반경 내 거주하는 주민 수</p>
           {pop.male_ratio != null && (
             <p className="text-[10px] text-slate-500">
               남 {((pop.male_ratio || 0) * 100).toFixed(0)}% / 여{" "}
@@ -162,6 +173,8 @@ export function LocationProfile({ data, loading }: { data: any; loading: boolean
           )}
         </div>
       </div>
+
+      <p className="mt-4 text-[10px] text-slate-400">출처: 서울시 생활인구 + 대중교통 데이터</p>
     </div>
   );
 }

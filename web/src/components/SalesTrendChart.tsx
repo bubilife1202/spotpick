@@ -10,7 +10,7 @@ interface QuarterData {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function SalesTrendChart({ data, loading }: { data: any; loading: boolean }) {
+export function SalesTrendChart({ data, loading, districtName, industryName }: { data: any; loading: boolean; districtName?: string; industryName?: string }) {
   if (loading) {
     return (
       <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
@@ -38,14 +38,28 @@ export function SalesTrendChart({ data, loading }: { data: any; loading: boolean
     return `${v.toLocaleString()}`;
   };
 
+  const headerName = districtName ? `B6. ${districtName} 매출 트렌드` : "매출 트렌드";
+
+  // Trend interpretation
+  const trendText = yoyChange > 5
+    ? "상승"
+    : yoyChange < -5
+      ? "하락"
+      : "유지";
+
+  // Determine year range from quarters
+  const firstYear = quarters[0]?.period?.slice(0, 4) || "";
+  const lastYear = quarters[quarters.length - 1]?.period?.slice(0, 4) || "";
+  const yearRange = firstYear === lastYear ? firstYear : `${firstYear}~${lastYear}`;
+
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
         <TrendingUp className="h-5 w-5 text-blue-500" />
-        <h3 className="text-sm font-bold text-slate-900">매출 트렌드</h3>
+        <h3 className="text-sm font-bold text-slate-900">{headerName}</h3>
         <span className="ml-auto flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-600">
           <CreditCard className="h-2.5 w-2.5" />
-          카드매출 {quarters.length}분기
+          {yearRange} 분기별 매출
         </span>
       </div>
 
@@ -101,6 +115,16 @@ export function SalesTrendChart({ data, loading }: { data: any; loading: boolean
         {quarters.length > 4 && <span>{quarters[Math.floor(quarters.length / 2)].period}</span>}
         <span>{quarters[quarters.length - 1].period}</span>
       </div>
+
+      {/* Trend interpretation */}
+      <div className="mt-3 rounded-lg bg-blue-50/50 p-3">
+        <p className="text-xs leading-relaxed text-blue-800">
+          최근 {quarters.length}분기 동안 매출이 {trendText} 추세입니다.
+          {industryName && districtName && ` ${districtName} 상권의 ${industryName} 업종 카드매출 데이터를 기반으로 분석했습니다.`}
+        </p>
+      </div>
+
+      <p className="mt-4 text-[10px] text-slate-400">출처: 서울시 카드매출 데이터</p>
     </div>
   );
 }

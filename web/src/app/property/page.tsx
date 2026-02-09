@@ -246,11 +246,21 @@ function PropertyContent() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl bg-slate-50 py-8 text-center">
-                  <Building2 className="mx-auto h-8 w-8 text-slate-300" />
-                  <p className="mt-2 text-sm text-slate-500">
-                    검색된 매물이 없습니다. 아래 부동산 중개소에 직접 문의하세요.
+                <div className="rounded-xl bg-amber-50 border border-amber-200 py-8 px-6 text-center">
+                  <Building2 className="mx-auto h-8 w-8 text-amber-400" />
+                  <p className="mt-2 text-sm font-semibold text-amber-800">
+                    현재 온라인 매물 검색 결과가 없습니다
                   </p>
+                  <p className="mt-1 text-xs text-amber-600 leading-relaxed">
+                    실시간 매물 데이터는 네이버 부동산 · 카카오 지도 API 연동이 필요합니다.
+                    <br />
+                    아래 <strong>인근 부동산 중개소</strong>에 직접 문의하시면 최신 매물을 확인할 수 있습니다.
+                  </p>
+                  {estimatedRent > 0 && (
+                    <p className="mt-2 text-xs text-amber-700">
+                      이 상권 추정 월 임대료: <strong>{formatWon(estimatedRent)}</strong> (참고용)
+                    </p>
+                  )}
                 </div>
               )}
             </div>
