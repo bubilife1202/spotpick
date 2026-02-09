@@ -208,6 +208,24 @@ export interface StructuredChatResponse {
   timeline?: TimelineData;
   /** Trademark conflict check result */
   trademark?: TrademarkCheckResult;
+  /** Go/No-Go verdict computed from data */
+  verdict?: {
+    verdict: 'GO' | 'CAUTION' | 'NO_GO';
+    confidence: number;
+    summary: string;
+    reasons: Array<{
+      factor: string;
+      level: 'danger' | 'warning' | 'positive';
+      detail: string;
+      data_value: string;
+      threshold: string;
+    }>;
+    danger_count: number;
+    warning_count: number;
+    positive_count: number;
+    alternatives: Array<Record<string, unknown>>;
+    data_source: string;
+  };
 }
 
 // ============================================================================

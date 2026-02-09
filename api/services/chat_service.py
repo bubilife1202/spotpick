@@ -37,6 +37,7 @@ class _GeminiClient(Protocol):
     @property
     def models(self) -> _GeminiModels: ...
 
+
 # .env 로드
 _ = load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -144,6 +145,7 @@ class StructuredRecommendation(TypedDict):
     positioning: str
     positioning_detail: str
     purchasing_power: float
+    single_household_ratio: Optional[float]
     income_info: Optional[dict[str, object]]
     scorecard: Optional[dict[str, object]]
 
@@ -175,6 +177,12 @@ class ContextMeta(TypedDict, total=False):
     data_error: str
     llm_error: str
     intake_needs: list[str]
+    comparison_failed: bool
+    comparison: bool
+    trend_request: bool
+    trend_error: bool
+    keyword: str
+    districts: list[str]
 
 
 class Summary(TypedDict):
@@ -196,6 +204,8 @@ class StructuredChatPayload(TypedDict, total=False):
     timeline: dict[str, object]
     trademark: dict[str, object]
     support_programs: list[dict[str, object]]
+    verdict: dict[str, object]
+    trend: dict[str, object]
 
 
 @dataclass
@@ -264,6 +274,7 @@ class ChatService:
 
         # Load industry config
         from config.industry_config import load_industry_config
+
         try:
             self.industry_config: dict[str, object] = load_industry_config(industry_code)
         except FileNotFoundError:
@@ -275,12 +286,16 @@ class ChatService:
             try:
                 self.client = genai.Client(api_key=GEMINI_API_KEY)
             except Exception:
-                logger.exception("Failed to initialize Gemini client; falling back to data-only reply")
+                logger.exception(
+                    "Failed to initialize Gemini client; falling back to data-only reply"
+                )
 
         # Use industry-aware services
         self.data_service: DataService = get_data_service(industry_code)
         self.simulation_service: SimulationService = get_simulation_service(industry_code)
-        self.competitive_service: CompetitiveAnalysisService = get_competitive_analysis_service(industry_code)
+        self.competitive_service: CompetitiveAnalysisService = get_competitive_analysis_service(
+            industry_code
+        )
         self.kakao_service: KakaoLocalService = get_kakao_local_service()
         self.timeline_service: TimelineService = get_timeline_service(industry_code)
         self.model: str = "gemini-2.5-flash"
@@ -328,16 +343,16 @@ class ChatService:
     def _sanitize_user_input(self, text: str) -> str:
         """사용자 입력에서 프롬프트 인젝션 시도를 방어"""
         dangerous_patterns = [
-            r'(?i)ignore\s+(all\s+)?previous\s+instructions',
-            r'(?i)system\s*:\s*',
-            r'(?i)\[SYSTEM\s*(OVERRIDE|PROMPT)\]',
-            r'(?i)you\s+are\s+now\s+',
-            r'(?i)forget\s+(all\s+)?previous',
-            r'(?i)new\s+instructions?\s*:',
+            r"(?i)ignore\s+(all\s+)?previous\s+instructions",
+            r"(?i)system\s*:\s*",
+            r"(?i)\[SYSTEM\s*(OVERRIDE|PROMPT)\]",
+            r"(?i)you\s+are\s+now\s+",
+            r"(?i)forget\s+(all\s+)?previous",
+            r"(?i)new\s+instructions?\s*:",
         ]
         sanitized = text
         for pattern in dangerous_patterns:
-            sanitized = re.sub(pattern, '[filtered]', sanitized)
+            sanitized = re.sub(pattern, "[filtered]", sanitized)
         return sanitized[:5000]
 
     def _build_district_name_index(self) -> list[str]:
@@ -422,6 +437,53 @@ class ChatService:
         except Exception:
             return None
 
+    def _get_peak_time_slot(self, d: dict[str, object]) -> str:
+        """Return peak time slot token (e.g., '11-14')."""
+        peak = d.get("peak_time")
+        if isinstance(peak, str) and peak:
+            return peak
+
+        # Fallback: infer from time bucket sales fields.
+        buckets = [
+            ("00-06", "time_00_06_sales"),
+            ("06-11", "time_06_11_sales"),
+            ("11-14", "time_11_14_sales"),
+            ("14-17", "time_14_17_sales"),
+            ("17-21", "time_17_21_sales"),
+            ("21-24", "time_21_24_sales"),
+        ]
+        best = "11-14"
+        best_val = -1
+        for label, key in buckets:
+            v = d.get(key)
+            if isinstance(v, (int, float)) and v > best_val:
+                best_val = int(v)
+                best = label
+        return best
+
+    def _get_main_age_group(self, d: dict[str, object]) -> str:
+        """Return main age group label (e.g., '20대')."""
+        mag = d.get("main_age_group")
+        if isinstance(mag, str) and mag:
+            return mag
+
+        buckets = [
+            ("10대", "age_10_sales"),
+            ("20대", "age_20_sales"),
+            ("30대", "age_30_sales"),
+            ("40대", "age_40_sales"),
+            ("50대", "age_50_sales"),
+            ("60대+", "age_60_sales"),
+        ]
+        best = "20대"
+        best_val = -1
+        for label, key in buckets:
+            v = d.get(key)
+            if isinstance(v, (int, float)) and v > best_val:
+                best_val = int(v)
+                best = label
+        return best
+
     def _build_fallback_reply(
         self,
         user_message: str,
@@ -453,7 +515,9 @@ class ChatService:
 
         if not recommendations:
             lines.append("")
-            lines.append("조건에 맞는 추천이 없습니다. 예산/지역/상권 유형을 조금 넓혀서 다시 물어보세요.")
+            lines.append(
+                "조건에 맞는 추천이 없습니다. 예산/지역/상권 유형을 조금 넓혀서 다시 물어보세요."
+            )
             return "\n".join(lines).strip()
 
         lines.append("")
@@ -682,16 +746,13 @@ class ChatService:
         if districts:
             return {
                 "keyword": keyword,
-                "districts": districts[:5]  # Max 5 districts for Naver API
+                "districts": districts[:5],  # Max 5 districts for Naver API
             }
 
         # If no districts but trend keywords present, use default districts
         if any(kw in message for kw in trend_keywords):
             # Use top 5 popular districts as default
-            return {
-                "keyword": keyword,
-                "districts": ["강남", "홍대", "성수", "이태원", "종로"]
-            }
+            return {"keyword": keyword, "districts": ["강남", "홍대", "성수", "이태원", "종로"]}
 
         return None
 
@@ -740,28 +801,33 @@ class ChatService:
             monthly_sales_per_store = int(d["monthly_sales"] / max(1, sc))
             sales_pct = self.data_service._sales_percentile.get(d["district_code"], 0.5)
             estimated_rent = estimate_rent(
-                d["district_type"], monthly_sales_per_store, sales_pct, self.data_service._rent_ranges,
+                d["district_type"],
+                monthly_sales_per_store,
+                sales_pct,
+                self.data_service._rent_ranges,
                 industry_code=self.industry_code,
             )
 
             scorecard_result = sc_svc.score_district(d)
 
-            recommendations.append({
-                "rank": idx,
-                "district_code": d["district_code"],
-                "district_name": d["district_name"],
-                "district_type": d["district_type"],
-                "success_probability": d.get("survival_rate", 0.85),
-                "estimated_rent": estimated_rent,
-                "peak_time": self._get_peak_time_slot(d),
-                "main_age_group": self._get_main_age_group(d),
-                "risk_factors": [],
-                "recommendations": [],
-                "monthly_sales": monthly_sales_per_store,
-                "store_count": d.get("store_count", 0),
-                "survival_rate": d.get("survival_rate", 0),
-                "scorecard": scorecard_result,
-            })
+            recommendations.append(
+                {
+                    "rank": idx,
+                    "district_code": d["district_code"],
+                    "district_name": d["district_name"],
+                    "district_type": d["district_type"],
+                    "success_probability": d.get("survival_rate", 0.85),
+                    "estimated_rent": estimated_rent,
+                    "peak_time": self._get_peak_time_slot(d),
+                    "main_age_group": self._get_main_age_group(d),
+                    "risk_factors": [],
+                    "recommendations": [],
+                    "monthly_sales": monthly_sales_per_store,
+                    "store_count": d.get("store_count", 0),
+                    "survival_rate": d.get("survival_rate", 0),
+                    "scorecard": scorecard_result,
+                }
+            )
 
         # 비교 텍스트 생성
         d1 = districts_data[0]
@@ -774,13 +840,21 @@ class ChatService:
         ]
 
         # 5개 카테고리 비교
-        if len(recommendations) >= 2 and recommendations[0].get("scorecard") and recommendations[1].get("scorecard"):
+        if (
+            len(recommendations) >= 2
+            and recommendations[0].get("scorecard")
+            and recommendations[1].get("scorecard")
+        ):
             sc1 = recommendations[0]["scorecard"]
             sc2 = recommendations[1]["scorecard"]
 
             comparison_lines.append("**종합 점수**")
-            comparison_lines.append(f"- {d1_name}: {sc1['total_score']:.1f}점 (상위 {100 - sc1['percentile']:.0f}%)")
-            comparison_lines.append(f"- {d2_name}: {sc2['total_score']:.1f}점 (상위 {100 - sc2['percentile']:.0f}%)")
+            comparison_lines.append(
+                f"- {d1_name}: {sc1['total_score']:.1f}점 (상위 {100 - sc1['percentile']:.0f}%)"
+            )
+            comparison_lines.append(
+                f"- {d2_name}: {sc2['total_score']:.1f}점 (상위 {100 - sc2['percentile']:.0f}%)"
+            )
             comparison_lines.append("")
 
             # 카테고리별 차이 분석
@@ -797,7 +871,9 @@ class ChatService:
 
             if max_diff_cat:
                 winner = d1_name if cat1[max_diff_cat] > cat2[max_diff_cat] else d2_name
-                comparison_lines.append(f"**가장 큰 차이: {max_diff_cat}** - {winner}이(가) 우세합니다.")
+                comparison_lines.append(
+                    f"**가장 큰 차이: {max_diff_cat}** - {winner}이(가) 우세합니다."
+                )
 
         comparison_lines.append("\n레이더 차트와 상세 비교 테이블을 확인하세요.")
 
@@ -812,14 +888,14 @@ class ChatService:
                 f"{d2_name} 경쟁 분석 해줘",
                 "다른 상권도 비교해줘",
             ],
-            "context": {"comparison": True, "districts": [d["district_name"] for d in districts_data]},
+            "context": {
+                "comparison": True,
+                "districts": [d["district_name"] for d in districts_data],
+            },
         }
 
     async def _handle_trend_request(
-        self,
-        keyword: str,
-        districts: list[str] | None,
-        message: str
+        self, keyword: str, districts: list[str] | None, message: str
     ) -> StructuredChatPayload:
         """
         트렌드 분석 요청 처리
@@ -842,7 +918,7 @@ class ChatService:
             trend_data = await trend_service.get_district_trend(
                 base_keyword=keyword,
                 districts=target_districts[:5],  # Max 5
-                months=12
+                months=12,
             )
 
             # Build reply text
@@ -856,7 +932,9 @@ class ChatService:
                 reply_lines.append(f"가장 높은 검색량: **{top}** (평균 {avg:.1f})")
 
             reply_lines.append("\n지역별 검색량 추이를 차트로 확인하세요.")
-            reply_lines.append("높은 검색량은 높은 관심도를 의미하지만, 경쟁도 함께 높을 수 있습니다.")
+            reply_lines.append(
+                "높은 검색량은 높은 관심도를 의미하지만, 경쟁도 함께 높을 수 있습니다."
+            )
 
             reply = "\n".join(reply_lines)
 
@@ -873,7 +951,11 @@ class ChatService:
                 "charts": [],
                 "trend": trend_data,
                 "suggested_questions": suggested,
-                "context": {"trend_request": True, "keyword": keyword, "districts": target_districts},
+                "context": {
+                    "trend_request": True,
+                    "keyword": keyword,
+                    "districts": target_districts,
+                },
             }
 
         except Exception as e:
@@ -913,12 +995,18 @@ class ChatService:
 
         # Fallback: hardcoded prompt with display_name substitution
         dn = self.display_name
-        return f"""당신은 서울시 {dn} 창업 전문 AI 컨설턴트 "빌더"입니다.
+        return f"""당신은 서울시 {dn} 창업 전문 AI 코치 "빌더"입니다. 컨셉은 **정직한 코치**입니다.
 
 ## 역할
-- 예비 창업자의 질문에 친절하고 전문적으로 답변
-- 실제 서울시 상권 데이터를 기반으로 구체적인 추천 제공
-- 복잡한 상권 분석을 쉽게 설명
+- 예비 창업자에게 데이터 기반으로 **GO/CAUTION/NO_GO**를 단호하게 말합니다.
+- 데이터가 나쁘면 반드시 **"추천하지 않습니다"**(NO_GO)라고 말하고, 대안을 제시합니다.
+- 실제 서울시 상권 데이터를 기반으로 구체적인 조언만 합니다.
+
+## 판정 엔진 우선 (가장 중요)
+- 프롬프트에 `## 판정 결과`가 주어지면, 그 결과를 **최우선**으로 반영하세요.
+- `verdict=NO_GO`면: 본문 첫 문장에 "추천하지 않습니다"를 명시하고, `alternatives`가 있으면 2~3개를 제시하세요.
+- `verdict=CAUTION`이면: 가능하다고 말하되 **조건/리스크**를 먼저 걸고, 실행 체크리스트를 짧게 제시하세요.
+- `verdict=GO`이면: 추천하되, 리스크 1~2개는 반드시 함께 언급하세요.
 
 ## 보유 데이터 (64개 필드, 6년 트렌드 분석)
 - 서울시 {summary["total_districts"]}개 상권 분석 완료
@@ -1016,9 +1104,7 @@ class ChatService:
         def as_int(value: object) -> int | None:
             return int(value) if isinstance(value, int) else None
 
-        def get_bucket_value(
-            breakdown: dict[str, object], bucket: str, field: str
-        ) -> int | None:
+        def get_bucket_value(breakdown: dict[str, object], bucket: str, field: str) -> int | None:
             b = breakdown.get(bucket)
             if isinstance(b, dict):
                 return as_int(b.get(field))
@@ -1224,7 +1310,9 @@ class ChatService:
                             "value": to_float(customer_data.get("age_60")),
                             "label": format_label(
                                 get_nested_int(customer_breakdown, ["age", "60대+", "sales"]),
-                                get_nested_int(customer_breakdown, ["age", "60대+", "transactions"]),
+                                get_nested_int(
+                                    customer_breakdown, ["age", "60대+", "transactions"]
+                                ),
                             ),
                         },
                     ],
@@ -1241,7 +1329,9 @@ class ChatService:
                             "value": to_float(customer_data.get("male_ratio")),
                             "label": format_label(
                                 get_nested_int(customer_breakdown, ["gender", "male", "sales"]),
-                                get_nested_int(customer_breakdown, ["gender", "male", "transactions"]),
+                                get_nested_int(
+                                    customer_breakdown, ["gender", "male", "transactions"]
+                                ),
                             ),
                         },
                         {
@@ -1249,7 +1339,9 @@ class ChatService:
                             "value": to_float(customer_data.get("female_ratio")),
                             "label": format_label(
                                 get_nested_int(customer_breakdown, ["gender", "female", "sales"]),
-                                get_nested_int(customer_breakdown, ["gender", "female", "transactions"]),
+                                get_nested_int(
+                                    customer_breakdown, ["gender", "female", "transactions"]
+                                ),
                             ),
                         },
                     ],
@@ -1270,9 +1362,7 @@ class ChatService:
             questions.append(
                 f"{district_name}에서 월세 {estimated_rent // 10000}만원대 상권을 더 추천해줘"
             )
-            questions.append(
-                f"{district_name}의 피크 시간대 {peak_time}에 맞는 운영 전략은?"
-            )
+            questions.append(f"{district_name}의 피크 시간대 {peak_time}에 맞는 운영 전략은?")
 
         district = context.get("district")
         if isinstance(district, str) and district:
@@ -1482,7 +1572,8 @@ class ChatService:
                         nearest_dist = f" ({d}m)"
                 if pc > 0:
                     lines.append(
-                        f"- 주차(500m): {pc}개" + (f" | 가장 가까운: {nearest_name}{nearest_dist}" if nearest_name else "")
+                        f"- 주차(500m): {pc}개"
+                        + (f" | 가장 가까운: {nearest_name}{nearest_dist}" if nearest_name else "")
                     )
                 else:
                     lines.append("- 주차(500m): 결과 없음")
@@ -1510,23 +1601,48 @@ class ChatService:
     def _build_investment_prompt(self) -> str:
         """Build dynamic investment cost section from industry config."""
         cfg = self.industry_config
-        dtf = cfg.get("DISTRICT_TYPE_FACTORS", {})
-        eq = cfg.get("EQUIPMENT_COST", {})
-        inv = cfg.get("INITIAL_INVENTORY", [3000000, 5000000])
-        pm = cfg.get("PERMITS_AND_MISC", [5000000, 10000000])
+        dtf_raw = cfg.get("DISTRICT_TYPE_FACTORS")
+        dtf: dict[str, object] = dtf_raw if isinstance(dtf_raw, dict) else {}
+        eq_raw = cfg.get("EQUIPMENT_COST")
+        eq: dict[str, object] = eq_raw if isinstance(eq_raw, dict) else {}
+        inv_raw = cfg.get("INITIAL_INVENTORY")
+        inv: list[int] = (
+            inv_raw if isinstance(inv_raw, list) and len(inv_raw) >= 2 else [3000000, 5000000]
+        )
+        pm_raw = cfg.get("PERMITS_AND_MISC")
+        pm: list[int] = (
+            pm_raw if isinstance(pm_raw, list) and len(pm_raw) >= 2 else [5000000, 10000000]
+        )
 
         # Interior costs
         interiors = []
         for dt in ["전통시장", "골목상권", "발달상권", "관광특구"]:
-            f = dtf.get(dt, {})
+            f_raw = dtf.get(dt, {})
+            f = f_raw if isinstance(f_raw, dict) else {}
             ipp = f.get("interior_per_pyeong", 0)
-            dep = f.get("deposit_mult", 10)
-            if ipp:
+            if isinstance(ipp, int) and ipp > 0:
                 interiors.append(f"{dt} {ipp // 10000}")
 
         # Equipment total
-        eq_min = sum(v[0] if isinstance(v, list) else v for v in eq.values())
-        eq_max = sum(v[1] if isinstance(v, list) and len(v) > 1 else (v[0] if isinstance(v, list) else v) for v in eq.values())
+        def _eq_min(v: object) -> int:
+            if isinstance(v, list) and v and isinstance(v[0], int):
+                return int(v[0])
+            if isinstance(v, int):
+                return v
+            return 0
+
+        def _eq_max(v: object) -> int:
+            if isinstance(v, list):
+                if len(v) > 1 and isinstance(v[1], int):
+                    return int(v[1])
+                if v and isinstance(v[0], int):
+                    return int(v[0])
+            if isinstance(v, int):
+                return v
+            return 0
+
+        eq_min = sum(_eq_min(v) for v in eq.values())
+        eq_max = sum(_eq_max(v) for v in eq.values())
 
         lines = []
         lines.append("- 보증금: 월세 × 8~15배 (전통시장 ×8, 골목 ×10, 발달·관광특구 ×15)")
@@ -1540,9 +1656,12 @@ class ChatService:
     def _build_operating_cost_prompt(self) -> str:
         """Build dynamic operating cost section from industry config."""
         cfg = self.industry_config
-        cogs = cfg.get("COGS_RATIO", 0.32)
-        utilities = cfg.get("UTILITIES_RATIO", 0.035)
-        other = cfg.get("OTHER_RATIO", 0.075)
+        cogs_raw = cfg.get("COGS_RATIO", 0.32)
+        utilities_raw = cfg.get("UTILITIES_RATIO", 0.035)
+        other_raw = cfg.get("OTHER_RATIO", 0.075)
+        cogs = float(cogs_raw) if isinstance(cogs_raw, (int, float)) else 0.32
+        utilities = float(utilities_raw) if isinstance(utilities_raw, (int, float)) else 0.035
+        other = float(other_raw) if isinstance(other_raw, (int, float)) else 0.075
 
         lines = []
         lines.append(f"- 원가율: {cogs * 100:.0f}%")
@@ -1731,10 +1850,7 @@ class ChatService:
                 incoming.age_target,
             )
             base.age_target = incoming.age_target
-        if (
-            incoming.gender_target is not None
-            and incoming.gender_target != base.gender_target
-        ):
+        if incoming.gender_target is not None and incoming.gender_target != base.gender_target:
             logger.info(
                 "Context updated from %s: gender_target %s -> %s",
                 source,
@@ -1752,9 +1868,7 @@ class ChatService:
             base.cafe_type = incoming.cafe_type
         return base
 
-    def _extract_context_from_history(
-        self, history: list[HistoryMessage]
-    ) -> ConversationContext:
+    def _extract_context_from_history(self, history: list[HistoryMessage]) -> ConversationContext:
         context = ConversationContext()
         for message in history[-10:]:
             # Only trust user utterances for context extraction.
@@ -1801,9 +1915,7 @@ class ChatService:
             target_time = time_map.get(context.time_preference)
             if target_time:
                 time_filtered = [
-                    r
-                    for r in filtered
-                    if r["time_analysis"]["peak_time"] == target_time
+                    r for r in filtered if r["time_analysis"]["peak_time"] == target_time
                 ]
                 if time_filtered:
                     filtered = time_filtered
@@ -1853,7 +1965,9 @@ class ChatService:
         charts: list[ChartData] = []
         timeline_data_for_response: Optional[dict[str, object]] = None
 
-        merged_context = merged_context or self._compute_merged_context(query, history, seed_context)
+        merged_context = merged_context or self._compute_merged_context(
+            query, history, seed_context
+        )
 
         budget_min = merged_context.budget_min or 1500000
         budget_max = merged_context.budget_max or 10000000
@@ -1886,7 +2000,9 @@ class ChatService:
             context_meta["data_error"] = str(exc)
 
         if recs:
-            context_parts.append("## ⚠️ 추천 상권 데이터 (이 데이터만 사용하세요 — 아래에 없는 상권명·수치를 절대 생성하지 마세요)")
+            context_parts.append(
+                "## ⚠️ 추천 상권 데이터 (이 데이터만 사용하세요 — 아래에 없는 상권명·수치를 절대 생성하지 마세요)"
+            )
             for r in recs:
                 ta = r["time_analysis"]
                 da = r["day_analysis"]
@@ -1957,60 +2073,84 @@ class ChatService:
                 # Attach scorecard if available
                 try:
                     from api.services.scorecard_service import get_scorecard_service
+
                     sc_svc = get_scorecard_service(self.industry_code)
                     if not sc_svc._districts:
                         sc_svc.set_districts(self.data_service.districts)
                     district_raw = self.data_service.get_district(r["district_code"])
                     if district_raw:
-                        structured_recommendations[-1]["scorecard"] = sc_svc.score_district(district_raw)
+                        structured_recommendations[-1]["scorecard"] = sc_svc.score_district(
+                            district_raw
+                        )
                 except Exception:
                     pass
 
                 # Attach 1인가구 비율 (서울 전체)
                 try:
                     from api.services.kosis_data_service import get_single_household_ratio
+
                     household = await get_single_household_ratio("서울특별시")
                     if household:
-                        structured_recommendations[-1]["single_household_ratio"] = household["ratio"]
+                        ratio = household.get("ratio")
+                        if isinstance(ratio, (int, float)):
+                            structured_recommendations[-1]["single_household_ratio"] = float(ratio)
                 except Exception:
                     pass
 
                 # Attach 소득소비 데이터 (상권별)
                 try:
                     from api.services.income_data_service import get_district_income_info
+
                     income = await get_district_income_info(r["district_code"])
                     if income:
-                        structured_recommendations[-1]["income_info"] = income
+                        structured_recommendations[-1]["income_info"] = dict(income)
                 except Exception:
                     pass
 
                 sim = await self.simulation_service.simulate(r["district_code"])
                 sim_text = ""
-                if sim:
-                    rev = sim["revenue"]
-                    sc_data = sim["startup_cost"]
-                    be = sim["break_even"]
+                if isinstance(sim, dict) and sim:
+                    rev = sim.get("revenue")
+                    sc_data = sim.get("startup_cost")
+                    be = sim.get("break_even")
+                    if not (
+                        isinstance(rev, dict) and isinstance(sc_data, dict) and isinstance(be, dict)
+                    ):
+                        rev, sc_data, be = None, None, None
+                else:
+                    rev, sc_data, be = None, None, None
+
+                if isinstance(rev, dict) and isinstance(sc_data, dict) and isinstance(be, dict):
+
+                    def as_int(x: object) -> int:
+                        return (
+                            int(x)
+                            if isinstance(x, int)
+                            else (int(x) if isinstance(x, float) else 0)
+                        )
+
+                    def as_float(x: object) -> float:
+                        return float(x) if isinstance(x, (int, float)) else 0.0
+
                     sim_text = f"""
-- 💰 매출 시뮬레이션 (점포당):
-  - 예상 월매출: {rev["monthly_sales_per_store"]:,}원 (비관 {rev["pessimistic"]:,} ~ 낙관 {rev["optimistic"]:,})
-  - 일평균 매출: {rev["daily_sales"]:,}원
-  - 평균 객단가: {rev["avg_ticket"]:,}원
-  - 월 거래수: {rev["monthly_transactions_per_store"]:,}건
-- 🏗️ 초기 투자비 (10평/중급 기준): {sc_data["total_min"] // 10000:,}만 ~ {sc_data["total_max"] // 10000:,}만원
-  - 보증금: {sc_data["deposit"] // 10000:,}만원 | 인테리어: {sc_data["interior"] // 10000:,}만원 | 장비: {sc_data["equipment_min"] // 10000:,}~{sc_data["equipment_max"] // 10000:,}만원
-- 📉 손익분기점:
-  - 월 순이익: {be["monthly_net_profit"]:,}원 (영업이익률 {be["net_profit_margin"] * 100:.1f}%)
-  - 투자 회수: {be["break_even_months_min"]}~{be["break_even_months_max"]}개월
-  - 일 손익분기 매출: {be["daily_break_even_sales"]:,}원"""
+ - 💰 매출 시뮬레이션 (점포당):
+   - 예상 월매출: {as_int(rev.get("monthly_sales_per_store")):,}원 (비관 {as_int(rev.get("pessimistic")):,} ~ 낙관 {as_int(rev.get("optimistic")):,})
+   - 일평균 매출: {as_int(rev.get("daily_sales")):,}원
+   - 평균 객단가: {as_int(rev.get("avg_ticket")):,}원
+   - 월 거래수: {as_int(rev.get("monthly_transactions_per_store")):,}건
+ - 🏗️ 초기 투자비 (10평/중급 기준): {as_int(sc_data.get("total_min")) // 10000:,}만 ~ {as_int(sc_data.get("total_max")) // 10000:,}만원
+   - 보증금: {as_int(sc_data.get("deposit")) // 10000:,}만원 | 인테리어: {as_int(sc_data.get("interior")) // 10000:,}만원 | 장비: {as_int(sc_data.get("equipment_min")) // 10000:,}~{as_int(sc_data.get("equipment_max")) // 10000:,}만원
+ - 📉 손익분기점:
+   - 월 순이익: {as_int(be.get("monthly_net_profit")):,}원 (영업이익률 {as_float(be.get("net_profit_margin")) * 100:.1f}%)
+   - 투자 회수: {as_int(be.get("break_even_months_min"))}~{as_int(be.get("break_even_months_max"))}개월
+   - 일 손익분기 매출: {as_int(be.get("daily_break_even_sales")):,}원"""
 
                 timeline_result = self.timeline_service.calculate_timeline(
                     cafe_type=merged_context.cafe_type or "일반",
                     budget_range="3천만원 이하"
                     if (merged_context.budget_max or 0) < 30000000
                     else (
-                        "1억 이상"
-                        if (merged_context.budget_max or 0) >= 100000000
-                        else "3천~1억"
+                        "1억 이상" if (merged_context.budget_max or 0) >= 100000000 else "3천~1억"
                     ),
                     area_pyeong=10,
                     is_franchise=False,
@@ -2045,7 +2185,9 @@ class ChatService:
                 )
                 if positioning_name:
                     rec_text += f"\n- 💡 포지셔닝: {positioning_name} — {positioning_detail}"
-                    rec_text += f"\n- 🚇 교통 접근성: {transit_label} (상위 {transit_pctile*100:.0f}%)"
+                    rec_text += (
+                        f"\n- 🚇 교통 접근성: {transit_label} (상위 {transit_pctile * 100:.0f}%)"
+                    )
 
                 context_parts.append(rec_text)
 
@@ -2162,10 +2304,18 @@ class ChatService:
         # Trend analysis detection (트렌드, 검색량, 인기도)
         trend_result = self._detect_trend_request(message)
         if trend_result:
+            keyword_obj = trend_result.get("keyword")
+            keyword = keyword_obj if isinstance(keyword_obj, str) else self.display_name
+
+            districts_obj = trend_result.get("districts")
+            districts: list[str] | None = None
+            if isinstance(districts_obj, list):
+                only_str = [d for d in districts_obj if isinstance(d, str) and d]
+                districts = only_str or None
             return await self._handle_trend_request(
-                keyword=trend_result["keyword"],
-                districts=trend_result.get("districts"),
-                message=message
+                keyword=keyword,
+                districts=districts,
+                message=message,
             )
 
         merged_context = self._compute_merged_context(message, history, seed_context)
@@ -2272,8 +2422,12 @@ class ChatService:
                     f"서울 종로에서 월세 200~300만원, 직장인 점심 타겟 추천해줘",
                 ]
             elif missing_district and not missing_budget:
-                bmin = merged_context.budget_min or int((merged_context.budget_max or 3000000) * 0.7)
-                bmax = merged_context.budget_max or int((merged_context.budget_min or 3000000) * 1.3)
+                bmin = merged_context.budget_min or int(
+                    (merged_context.budget_max or 3000000) * 0.7
+                )
+                bmax = merged_context.budget_max or int(
+                    (merged_context.budget_min or 3000000) * 1.3
+                )
                 suggested = [
                     f"서울 홍대에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘",
                     f"서울 강남에서 월세 {bmin // 10000:,}~{bmax // 10000:,}만원 {self.display_name} 추천해줘",
@@ -2326,6 +2480,7 @@ class ChatService:
                 )
                 if support_pattern.search(message):
                     from api.services.support_program_service import get_support_program_service
+
                     support_svc = get_support_program_service(self.industry_code)
 
                     district = merged_context.district if merged_context else None
@@ -2343,7 +2498,9 @@ class ChatService:
                     if programs:
                         intake_payload["support_programs"] = [dict(p) for p in programs]
                         program_count = len(programs)
-                        intake_payload["reply"] += f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
+                        intake_payload["reply"] += (
+                            f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
+                        )
             except Exception:
                 pass
 
@@ -2392,7 +2549,9 @@ class ChatService:
         # Best-effort local insights (Kakao): always run when recommendations exist.
         competitive_data: dict[str, object] | None = None
         try:
-            local_insights, comp_raw = await self._build_local_insights_with_data(message, recommendations)
+            local_insights, comp_raw = await self._build_local_insights_with_data(
+                message, recommendations
+            )
             if local_insights:
                 context_text = f"{context_text}\n\n{local_insights}".strip()
             if comp_raw:
@@ -2416,6 +2575,88 @@ class ChatService:
                     simulation_data = dict(sim)
                     if menu_costs_data:
                         simulation_data["menu_costs"] = dict(menu_costs_data)
+            except Exception:
+                pass
+
+        # Compute verdict for top recommendation (data-only verdict engine)
+        verdict: dict[str, object] | None = None
+        if recommendations:
+            try:
+                top_rec = recommendations[0]
+                district_code = top_rec.get("district_code")
+                if isinstance(district_code, str) and district_code:
+                    district = self.data_service._district_by_code.get(district_code)
+                    if district:
+                        from api.services.verdict_service import compute_verdict
+
+                        verdict = dict(
+                            compute_verdict(
+                                district=district,
+                                industry_code=self.industry_code,
+                                budget_max=merged_context.budget_max,
+                                estimated_rent=int(top_rec.get("estimated_rent", 0) or 0),
+                            )
+                        )
+            except Exception:
+                logger.exception("Failed to compute verdict")
+                verdict = None
+
+        # Inject verdict into prompt context for honest coaching
+        if isinstance(verdict, dict) and verdict.get("verdict"):
+            try:
+                reasons = verdict.get("reasons", [])
+                reason_lines: list[str] = []
+                if isinstance(reasons, list):
+                    for r in reasons[:8]:
+                        if not isinstance(r, dict):
+                            continue
+                        factor = r.get("factor")
+                        level = r.get("level")
+                        detail = r.get("detail")
+                        data_value = r.get("data_value")
+                        threshold = r.get("threshold")
+                        if all(
+                            isinstance(x, str)
+                            for x in (factor, level, detail, data_value, threshold)
+                        ):
+                            reason_lines.append(
+                                f"- ({level}) {factor}: {detail} (값: {data_value}, 기준: {threshold})"
+                            )
+
+                alt_lines: list[str] = []
+                alts = verdict.get("alternatives", [])
+                if isinstance(alts, list) and alts:
+                    for a in alts[:3]:
+                        if not isinstance(a, dict):
+                            continue
+                        n = a.get("district_name")
+                        t = a.get("district_type")
+                        s = a.get("survival_rate")
+                        if (
+                            isinstance(n, str)
+                            and isinstance(t, str)
+                            and isinstance(s, (int, float))
+                        ):
+                            alt_lines.append(f"- {n} ({t}) · 생존율 {float(s) * 100:.0f}%")
+
+                verdict_block = "\n".join(
+                    [
+                        "## 판정 결과",
+                        f"verdict: {verdict.get('verdict')}",
+                        f"confidence: {verdict.get('confidence')}%",
+                        f"summary: {verdict.get('summary')}",
+                        "reasons:",
+                        *(reason_lines or ["- (info) 판정 근거가 제공되지 않았습니다"]),
+                        "alternatives:",
+                        *(alt_lines or ["- (none)"]),
+                        "",
+                        "위 판정 결과를 반드시 반영하여 답변하세요.",
+                        "- GO: 긍정적으로 추천하되 리스크도 언급",
+                        "- CAUTION: 신중하게 접근하라고 조언",
+                        "- NO_GO: 솔직하게 '추천하지 않습니다'라고 말하고, 대안을 제시",
+                    ]
+                ).strip()
+                context_text = f"{context_text}\n\n{verdict_block}".strip()
             except Exception:
                 pass
 
@@ -2492,6 +2733,8 @@ class ChatService:
             "suggested_questions": suggested_questions,
             "context": context_meta,
         }
+        if verdict:
+            payload["verdict"] = verdict
         if timeline_data_for_response:
             payload["timeline"] = timeline_data_for_response
         if competitive_data:
@@ -2501,9 +2744,7 @@ class ChatService:
 
         # Trademark conflict detection
         try:
-            trademark_pattern = re.compile(
-                r"상호명|상호|간판|이름.*등록|브랜드명|상표"
-            )
+            trademark_pattern = re.compile(r"상호명|상호|간판|이름.*등록|브랜드명|상표")
             if trademark_pattern.search(message):
                 # Extract the proposed name — look for quoted text or "상호명 X" pattern
                 name_match = re.search(
@@ -2512,11 +2753,10 @@ class ChatService:
                 )
                 proposed_name = None
                 if name_match:
-                    proposed_name = next(
-                        (g for g in name_match.groups() if g), None
-                    )
+                    proposed_name = next((g for g in name_match.groups() if g), None)
                 if proposed_name:
                     from api.services.trademark_service import get_trademark_service
+
                     tm_svc = get_trademark_service(self.industry_code)
                     trademark_result = tm_svc.check(proposed_name)
                     payload["trademark"] = trademark_result
@@ -2530,6 +2770,7 @@ class ChatService:
             )
             if support_pattern.search(message):
                 from api.services.support_program_service import get_support_program_service
+
                 support_svc = get_support_program_service(self.industry_code)
 
                 # Extract context for matching
@@ -2554,9 +2795,15 @@ class ChatService:
                     payload["support_programs"] = [dict(p) for p in programs]
 
                     # Add to reply if not already mentioned
-                    if not any(kw in reply for kw in ["지원사업", "정부지원"]):
+                    current_reply = payload.get("reply", "")
+                    if isinstance(current_reply, str) and not any(
+                        kw in current_reply for kw in ["지원사업", "정부지원"]
+                    ):
                         program_count = len(programs)
-                        reply += f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
+                        payload["reply"] = (
+                            current_reply
+                            + f"\n\n💡 현재 신청 가능한 창업 지원사업 **{program_count}개**를 찾았습니다!"
+                        )
         except Exception:
             pass
 

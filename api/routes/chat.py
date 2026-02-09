@@ -104,7 +104,9 @@ class RecommendationCardData(BaseModel):
     positioning: Optional[str] = Field(None)
     positioning_detail: Optional[str] = Field(None)
     purchasing_power: Optional[float] = Field(None)
+    single_household_ratio: Optional[float] = Field(None, description="1인가구 비율")
     income_info: Optional[dict[str, object]] = Field(None, description="소득소비 데이터")
+    scorecard: Optional[dict[str, object]] = Field(None, description="상권 점수카드(설명가능 점수)")
 
 
 class StructuredChatResponse(BaseModel):
@@ -117,8 +119,11 @@ class StructuredChatResponse(BaseModel):
     simulation: Optional[dict[str, object]] = Field(None, description="창업 시뮬레이션 데이터")
     timeline: Optional[dict[str, object]] = Field(None, description="창업 타임라인 데이터")
     trademark: Optional[dict[str, object]] = Field(None, description="상표 충돌 확인 결과")
-    support_programs: Optional[list[dict[str, object]]] = Field(None, description="창업 지원사업 목록")
+    support_programs: Optional[list[dict[str, object]]] = Field(
+        None, description="창업 지원사업 목록"
+    )
     trend: Optional[dict[str, object]] = Field(None, description="검색 트렌드 데이터")
+    verdict: Optional[dict[str, object]] = Field(None, description="Go/No-Go 판정 결과")
 
 
 @router.post("/chat", response_model=StructuredChatResponse)
@@ -150,10 +155,10 @@ async def chat(request: ChatRequest, req: Request):
                 cafe_type=get_context_str(context, "cafe_type"),
             )
 
-        response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
-        recommendations = [
-            RecommendationCardData(**r) for r in response.get("recommendations", [])
-        ]
+        response: StructuredChatPayload = await service.chat(
+            request.message, history, seed_context=seed_context
+        )
+        recommendations = [RecommendationCardData(**r) for r in response.get("recommendations", [])]
         charts = [
             ChartData(
                 type=c["type"],
@@ -175,11 +180,14 @@ async def chat(request: ChatRequest, req: Request):
             trademark=response.get("trademark"),  # type: ignore[arg-type]
             support_programs=response.get("support_programs"),  # type: ignore[arg-type]
             trend=response.get("trend"),  # type: ignore[arg-type]
+            verdict=response.get("verdict"),  # type: ignore[arg-type]
         )
 
     except Exception as e:
         logger.error(f"Chat error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        raise HTTPException(
+            status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
 
 
 @router.post("/chat/stream")
@@ -217,7 +225,9 @@ async def chat_stream(request: ChatRequest, req: Request):
                     cafe_type=get_context_str(context, "cafe_type"),
                 )
 
-            response: StructuredChatPayload = await service.chat(request.message, history, seed_context=seed_context)
+            response: StructuredChatPayload = await service.chat(
+                request.message, history, seed_context=seed_context
+            )
             reply = response.get("reply", "")
 
             words = reply.split()
