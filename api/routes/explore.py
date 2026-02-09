@@ -619,6 +619,7 @@ async def get_stores(
     return {
         "stores": result_stores,
         "total": len(result_stores),
+        "store_count": store_count_stat,
         "district_name": district_name,
         "is_mock": use_mock,
     }

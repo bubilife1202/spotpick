@@ -297,7 +297,7 @@ function Top3Section({
                   <p className="text-sm font-extrabold text-slate-900">{(d.survival_rate * 100).toFixed(0)}%</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] font-medium text-slate-500">{industryName} 월 매출</p>
+                  <p className="text-[10px] font-medium text-slate-500">상권 전체 월 매출</p>
                   <p className="text-sm font-extrabold text-slate-900">{formatWon(d.monthly_sales)}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
@@ -431,7 +431,10 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
   const revenue = data.revenue || {};
   const operating = data.operating_cost || {};
   const breakEven = data.break_even || {};
+  const assumptions = data.assumptions || {};
   const storeCount = revenue.store_count || data.store_count || 0;
+  const areaPyeong = assumptions.area_pyeong || 15;
+  const areaSummary = assumptions.summary || `${areaPyeong}평 기준`;
 
   const monthlySales = revenue.monthly_sales_per_store || 0;
   const netProfit = breakEven.monthly_net_profit || 0;
@@ -443,9 +446,9 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
 
   const items = [
     { label: "월 매출", value: monthlySales, color: "bg-blue-500", type: "positive", desc: storeCount > 0 ? `${districtName} ${industryName} 전체 카드매출 ÷ 점포 ${storeCount}개` : "상권 카드매출 데이터 기반" },
-    { label: "식재료비", value: -(operating.cogs || 0), color: "bg-orange-400", type: "negative", desc: `원재료·식자재 구입비 (매출의 ${cogsRatio}%)` },
-    { label: "인건비", value: -laborAmount, color: "bg-amber-400", type: "negative", desc: laborCount > 0 ? `직원 ${laborCount}명 × 250만원 (급여+4대보험)` : "직원 급여 + 4대보험" },
-    { label: "임대료", value: -(operating.rent || 0), color: "bg-rose-400", type: "negative", desc: `${districtName} 상권 등급·면적 기반 추정 월세` },
+    { label: "식재료비", value: -(operating.cogs || 0), color: "bg-orange-400", type: "negative", desc: `KREI 외식업체경영실태조사 기준 매출의 ${cogsRatio}%` },
+    { label: "인건비", value: -laborAmount, color: "bg-amber-400", type: "negative", desc: laborCount > 0 ? `직원 ${laborCount}명 × 250만원 (급여+4대보험), KREI 실측 기반` : "KREI 외식업체경영실태조사 기반" },
+    { label: "임대료", value: -(operating.rent || 0), color: "bg-rose-400", type: "negative", desc: `${districtName} 상권 등급·${areaPyeong}평 면적 기준 추정 월세` },
     { label: "기타비용", value: -(utilitiesAmount + otherAmount), color: "bg-slate-400", type: "negative", desc: `공과금(${formatWon(utilitiesAmount)}) + 잡비·소모품(${formatWon(otherAmount)})` },
     { label: "순이익", value: netProfit, color: netProfit >= 0 ? "bg-emerald-500" : "bg-rose-500", type: "result", desc: "매출 - 식재료비 - 인건비 - 임대료 - 기타비용" },
   ];
@@ -464,7 +467,8 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
       {/* Explanation box */}
       <div className="mb-4 rounded-lg bg-blue-50/50 p-3">
         <p className="text-xs leading-relaxed text-blue-800">
-          이 수치는 서울시 공공데이터(카드매출)에서 {districtName} 상권의 {industryName} 실제 월평균 매출을 기반으로 산출했습니다.
+          <strong>{areaSummary}</strong> 기준 시뮬레이션입니다.
+          서울시 공공데이터(카드매출)에서 {districtName} 상권의 {industryName} 실제 월평균 매출을 기반으로 산출했습니다.
           {storeCount > 0 && ` 점포당 매출은 해당 상권 내 같은 업종 가게 수(${storeCount}개)로 나누어 추정한 값입니다.`}
         </p>
       </div>
@@ -505,18 +509,21 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
           <p className="text-sm font-extrabold text-slate-900">
             {((breakEven.net_profit_margin || 0) * 100).toFixed(1)}%
           </p>
+          <p className="text-[9px] text-slate-400">순이익 ÷ 매출</p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3 text-center">
           <p className="text-[10px] text-slate-400">투자회수</p>
           <p className="text-sm font-extrabold text-slate-900">
             {breakEven.break_even_months_min || "-"}~{breakEven.break_even_months_max || "-"}개월
           </p>
+          <p className="text-[9px] text-slate-400">초기투자 ÷ 월순이익</p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3 text-center">
           <p className="text-[10px] text-slate-400">일 손익분기</p>
           <p className="text-sm font-extrabold text-slate-900">
             {formatWon(breakEven.daily_break_even_sales || 0)}
           </p>
+          <p className="text-[9px] text-slate-400">월 고정비 ÷ 30일</p>
         </div>
       </div>
 
@@ -1310,7 +1317,7 @@ function ReportContent() {
           .then((data) => {
             const storesInfo = {
               stores: data,
-              store_count: data.total || 0,
+              store_count: data.store_count || data.total || 0,
               new_stores: 0,
               closed_stores: 0,
               franchise_stores: 0,
@@ -1380,11 +1387,12 @@ function ReportContent() {
         setRiskData(cached.risk);
       }
 
-      // E: Support — include district name for regional filter
+      // E: Support — include district name + budget for filtering
       if (!cached?.support) {
         setSupportLoading(true);
         const districtParam = distName ? `&district=${encodeURIComponent(distName)}` : "";
-        fetch(`${API_BASE}/support/programs?industry_code=${industryCode}${districtParam}`)
+        const budgetParam = budget > 0 ? `&budget_max=${Math.round(budget * 10000)}` : "";
+        fetch(`${API_BASE}/support/programs?industry_code=${industryCode}${districtParam}${budgetParam}`)
           .then((r) => r.json())
           .then((data) => {
             setSupportData(data);

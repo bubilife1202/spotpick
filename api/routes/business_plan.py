@@ -1557,25 +1557,29 @@ async def generate_business_plan(req: BusinessPlanRequest) -> BusinessPlanRespon
     )
 
     # 7. Sections 2-9 — all async, run in parallel via asyncio.gather
-    (
-        section_market,
-        section_competition,
-        section_menu,
-        section_marketing_r,
-        section_financials_r,
-        section_risk_r,
-        section_roadmap_r,
-        section_franchise_r,
-    ) = await asyncio.gather(
-        _section_market_analysis(district, industry_name),
-        _section_competition(district, industry_name),
-        _section_menu_pricing(config, industry_name, district),
-        _section_marketing(district, industry_name, req.target_customers),
-        _section_financials(sim_result, req.budget, district, industry_name),
-        _section_risk(district, sim_result, scorecard, industry_name, req.budget),
-        _section_roadmap(industry_name, req.budget),
-        _section_franchise_comparison(sim_result, industry_name, req.budget, district),
-    )
+    try:
+        (
+            section_market,
+            section_competition,
+            section_menu,
+            section_marketing_r,
+            section_financials_r,
+            section_risk_r,
+            section_roadmap_r,
+            section_franchise_r,
+        ) = await asyncio.gather(
+            _section_market_analysis(district, industry_name),
+            _section_competition(district, industry_name),
+            _section_menu_pricing(config, industry_name, district),
+            _section_marketing(district, industry_name, req.target_customers),
+            _section_financials(sim_result, req.budget, district, industry_name),
+            _section_risk(district, sim_result, scorecard, industry_name, req.budget),
+            _section_roadmap(industry_name, req.budget),
+            _section_franchise_comparison(sim_result, industry_name, req.budget, district),
+        )
+    except Exception as e:
+        logger.error("사업계획서 섹션 생성 실패: %s", e)
+        raise HTTPException(status_code=500, detail=f"사업계획서 섹션 생성 중 오류: {str(e)}")
 
     sections = [
         section_overview,

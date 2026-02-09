@@ -158,11 +158,12 @@ class DataService:
         with open(districts_file, encoding="utf-8") as f:
             self.districts = cast(list[dict[str, Any]], json.load(f))
 
-        # Clamp survival_rate to [0.0, 1.0] — raw data sometimes exceeds 1.0
+        # Normalize survival_rate: raw data is 0-5.0 scale → convert to 0-1.0
         for d in self.districts:
             sr = d.get("survival_rate")
             if isinstance(sr, (int, float)):
-                d["survival_rate"] = max(0.0, min(float(sr), 1.0))
+                normalized = float(sr) / 5.0  # raw 0-5 scale → 0-1
+                d["survival_rate"] = max(0.0, min(normalized, 1.0))
 
         # Try industry-specific summary, then fallback
         summary_file = data_dir / f"{self.industry_code}_summary.json"
