@@ -79,12 +79,12 @@ export function RentTrendChart({ data, loading }: { data: any; loading: boolean 
       {quarterly.length > 0 && (
         <div>
           <p className="mb-2 text-[10px] font-semibold text-slate-400">분기별 추이</p>
-          <div className="flex items-end gap-[2px]" style={{ height: "80px" }}>
+          <div className="flex gap-[2px]" style={{ height: "80px" }}>
             {quarterly.map((q: { period: string; rent_per_sqm: number }, i: number) => {
               const pct = (q.rent_per_sqm / maxRent) * 100;
               const isLatest = i === quarterly.length - 1;
               return (
-                <div key={i} className="group relative flex-1">
+                <div key={i} className="group relative flex-1 flex flex-col justify-end">
                   <div
                     className={cn(
                       "w-full rounded-t transition-all duration-300",

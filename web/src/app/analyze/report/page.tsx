@@ -615,6 +615,9 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
   if (!data) return null;
 
   const brands = data.brands || data.top_brands || [];
+  const startupCosts = data.startup_costs || [];
+  const industryStatus = data.industry_status || [];
+  const hasData = brands.length > 0 || startupCosts.length > 0;
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
@@ -623,12 +626,43 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
         <h3 className="text-sm font-bold text-slate-900">B7. 프랜차이즈 vs 독립 창업</h3>
       </div>
 
-      {brands.length > 0 ? (
+      {hasData ? (
         <div className="space-y-2">
-          {brands.slice(0, 5).map(
+          {/* 공정위 startup_costs 데이터 */}
+          {startupCosts.length > 0 && startupCosts.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (item: any, i: number) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const status = industryStatus.find((s: any) => s.name === item.name);
+              return (
+                <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                    <span className="text-xs font-bold text-slate-700">
+                      평균 창업비 {formatWon(item.total_joining_cost || 0)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-slate-500">
+                    <span>가맹비 {formatWon(item.franchise_fee || 0)}</span>
+                    <span>교육비 {formatWon(item.education_fee || 0)}</span>
+                    <span>기타 {formatWon(item.other_fee || 0)}</span>
+                  </div>
+                  {status && (
+                    <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-slate-500">
+                      <span>브랜드 {status.brand_count}개</span>
+                      <span>가맹점 {(status.store_count || 0).toLocaleString()}개</span>
+                      <span>폐점 {(status.closed_store_count || 0).toLocaleString()}개</span>
+                    </div>
+                  )}
+                </div>
+              );
+            },
+          )}
+          {/* Legacy brands format */}
+          {brands.length > 0 && brands.slice(0, 5).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (brand: any, i: number) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
+              <div key={`b-${i}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{brand.brand_name || brand.name}</p>
                   <p className="text-[10px] text-slate-500">
@@ -644,12 +678,18 @@ function FranchiseSection({ data, loading }: { data: any; loading: boolean }) {
               </div>
             ),
           )}
+          {data.avg_total_startup_cost && (
+            <div className="mt-2 rounded-lg bg-orange-50 p-2 text-center">
+              <p className="text-[10px] text-orange-500">업종 평균 총 창업비</p>
+              <p className="text-sm font-extrabold text-orange-700">{formatWon(data.avg_total_startup_cost)}</p>
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-sm text-slate-400">해당 업종의 프랜차이즈 공시 데이터를 준비 중입니다</p>
       )}
 
-      <p className="mt-4 text-[10px] text-slate-400">출처: 공정거래위원회 정보공개서</p>
+      <p className="mt-4 text-[10px] text-slate-400">출처: 공정거래위원회 정보공개서 ({data.year || "2024"})</p>
     </div>
   );
 }
@@ -775,7 +815,9 @@ function InlineSimulatorSection({
         </div>
       </div>
 
-      <p className="mt-4 text-[10px] text-slate-400">슬라이더를 조정하여 다양한 시나리오를 확인하세요</p>
+      <p className="mt-4 text-[10px] text-slate-400">
+        매출/임대료/인건비를 조정하면 순이익이 자동 계산됩니다. 낙관/비관 시나리오를 직접 확인하세요.
+      </p>
     </div>
   );
 }
@@ -787,6 +829,12 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
   if (!data) return null;
 
   const sections = data.sections || data.analysis?.sections || [];
+
+  // Flat-field fallback: API may return verdict_summary, risk_comment etc instead of sections[]
+  const riskContent = data.risk_comment || data.competition_comment || "";
+  const oppContent = data.verdict_summary || data.profitability_comment || "";
+  const customerNote = data.customer_comment || "";
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const riskSection = sections.find((s: any) =>
     s.title?.includes("리스크") || s.title?.includes("위험") || s.title?.includes("약점") || s.title?.includes("threat") || s.title?.includes("risk")
@@ -796,11 +844,9 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
     s.title?.includes("기회") || s.title?.includes("강점") || s.title?.includes("장점") || s.title?.includes("opportunity") || s.title?.includes("strength")
   );
 
-  // Fallback: use first two sections if keyword matching fails
-  const fallbackRisk = !riskSection && sections.length > 0 ? sections[sections.length - 1] : null;
-  const fallbackOpp = !oppSection && sections.length > 1 ? sections[0] : null;
-  const displayRisk = riskSection || fallbackRisk;
-  const displayOpp = oppSection || fallbackOpp;
+  const displayRiskText = riskSection?.content || riskContent;
+  const displayOppText = oppSection?.content || oppContent;
+  const hasContent = displayRiskText || displayOppText || customerNote;
 
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-6">
@@ -812,32 +858,42 @@ function RiskSection({ data, loading }: { data: any; loading: boolean }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Risk */}
         <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-4">
-          <p className="mb-2 text-xs font-bold text-rose-700">{displayRisk?.title || "주요 리스크"}</p>
-          {displayRisk?.content ? (
+          <p className="mb-2 text-xs font-bold text-rose-700">{riskSection?.title || "주요 리스크"}</p>
+          {displayRiskText ? (
             <p className="text-xs leading-relaxed text-rose-900/80">
-              {displayRisk.content.slice(0, 300)}{displayRisk.content.length > 300 ? "..." : ""}
+              {displayRiskText.slice(0, 300)}{displayRiskText.length > 300 ? "..." : ""}
             </p>
           ) : (
-            <p className="text-xs text-rose-500">AI 분석 로딩 중이거나 해당 상권의 특이 리스크가 없습니다</p>
+            <p className="text-xs text-rose-500">해당 상권의 특이 리스크 분석 중입니다</p>
           )}
         </div>
 
         {/* Opportunity */}
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4">
-          <p className="mb-2 text-xs font-bold text-emerald-700">{displayOpp?.title || "주요 기회"}</p>
-          {displayOpp?.content ? (
+          <p className="mb-2 text-xs font-bold text-emerald-700">{oppSection?.title || "주요 기회"}</p>
+          {displayOppText ? (
             <p className="text-xs leading-relaxed text-emerald-900/80">
-              {displayOpp.content.slice(0, 300)}{displayOpp.content.length > 300 ? "..." : ""}
+              {displayOppText.slice(0, 300)}{displayOppText.length > 300 ? "..." : ""}
             </p>
           ) : (
-            <p className="text-xs text-emerald-500">AI 분석 로딩 중이거나 추가 기회 요인을 탐색 중입니다</p>
+            <p className="text-xs text-emerald-500">기회 요인을 탐색 중입니다</p>
           )}
         </div>
       </div>
 
-      {sections.length > 0 && (
+      {/* Customer note */}
+      {customerNote && (
+        <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
+          <p className="mb-1 text-xs font-bold text-blue-700">고객 분석 인사이트</p>
+          <p className="text-xs leading-relaxed text-blue-900/80">
+            {customerNote.slice(0, 200)}{customerNote.length > 200 ? "..." : ""}
+          </p>
+        </div>
+      )}
+
+      {hasContent && (
         <p className="mt-3 text-[10px] text-slate-400">
-          Powered by Gemini AI · {sections.length}개 섹션 분석 완료
+          Powered by Gemini AI
         </p>
       )}
     </div>

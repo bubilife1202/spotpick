@@ -181,20 +181,68 @@ def _get_bus_stats(lat: float, lng: float) -> dict[str, Any]:
     return get_nearest_bus_stats(lat, lng)
 
 
+# 상권코드 2~3번째 자리(0-indexed [1:3]) → 자치구코드(ADSTRD_CODE_SE) 매핑
+# living_population.json의 ADSTRD_CODE_SE 값과 일치
+_TRDAR_TO_GU_CODE: dict[str, str] = {
+    "10": "11110",  # 종로구
+    "11": "11110",  # 종로구
+    "12": "11140",  # 중구
+    "13": "11170",  # 용산구
+    "14": "11200",  # 성동구
+    "15": "11215",  # 광진구
+    "16": "11230",  # 동대문구
+    "17": "11260",  # 중랑구
+    "18": "11290",  # 성북구
+    "19": "11305",  # 강북구
+    "20": "11320",  # 도봉구
+    "21": "11350",  # 노원구
+    "22": "11380",  # 은평구
+    "23": "11410",  # 서대문구
+    "24": "11440",  # 마포구
+    "25": "11470",  # 양천구
+    "26": "11500",  # 강서구
+    "27": "11530",  # 구로구
+    "28": "11545",  # 금천구
+    "29": "11560",  # 영등포구
+    "30": "11590",  # 동작구
+    "31": "11620",  # 관악구
+    "32": "11650",  # 서초구
+    "33": "11680",  # 강남구
+    "34": "11710",  # 송파구
+    "35": "11740",  # 강동구
+}
+
+
 def _get_living_pop_summary(district_code: str) -> dict[str, Any]:
     """행정동 기반 생활인구 요약."""
     pop_data = _load_living_population()
-    # 상권 코드의 앞 5자리가 행정동 코드에 근접
-    dong_prefix = district_code[:5] if len(district_code) >= 5 else district_code
 
-    # 해당 행정동 찾기
-    matched = None
-    for dong_code, data in pop_data.items():
-        if dong_code.startswith(dong_prefix):
-            matched = data
-            break
+    # 상권코드(예: "3110003")에서 [1:3]을 추출하여 자치구코드로 변환
+    gu_code = None
+    if len(district_code) >= 3:
+        gu_part = district_code[1:3]
+        gu_code = _TRDAR_TO_GU_CODE.get(gu_part)
+
+    # 매핑된 자치구코드로 생활인구 데이터 조회
+    matched = pop_data.get(gu_code) if gu_code else None
 
     if not matched:
+        # 매핑 실패 시 서울 전체 평균 반환
+        if pop_data:
+            all_total = sum(d["total"] for d in pop_data.values())
+            all_male = sum(d["male_total"] for d in pop_data.values())
+            all_female = sum(d["female_total"] for d in pop_data.values())
+            n = len(pop_data)
+            avg_total = all_total / n
+            gender_sum = all_male + all_female
+            male_ratio = all_male / max(1, gender_sum) if gender_sum > 0 else 0.5
+            return {
+                "total": int(avg_total),
+                "male_ratio": round(male_ratio, 2),
+                "female_ratio": round(1 - male_ratio, 2),
+                "by_time": {},
+                "source": "living_population_avg",
+            }
         return {"total": 0, "male_ratio": 0.5, "female_ratio": 0.5, "source": "no_match"}
 
     total = matched["male_total"] + matched["female_total"]

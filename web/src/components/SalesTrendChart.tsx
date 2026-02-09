@@ -69,12 +69,12 @@ export function SalesTrendChart({ data, loading }: { data: any; loading: boolean
       </div>
 
       {/* Simple bar chart */}
-      <div className="flex items-end gap-[2px]" style={{ height: "100px" }}>
+      <div className="flex gap-[2px]" style={{ height: "100px" }}>
         {quarters.map((q, i) => {
           const pct = range > 0 ? ((q.monthly_sales - minSales) / range) * 80 + 20 : 50;
           const isLast = i === quarters.length - 1;
           return (
-            <div key={q.period} className="group relative flex-1 text-center">
+            <div key={q.period} className="group relative flex-1 flex flex-col justify-end">
               <div
                 className={cn(
                   "mx-auto w-full rounded-t transition-all duration-300",

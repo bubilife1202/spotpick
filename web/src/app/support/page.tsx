@@ -379,7 +379,7 @@ function SupportPageInner() {
           {/* Budget badge */}
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
             <Wallet className="w-3.5 h-3.5" />
-            예산 {formatBudge(budgetMin)}~{formatBudge(budgetMax)}원
+            예산 {formatBudge(budgetMax)}원
           </span>
         </div>
 
@@ -435,7 +435,7 @@ function SupportPageInner() {
           <div>
             <p className="text-sm font-semibold text-amber-800">TIP</p>
             <p className="text-xs text-amber-700 mt-0.5">
-              사업계획서가 있으면 지원금 심사에 유리합니다.
+              대부분의 지원금은 <span className="font-bold">사업계획서 제출이 필수</span>입니다. 아래 버튼을 눌러 바로 작성하세요.
             </p>
           </div>
         </div>
