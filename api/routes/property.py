@@ -53,6 +53,9 @@ async def get_property_listings(
     return {
         "district_name": district_name,
         "district_type": district.get("district_type", ""),
+        "district_code": district_code,
+        "lat": lat,
+        "lng": lng,
         "estimated_rent": est_rent,
         "listings": naver_results,
         "realtors": realtors,

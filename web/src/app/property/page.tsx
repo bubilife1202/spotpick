@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { MiniMap } from "@/components/MiniMap";
 import {
   MapPin,
   Loader2,
@@ -32,6 +33,8 @@ interface Realtor {
   phone: string;
   distance: number;
   place_url: string;
+  lat?: number;
+  lng?: number;
 }
 
 function formatWon(value: number): string {
@@ -48,7 +51,10 @@ function PropertyContent() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [realtors, setRealtors] = useState<Realtor[]>([]);
   const [districtName, setDistrictName] = useState("");
+  const [districtType, setDistrictType] = useState("");
   const [estimatedRent, setEstimatedRent] = useState(0);
+  const [districtLat, setDistrictLat] = useState(0);
+  const [districtLng, setDistrictLng] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +76,10 @@ function PropertyContent() {
         setListings(data.listings || []);
         setRealtors(data.realtors || []);
         setDistrictName(data.district_name || "");
+        setDistrictType(data.district_type || "");
         setEstimatedRent(data.estimated_rent || 0);
+        setDistrictLat(data.lat || 0);
+        setDistrictLng(data.lng || 0);
       } catch {
         setError("매물 정보를 불러올 수 없습니다.");
       } finally {
@@ -79,6 +88,20 @@ function PropertyContent() {
     };
     fetchData();
   }, [districtCode, industryCode]);
+
+  const mapMarkers = [
+    ...(districtLat && districtLng
+      ? [
+          {
+            lat: districtLat,
+            lng: districtLng,
+            label: districtName || "선택한 상권",
+            type: "selected" as const,
+            rank: 1,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -100,14 +123,27 @@ function PropertyContent() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
+        {/* Header with district context */}
         <div className="mb-8 text-center">
-          <h1 className="mt-3 text-2xl font-extrabold text-slate-900 sm:text-3xl">
-            매물 탐색
-          </h1>
-          {districtName && (
-            <p className="mt-1 text-sm text-slate-500">
-              {districtName} 인근 상가 매물 및 부동산 중개소
-            </p>
+          {districtName ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                <MapPin className="h-3.5 w-3.5" />
+                {districtType || "상권"}
+              </span>
+              <h1 className="mt-3 text-2xl font-extrabold text-slate-900 sm:text-3xl">
+                {districtName} 매물 탐색
+              </h1>
+              {estimatedRent > 0 && (
+                <p className="mt-1 text-sm text-slate-500">
+                  추정 월 임대료 <span className="font-bold text-blue-600">{formatWon(estimatedRent)}</span>
+                </p>
+              )}
+            </>
+          ) : (
+            <h1 className="mt-3 text-2xl font-extrabold text-slate-900 sm:text-3xl">
+              매물 탐색
+            </h1>
           )}
         </div>
 
@@ -128,12 +164,23 @@ function PropertyContent() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Map with district location */}
+            {mapMarkers.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-blue-500" />
+                  <h2 className="text-sm font-bold text-slate-900">{districtName} 상권 위치</h2>
+                </div>
+                <MiniMap markers={mapMarkers} height={250} zoom={14} />
+              </div>
+            )}
+
             {/* Estimated rent card */}
             {estimatedRent > 0 && (
               <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
                 <div className="flex items-center gap-2">
                   <Banknote className="h-5 w-5 text-blue-500" />
-                  <h3 className="text-sm font-bold text-blue-900">SpotPick 추정 임대료</h3>
+                  <h3 className="text-sm font-bold text-blue-900">{districtName} 추정 임대료</h3>
                 </div>
                 <p className="mt-2 text-2xl font-extrabold text-blue-700">
                   {formatWon(estimatedRent)}
@@ -214,7 +261,7 @@ function PropertyContent() {
                 <div className="mb-4 flex items-center gap-2">
                   <Navigation className="h-5 w-5 text-violet-500" />
                   <h2 className="text-sm font-bold text-slate-900">
-                    인근 부동산 중개소
+                    {districtName} 인근 부동산 중개소
                   </h2>
                   <span className="ml-auto rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
                     {realtors.length}곳
@@ -230,7 +277,7 @@ function PropertyContent() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-900">{r.name}</p>
                         <p className="text-[10px] text-slate-500">
-                          {r.address} · {r.distance}m
+                          {r.address} · {districtName}에서 {r.distance}m
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
