@@ -575,19 +575,16 @@ function PipelineSection() {
           {PIPELINE_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
-              <Link
+              <div
                 key={i}
-                href={step.href}
-                className={cn(
-                  "group relative flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md text-center",
-                )}
+                className="relative flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-center"
               >
                 {/* Step number badge */}
                 <div className="absolute -top-2.5 left-1/2 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white">
                   {i + 1}
                 </div>
 
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                   <Icon className="h-7 w-7" />
                 </div>
 
@@ -602,9 +599,19 @@ function PipelineSection() {
                 {i < PIPELINE_STEPS.length - 1 && (
                   <ChevronRight className="absolute -right-5 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-slate-300 sm:block" />
                 )}
-              </Link>
+              </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/analyze"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
+          >
+            무료로 시작하기
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </section>
