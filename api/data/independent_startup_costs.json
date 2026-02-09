@@ -1,0 +1,141 @@
+{
+  "CS100010": {
+    "name": "카페",
+    "interior_per_pyeong": 2500000,
+    "equipment": [
+      {"name": "에스프레소 머신", "cost": 8000000},
+      {"name": "그라인더", "cost": 2000000},
+      {"name": "냉장고/쇼케이스", "cost": 3000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "가구/조명", "cost": 5000000}
+    ],
+    "initial_inventory": 3000000,
+    "signage": 2000000,
+    "misc": 2000000
+  },
+  "CS100001": {
+    "name": "한식",
+    "interior_per_pyeong": 2000000,
+    "equipment": [
+      {"name": "가스레인지/후드", "cost": 5000000},
+      {"name": "냉장/냉동고", "cost": 4000000},
+      {"name": "조리대/싱크대", "cost": 3000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자", "cost": 4000000}
+    ],
+    "initial_inventory": 5000000,
+    "signage": 2000000,
+    "misc": 3000000
+  },
+  "CS100002": {
+    "name": "중식",
+    "interior_per_pyeong": 2200000,
+    "equipment": [
+      {"name": "화력 조리대", "cost": 8000000},
+      {"name": "냉장/냉동고", "cost": 4000000},
+      {"name": "환기 시설", "cost": 5000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자", "cost": 4000000}
+    ],
+    "initial_inventory": 5000000,
+    "signage": 2000000,
+    "misc": 3000000
+  },
+  "CS100003": {
+    "name": "일식",
+    "interior_per_pyeong": 3000000,
+    "equipment": [
+      {"name": "초밥 쇼케이스", "cost": 6000000},
+      {"name": "냉장/냉동고", "cost": 5000000},
+      {"name": "조리대/싱크대", "cost": 3000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "카운터/좌석", "cost": 6000000}
+    ],
+    "initial_inventory": 6000000,
+    "signage": 2500000,
+    "misc": 3000000
+  },
+  "CS100004": {
+    "name": "양식",
+    "interior_per_pyeong": 2800000,
+    "equipment": [
+      {"name": "오븐/그릴", "cost": 7000000},
+      {"name": "냉장/냉동고", "cost": 4000000},
+      {"name": "조리대/싱크대", "cost": 3000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자", "cost": 5000000}
+    ],
+    "initial_inventory": 5000000,
+    "signage": 2500000,
+    "misc": 3000000
+  },
+  "CS100005": {
+    "name": "베이커리",
+    "interior_per_pyeong": 2500000,
+    "equipment": [
+      {"name": "오븐(데크/컨벡션)", "cost": 12000000},
+      {"name": "반죽기/믹서", "cost": 5000000},
+      {"name": "냉장/발효기", "cost": 4000000},
+      {"name": "진열 쇼케이스", "cost": 4000000},
+      {"name": "POS 시스템", "cost": 1500000}
+    ],
+    "initial_inventory": 4000000,
+    "signage": 2000000,
+    "misc": 2500000
+  },
+  "CS100006": {
+    "name": "패스트푸드",
+    "interior_per_pyeong": 2000000,
+    "equipment": [
+      {"name": "튀김기/그릴", "cost": 5000000},
+      {"name": "냉장/냉동고", "cost": 3000000},
+      {"name": "POS/키오스크", "cost": 3000000},
+      {"name": "가구/인테리어", "cost": 3000000}
+    ],
+    "initial_inventory": 3000000,
+    "signage": 2000000,
+    "misc": 2000000
+  },
+  "CS100007": {
+    "name": "치킨전문점",
+    "interior_per_pyeong": 1800000,
+    "equipment": [
+      {"name": "치킨 프라이어", "cost": 6000000},
+      {"name": "냉장/냉동고", "cost": 3000000},
+      {"name": "환기/배기 시설", "cost": 4000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자", "cost": 3000000}
+    ],
+    "initial_inventory": 3000000,
+    "signage": 2000000,
+    "misc": 2000000
+  },
+  "CS100008": {
+    "name": "분식",
+    "interior_per_pyeong": 1500000,
+    "equipment": [
+      {"name": "조리대/가스레인지", "cost": 3000000},
+      {"name": "냉장고", "cost": 2000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자", "cost": 2000000}
+    ],
+    "initial_inventory": 2000000,
+    "signage": 1500000,
+    "misc": 1500000
+  },
+  "CS100009": {
+    "name": "호프/주점",
+    "interior_per_pyeong": 2200000,
+    "equipment": [
+      {"name": "생맥주 디스펜서", "cost": 5000000},
+      {"name": "냉장고/아이스빈", "cost": 3000000},
+      {"name": "조리대/그릴", "cost": 3000000},
+      {"name": "POS 시스템", "cost": 1500000},
+      {"name": "테이블/의자/조명", "cost": 5000000},
+      {"name": "방음 시설", "cost": 3000000}
+    ],
+    "initial_inventory": 4000000,
+    "signage": 2000000,
+    "misc": 2500000
+  }
+}

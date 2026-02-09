@@ -786,6 +786,14 @@ const ENTRY_POINTS = [
     color: "from-amber-500 to-amber-600",
   },
   {
+    question: "매물이 있을까?",
+    label: "매물 탐색",
+    desc: "추천 상권 근처 실제 상가 매물을 찾아드려요",
+    href: "/analyze",
+    icon: Store,
+    color: "from-teal-500 to-teal-600",
+  },
+  {
     question: "A vs B 어디가 나아?",
     label: "상권 비교",
     desc: "두 상권을 나란히 비교하고 AI가 판정해드려요",

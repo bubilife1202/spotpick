@@ -29,7 +29,6 @@ import {
   ArrowUp,
   Minus,
   Gift,
-  FileText,
   SlidersHorizontal,
   ChevronRight,
   CreditCard,
@@ -1376,18 +1375,24 @@ function ReportContent() {
           </div>
         )}
 
-        {/* Action: Go to Step 3 */}
+        {/* Action: Go to Step 3 (Property) */}
         {selectedCode && (
           <div className="mt-8 flex flex-col items-center gap-3">
             <Link
-              href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
+              href={`/property?district_code=${selectedCode}&industry_code=${industryCode}`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:shadow-xl"
             >
-              <FileText className="h-5 w-5" />
-              사업계획서 생성 & 액션 플랜
+              <Building2 className="h-5 w-5" />
+              매물 찾아보기
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href={`/cost-compare?industry_code=${industryCode}&district_code=${selectedCode}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                비용 비교하기
+              </Link>
               <Link
                 href={`/timeline?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budgetMax}`}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
@@ -1395,10 +1400,10 @@ function ReportContent() {
                 창업 타임라인
               </Link>
               <Link
-                href={`/compare?industry_code=${industryCode}`}
+                href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget_min=${budgetMin}&budget_max=${budgetMax}`}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
               >
-                상권 비교
+                사업계획서 생성
               </Link>
             </div>
           </div>

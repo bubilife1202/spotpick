@@ -143,6 +143,9 @@ def create_app() -> FastAPI:
     analytics_router = cast(APIRouter, import_module("api.routes.analytics").router)
     app.include_router(analytics_router, prefix="/api/v1", tags=["Analytics"])
 
+    property_router = cast(APIRouter, import_module("api.routes.property").router)
+    app.include_router(property_router, prefix="/api/v1", tags=["Property"])
+
     return app
 
 
