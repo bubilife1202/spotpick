@@ -98,7 +98,9 @@ function ActionContent() {
         })),
         simulation: cachedData.simulation || {},
         competitive: cachedData.competition || {},
-        charts: {},
+        timeline: cachedData.timeline || {},
+        support_programs: cachedData.support || [],
+        charts: cachedData.customer || {},
         context: {
           industry_code: industryCode,
           industry_name: store.industryName || "카페",

@@ -102,7 +102,7 @@ export function SalesTrendChart({ data, loading, districtName, industryName }: {
               <div className="pointer-events-none absolute -top-12 left-1/2 z-10 hidden -translate-x-1/2 rounded bg-slate-800 px-2 py-1 text-[9px] text-white shadow group-hover:block">
                 {formatWon(q.monthly_sales)}원
                 <br />
-                {q.transactions.toLocaleString()}건
+                {q.transactions ? `${q.transactions.toLocaleString()}건` : ""}
               </div>
             </div>
           );

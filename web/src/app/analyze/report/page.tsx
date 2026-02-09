@@ -1137,9 +1137,9 @@ function SupportSection({ data, loading, industryCode, industryName }: { data: a
                     {prog.support_amount}
                   </p>
                 )}
-                {prog.deadline && (
+                {(prog.deadline || prog.application_end_date) && (
                   <p className="mt-1 text-[10px] font-semibold text-rose-600">
-                    신청 마감: {prog.deadline}
+                    신청 마감: {prog.deadline || prog.application_end_date}
                   </p>
                 )}
               </div>
@@ -1657,7 +1657,7 @@ function ReportContent() {
             </Link>
             <div className="flex flex-wrap justify-center gap-3">
               <Link
-                href={`/property?district_code=${selectedCode}&industry_code=${industryCode}`}
+                href={`/property?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budget}`}
                 className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
               >
                 매물 탐색

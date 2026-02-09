@@ -620,6 +620,9 @@ async def get_stores(
         "stores": result_stores,
         "total": len(result_stores),
         "store_count": store_count_stat,
+        "new_stores": sd.get("new_stores", 0) if sd else 0,
+        "closed_stores": sd.get("closed_stores", 0) if sd else 0,
+        "franchise_stores": sd.get("franchise_stores", 0) if sd else 0,
         "district_name": district_name,
         "is_mock": use_mock,
     }

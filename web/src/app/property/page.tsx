@@ -47,6 +47,7 @@ function PropertyContent() {
   const searchParams = useSearchParams();
   const districtCode = searchParams?.get("district_code") || "";
   const industryCode = searchParams?.get("industry_code") || "CS100010";
+  const budgetParam = searchParams?.get("budget") || "";
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [realtors, setRealtors] = useState<Realtor[]>([]);
@@ -114,7 +115,7 @@ function PropertyContent() {
             <span className="text-lg font-bold text-slate-900">SpotPick</span>
           </Link>
           <Link
-            href={`/analyze/report?industry_code=${industryCode}`}
+            href={`/analyze/report?industry_code=${industryCode}${budgetParam ? `&budget=${budgetParam}` : ""}`}
             className="text-sm font-medium text-slate-500 hover:text-slate-700"
           >
             리포트로 돌아가기
