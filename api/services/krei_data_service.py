@@ -26,33 +26,33 @@ logger = logging.getLogger(__name__)
 
 
 class CostRatios(TypedDict, total=False):
-    food_pct: float       # 식재료비 비율 (%)
-    labor_pct: float      # 인건비 비율 (%)
-    rent_pct: float       # 임차료 비율 (%)
-    profit_pct: float     # 영업이익률 (%)
-    n: int                # 표본 수
+    food_pct: float  # 식재료비 비율 (%)
+    labor_pct: float  # 인건비 비율 (%)
+    rent_pct: float  # 임차료 비율 (%)
+    profit_pct: float  # 영업이익률 (%)
+    n: int  # 표본 수
     source: str
 
 
 class RentBenchmark(TypedDict, total=False):
     monthly_rent_median: float  # 중앙값 (만원)
-    monthly_rent_p25: float     # 25% (만원)
-    monthly_rent_p75: float     # 75% (만원)
-    deposit_median: float       # 보증금 중앙값 (만원)
+    monthly_rent_p25: float  # 25% (만원)
+    monthly_rent_p75: float  # 75% (만원)
+    deposit_median: float  # 보증금 중앙값 (만원)
     n: int
     source: str
 
 
 class StartupInvestment(TypedDict, total=False):
-    total: float       # 총투자 가중평균 (만원)
-    interior: float    # 인테리어 가중평균 (만원)
-    kitchen: float     # 주방기기 가중평균 (만원)
+    total: float  # 총투자 가중평균 (만원)
+    interior: float  # 인테리어 가중평균 (만원)
+    kitchen: float  # 주방기기 가중평균 (만원)
     n: int
     source: str
 
 
 class AvgTicketResult(TypedDict, total=False):
-    avg_ticket: float   # 객단가 가중평균 (원)
+    avg_ticket: float  # 객단가 가중평균 (원)
     n: int
     source: str
 
@@ -63,6 +63,29 @@ class AvgTicketResult(TypedDict, total=False):
 
 _data_cache: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 86400  # 24h
+
+
+class CostBenchmarks(TypedDict, total=False):
+    # Rent (KRW)
+    monthly_rent_p25: int
+    monthly_rent_median: int
+    monthly_rent_p75: int
+    deposit_median: int
+    deposit_to_rent_ratio: float  # deposit_median / monthly_rent_median
+    # Cost ratios (0.0-1.0)
+    food_pct: float
+    labor_pct: float
+    rent_pct: float
+    profit_pct: float
+    # Startup investment (KRW)
+    interior_per_pyeong: int  # interior * 10000 / avg_area_pyeong
+    kitchen_total: int
+    invest_total: int
+    # Meta
+    avg_area_pyeong: float
+    avg_monthly_sales: int
+    n: int
+    source: str
 
 
 def _get_data() -> dict[str, Any] | None:
@@ -88,6 +111,91 @@ def _get_data() -> dict[str, Any] | None:
     except Exception as e:
         logger.warning("KREI 데이터 로드 실패: %s", e)
         return None
+
+
+def _get_cached(cache_key: str) -> Any | None:
+    if cache_key in _data_cache:
+        ts, val = _data_cache[cache_key]
+        if time.time() - ts < _CACHE_TTL:
+            return val
+        del _data_cache[cache_key]
+    return None
+
+
+def _set_cached(cache_key: str, val: Any) -> None:
+    _data_cache[cache_key] = (time.time(), val)
+
+
+def _pick_agg_with_fallback(
+    industry_code: str,
+    *,
+    district_type: str | None,
+    seoul_only: bool,
+) -> tuple[dict[str, Any] | None, str]:
+    """Select an aggregate dict using the required fallback chain.
+
+    Fallback order (when seoul_only=True):
+      1) seoul district_type
+      2) seoul total
+      3) national(total) district_type
+      4) national(total) total
+
+    Returns:
+      (agg, scope_label)
+    """
+    data = _get_data()
+    if data is None:
+        return None, "KREI 데이터 없음"
+
+    ind = data.get("industries", {}).get(industry_code)
+    if not isinstance(ind, dict):
+        return None, "KREI 업종 데이터 없음"
+
+    def _dt_lookup(region_key: str) -> dict[str, Any] | None:
+        if not district_type:
+            return None
+        dt_entry = ind.get("by_district_type", {}).get(district_type)
+        if isinstance(dt_entry, dict):
+            val = dt_entry.get(region_key)
+            if isinstance(val, dict) and val:
+                return val
+        return None
+
+    def _region_lookup(region_key: str) -> dict[str, Any] | None:
+        val = ind.get(region_key)
+        if isinstance(val, dict) and val:
+            return val
+        return None
+
+    if seoul_only:
+        agg = _dt_lookup("seoul")
+        if agg is not None:
+            return agg, "서울 상권유형"
+
+        agg = _region_lookup("seoul")
+        if agg is not None:
+            return agg, "서울 전체"
+
+        agg = _dt_lookup("total")
+        if agg is not None:
+            return agg, "전국 상권유형"
+
+        agg = _region_lookup("total")
+        if agg is not None:
+            return agg, "전국 전체"
+
+        return None, "KREI 업종 집계 없음"
+
+    # seoul_only=False
+    agg = _dt_lookup("total")
+    if agg is not None:
+        return agg, "전국 상권유형"
+
+    agg = _region_lookup("total")
+    if agg is not None:
+        return agg, "전국 전체"
+
+    return None, "KREI 업종 집계 없음"
 
 
 def _get_industry_data(
@@ -278,3 +386,99 @@ def get_avg_area(industry_code: str, seoul_only: bool = True) -> float | None:
     if agg and "avg_area_pyeong" in agg:
         return agg["avg_area_pyeong"]
     return None
+
+
+def get_cost_benchmarks(
+    industry_code: str,
+    district_type: str | None = None,
+    seoul_only: bool = True,
+) -> CostBenchmarks | None:
+    """Return unified cost benchmarks for simulation.
+
+    - Units:
+      - Rent / investment values are returned in KRW (원)
+      - Ratio fields are returned in 0.0-1.0
+    - Fallback order:
+      seoul district_type → seoul total → national district_type → national total
+    """
+    cache_key = f"cost_benchmarks:{industry_code}:{district_type or 'ALL'}:{'seoul' if seoul_only else 'total'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    data = _get_data()
+    if data is None:
+        return None
+
+    ind = data.get("industries", {}).get(industry_code)
+    if not isinstance(ind, dict):
+        return None
+
+    agg, scope_label = _pick_agg_with_fallback(
+        industry_code,
+        district_type=district_type,
+        seoul_only=seoul_only,
+    )
+    if agg is None:
+        return None
+
+    industry_name = str(ind.get("name") or industry_code)
+    dt_label = district_type or "전체"
+    n = int(agg.get("n", 0) or 0)
+
+    result: CostBenchmarks = {
+        "n": n,
+        "source": f"KREI 외식업체경영실태조사 2023 ({scope_label} {industry_name}, {dt_label}, n={n})",
+    }
+
+    # ---- Rent benchmarks (만원 → 원)
+    if "monthly_rent_p25" in agg:
+        result["monthly_rent_p25"] = int(float(agg["monthly_rent_p25"]) * 10_000)
+    if "monthly_rent_median" in agg:
+        result["monthly_rent_median"] = int(float(agg["monthly_rent_median"]) * 10_000)
+    if "monthly_rent_p75" in agg:
+        result["monthly_rent_p75"] = int(float(agg["monthly_rent_p75"]) * 10_000)
+    if "deposit_median" in agg:
+        result["deposit_median"] = int(float(agg["deposit_median"]) * 10_000)
+
+    mr = result.get("monthly_rent_median")
+    dep = result.get("deposit_median")
+    if isinstance(mr, int) and mr > 0 and isinstance(dep, int) and dep > 0:
+        result["deposit_to_rent_ratio"] = round(dep / mr, 4)
+
+    # ---- Cost ratios (% → 0.0-1.0)
+    for k in ("food_pct", "labor_pct", "rent_pct", "profit_pct"):
+        if k in agg and agg[k] is not None:
+            try:
+                result[k] = round(float(agg[k]) / 100.0, 4)
+            except Exception:
+                pass
+
+    # ---- Startup investment (만원 → 원)
+    if "invest_total" in agg and agg.get("invest_total") is not None:
+        result["invest_total"] = int(float(agg["invest_total"]) * 10_000)
+    if "kitchen" in agg and agg.get("kitchen") is not None:
+        result["kitchen_total"] = int(float(agg["kitchen"]) * 10_000)
+
+    if "avg_area_pyeong" in agg and agg.get("avg_area_pyeong") is not None:
+        try:
+            result["avg_area_pyeong"] = float(agg["avg_area_pyeong"])
+        except Exception:
+            pass
+
+    if "interior" in agg and agg.get("interior") is not None:
+        interior_man = float(agg["interior"])  # 만원
+        avg_area = result.get("avg_area_pyeong")
+        if isinstance(avg_area, (int, float)) and avg_area and avg_area > 0:
+            result["interior_per_pyeong"] = int(interior_man * 10_000 / float(avg_area))
+
+    # ---- Meta
+    if "avg_monthly_sales" in agg and agg.get("avg_monthly_sales") is not None:
+        # KREI processed data stores sales in 만원
+        try:
+            result["avg_monthly_sales"] = int(float(agg["avg_monthly_sales"]) * 10_000)
+        except Exception:
+            pass
+
+    _set_cached(cache_key, result)
+    return result

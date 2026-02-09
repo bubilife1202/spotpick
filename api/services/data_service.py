@@ -2,6 +2,7 @@
 Data Service - 서울시 상권 데이터 기반 추천 서비스 (멀티업종 지원)
 64개 필드 전체 활용, 업종별 레지스트리 패턴
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,8 @@ def _validate_industry_code(code: str) -> str:
     return code
 
 
-_DEFAULT_RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
+# DEPRECATED: only used if KREI data completely unavailable
+_LEGACY_RENT_RANGES: dict[str, tuple[int, int, int, int, int]] = {
     "골목상권": (800_000, 1_200_000, 1_800_000, 2_800_000, 4_500_000),
     "발달상권": (2_500_000, 4_000_000, 5_500_000, 7_500_000, 12_000_000),
     "전통시장": (500_000, 1_000_000, 1_800_000, 2_800_000, 4_500_000),
@@ -34,12 +36,12 @@ def _parse_rent_ranges(config: dict[str, Any]) -> dict[str, tuple[int, int, int,
     """Parse RENT_RANGES from config (list format) to tuple format."""
     raw = config.get("RENT_RANGES")
     if not raw or not isinstance(raw, dict):
-        return _DEFAULT_RENT_RANGES
+        return _LEGACY_RENT_RANGES
     result: dict[str, tuple[int, int, int, int, int]] = {}
     for key, vals in raw.items():
         if isinstance(vals, (list, tuple)) and len(vals) == 5:
             result[key] = tuple(vals)  # type: ignore[arg-type]
-    return result or _DEFAULT_RENT_RANGES
+    return result or _LEGACY_RENT_RANGES
 
 
 def _get_krei_rent_ranges(
@@ -47,20 +49,83 @@ def _get_krei_rent_ranges(
 ) -> dict[str, tuple[int, int, int, int, int]] | None:
     """KREI 원시자료에서 업종별 · 상권유형별 임대료 분위수를 5구간 튜플로 변환."""
     try:
-        from api.services.krei_data_service import get_rent_benchmark
+        from api.services.krei_data_service import get_cost_benchmarks
+
+        def _to_ranges(p25: int, med: int, p75: int) -> tuple[int, int, int, int, int]:
+            p5 = max(int(p25 * 0.5), 300_000)
+            p95 = int(p75 * 1.5)
+            return (p5, p25, med, p75, p95)
+
+        # Base (서울 전체) — district_type 데이터가 없을 때 이 값을 ratio로 조정
+        base = get_cost_benchmarks(industry_code, district_type=None, seoul_only=True)
+        nat_total = get_cost_benchmarks(industry_code, district_type=None, seoul_only=False)
 
         result: dict[str, tuple[int, int, int, int, int]] = {}
         for dt in ("골목상권", "발달상권", "전통시장", "관광특구"):
-            bm = get_rent_benchmark(industry_code, district_type=dt, seoul_only=True)
-            if bm and bm.get("n", 0) >= 10:
-                # 만원 → 원 변환
-                p25 = int(bm.get("monthly_rent_p25", 0) * 10_000)
-                med = int(bm.get("monthly_rent_median", 0) * 10_000)
-                p75 = int(bm.get("monthly_rent_p75", 0) * 10_000)
-                # p5 ≈ p25*0.5, p95 ≈ p75*1.5 (외삽)
-                p5 = max(int(p25 * 0.5), 300_000)
-                p95 = int(p75 * 1.5)
-                result[dt] = (p5, p25, med, p75, p95)
+            bm_seoul_dt = get_cost_benchmarks(industry_code, district_type=dt, seoul_only=True)
+
+            # 1) 서울 상권유형 데이터가 있으면 그대로 사용
+            src = bm_seoul_dt.get("source", "") if bm_seoul_dt else ""
+            if bm_seoul_dt and "서울 상권유형" in src:
+                p25 = bm_seoul_dt.get("monthly_rent_p25")
+                med = bm_seoul_dt.get("monthly_rent_median")
+                p75 = bm_seoul_dt.get("monthly_rent_p75")
+                if (
+                    isinstance(p25, int)
+                    and isinstance(med, int)
+                    and isinstance(p75, int)
+                    and med > 0
+                ):
+                    result[dt] = _to_ranges(p25, med, p75)
+                    continue
+
+            # 2) 서울 상권유형이 없으면: 서울 전체 × (전국 상권유형 / 전국 전체) ratio
+            if not base or not nat_total:
+                continue
+
+            base_p25 = base.get("monthly_rent_p25")
+            base_med = base.get("monthly_rent_median")
+            base_p75 = base.get("monthly_rent_p75")
+            nat_total_p25 = nat_total.get("monthly_rent_p25")
+            nat_total_med = nat_total.get("monthly_rent_median")
+            nat_total_p75 = nat_total.get("monthly_rent_p75")
+
+            if not (
+                isinstance(base_p25, int)
+                and isinstance(base_med, int)
+                and isinstance(base_p75, int)
+                and isinstance(nat_total_p25, int)
+                and isinstance(nat_total_med, int)
+                and isinstance(nat_total_p75, int)
+                and nat_total_med > 0
+            ):
+                continue
+
+            nat_dt = get_cost_benchmarks(industry_code, district_type=dt, seoul_only=False)
+            nat_dt_p25 = nat_dt.get("monthly_rent_p25") if nat_dt else None
+            nat_dt_med = nat_dt.get("monthly_rent_median") if nat_dt else None
+            nat_dt_p75 = nat_dt.get("monthly_rent_p75") if nat_dt else None
+
+            if isinstance(nat_dt_p25, int) and nat_total_p25 > 0:
+                ratio_p25 = nat_dt_p25 / nat_total_p25
+            else:
+                ratio_p25 = 1.0
+
+            if isinstance(nat_dt_med, int) and nat_total_med > 0:
+                ratio_med = nat_dt_med / nat_total_med
+            else:
+                ratio_med = 1.0
+
+            if isinstance(nat_dt_p75, int) and nat_total_p75 > 0:
+                ratio_p75 = nat_dt_p75 / nat_total_p75
+            else:
+                ratio_p75 = 1.0
+
+            p25 = int(base_p25 * ratio_p25)
+            med = int(base_med * ratio_med)
+            p75 = int(base_p75 * ratio_p75)
+            if med > 0 and p75 >= p25:
+                result[dt] = _to_ranges(p25, med, p75)
 
         return result if result else None
     except Exception:
@@ -80,18 +145,19 @@ def estimate_rent(
 ) -> int:
     """Estimate monthly rent based on district type and sales percentile rank (0.0-1.0).
 
-    KREI 원시자료 → config RENT_RANGES → 기본값 순 폴백.
+    KREI 원시자료 기반 산출을 우선한다.
+    (KREI 데이터가 완전히 없을 때만 legacy/config 범위를 사용)
     """
     # KREI 데이터 우선 시도 (industry_code 있을 때)
-    if rent_ranges is None and industry_code:
+    if industry_code:
         if industry_code not in _krei_rent_cache:
             _krei_rent_cache[industry_code] = _get_krei_rent_ranges(industry_code)
         krei = _krei_rent_cache[industry_code]
         if krei and district_type in krei:
             rent_ranges = krei
 
-    ranges = rent_ranges or _DEFAULT_RENT_RANGES
-    r = ranges.get(district_type, ranges.get("골목상권", _DEFAULT_RENT_RANGES["골목상권"]))
+    ranges = rent_ranges or _LEGACY_RENT_RANGES
+    r = ranges.get(district_type, ranges.get("골목상권", _LEGACY_RENT_RANGES["골목상권"]))
     if percentile_rank <= 0.25:
         t = percentile_rank / 0.25
         rent = r[0] + t * (r[1] - r[0])
@@ -114,7 +180,7 @@ class DataService:
         self.industry_code = _validate_industry_code(industry_code)
         self.config: dict[str, Any] = {}
         self.display_name: str = "카페"
-        self._rent_ranges = _DEFAULT_RENT_RANGES
+        self._rent_ranges = _LEGACY_RENT_RANGES
 
         # Data
         self.districts: list[dict[str, Any]] = []
@@ -134,11 +200,22 @@ class DataService:
         try:
             self.config = load_industry_config(self.industry_code)
             self.display_name = self.config.get("display_name", self.config.get("name", "카페"))
-            self._rent_ranges = _parse_rent_ranges(self.config)
+
+            # KREI 기반 임대료 범위를 우선 사용
+            krei = _get_krei_rent_ranges(self.industry_code)
+            if krei:
+                self._rent_ranges = krei
+            else:
+                # DEPRECATED: KREI가 완전히 없을 때만 config/legacy 폴백
+                self._rent_ranges = _parse_rent_ranges(self.config)
         except FileNotFoundError:
             # Fallback for industries without config
             self.config = {}
-            self.display_name = "카페" if self.industry_code == DEFAULT_INDUSTRY else self.industry_code
+            self.display_name = (
+                "카페" if self.industry_code == DEFAULT_INDUSTRY else self.industry_code
+            )
+            krei = _get_krei_rent_ranges(self.industry_code)
+            self._rent_ranges = krei or _LEGACY_RENT_RANGES
 
     def _load_data(self):
         """데이터 로드"""
@@ -152,7 +229,13 @@ class DataService:
         if not districts_file.exists():
             print(f"[DataService:{self.industry_code}] 데이터 파일 없음: {districts_file}")
             self.districts = []
-            self.summary = {"total_districts": 0, "total_stores": 0, "avg_monthly_sales": 0, "avg_survival_rate": 0, "district_types": {}}
+            self.summary = {
+                "total_districts": 0,
+                "total_stores": 0,
+                "avg_monthly_sales": 0,
+                "avg_survival_rate": 0,
+                "district_types": {},
+            }
             return
 
         with open(districts_file, encoding="utf-8") as f:
@@ -201,10 +284,16 @@ class DataService:
             for i, (code, _) in enumerate(entries):
                 self._sales_percentile[code] = i / max(1, n - 1)
 
-        ft_values = [d.get("foot_traffic_total", 0) for d in self.districts if d.get("foot_traffic_total", 0) > 0]
+        ft_values = [
+            d.get("foot_traffic_total", 0)
+            for d in self.districts
+            if d.get("foot_traffic_total", 0) > 0
+        ]
         self._avg_foot_traffic = sum(ft_values) / max(1, len(ft_values)) if ft_values else 0
 
-        fac_values = [d.get("facility_score", 0) for d in self.districts if d.get("facility_score", 0) > 0]
+        fac_values = [
+            d.get("facility_score", 0) for d in self.districts if d.get("facility_score", 0) > 0
+        ]
         self._avg_facility_score = sum(fac_values) / max(1, len(fac_values)) if fac_values else 0
 
         transit_values = sorted(d.get("transit_raw", 0) for d in self.districts)
@@ -223,7 +312,13 @@ class DataService:
     def _generate_summary(self) -> dict[str, Any]:
         """Generate summary from district data."""
         if not self.districts:
-            return {"total_districts": 0, "total_stores": 0, "avg_monthly_sales": 0, "avg_survival_rate": 0, "district_types": {}}
+            return {
+                "total_districts": 0,
+                "total_stores": 0,
+                "avg_monthly_sales": 0,
+                "avg_survival_rate": 0,
+                "district_types": {},
+            }
 
         total_stores = sum(d.get("store_count", 0) for d in self.districts)
         total_sales = sum(d.get("monthly_sales", 0) for d in self.districts)
@@ -348,7 +443,13 @@ class DataService:
         for d in self.districts:
             sales_per_store = int(d["monthly_sales"] / max(1, d.get("store_count", 1)))
             pctile = self._sales_percentile.get(d["district_code"], 0.5)
-            estimated_rent = estimate_rent(d["district_type"], sales_per_store, pctile, self._rent_ranges, industry_code=self.industry_code)
+            estimated_rent = estimate_rent(
+                d["district_type"],
+                sales_per_store,
+                pctile,
+                self._rent_ranges,
+                industry_code=self.industry_code,
+            )
 
             if estimated_rent > budget_max:
                 continue
@@ -407,12 +508,24 @@ class DataService:
                     "survival_rate_2y": d["survival_rate"],
                     "time_analysis": {
                         "peak_time": d["peak_time"],
-                        "time_00_06": round(d["time_00_06_sales"] / max(1, d["monthly_sales"]) * 100, 1),
-                        "time_06_11": round(d["time_06_11_sales"] / max(1, d["monthly_sales"]) * 100, 1),
-                        "time_11_14": round(d["time_11_14_sales"] / max(1, d["monthly_sales"]) * 100, 1),
-                        "time_14_17": round(d["time_14_17_sales"] / max(1, d["monthly_sales"]) * 100, 1),
-                        "time_17_21": round(d["time_17_21_sales"] / max(1, d["monthly_sales"]) * 100, 1),
-                        "time_21_24": round(d["time_21_24_sales"] / max(1, d["monthly_sales"]) * 100, 1),
+                        "time_00_06": round(
+                            d["time_00_06_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
+                        "time_06_11": round(
+                            d["time_06_11_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
+                        "time_11_14": round(
+                            d["time_11_14_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
+                        "time_14_17": round(
+                            d["time_14_17_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
+                        "time_17_21": round(
+                            d["time_17_21_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
+                        "time_21_24": round(
+                            d["time_21_24_sales"] / max(1, d["monthly_sales"]) * 100, 1
+                        ),
                     },
                     "day_analysis": {
                         "peak_day": d["peak_day"],
@@ -472,6 +585,7 @@ class DataService:
         # Use scorecard if available, otherwise rule-based fallback
         try:
             from api.services.scorecard_service import get_scorecard_service
+
             svc = get_scorecard_service(self.industry_code)
             if not svc._districts:
                 svc.set_districts(self.districts)
@@ -596,9 +710,19 @@ class DataService:
         # 요일 기반
         by_day = rec_text.get("by_sales_ratio") or rec_text.get("day_based", {})
         if d["weekday_ratio"] > 0.75:
-            recs.append(by_day.get("weekday_ratio_gt_0.75", by_day.get("weekday", "주중 매출 집중 → 평일 전략 강화")))
+            recs.append(
+                by_day.get(
+                    "weekday_ratio_gt_0.75",
+                    by_day.get("weekday", "주중 매출 집중 → 평일 전략 강화"),
+                )
+            )
         elif d["weekend_ratio"] > 0.35:
-            recs.append(by_day.get("weekend_ratio_gt_0.35", by_day.get("weekend", "주말 매출 비중 높음 → 주말 집중 전략")))
+            recs.append(
+                by_day.get(
+                    "weekend_ratio_gt_0.35",
+                    by_day.get("weekend", "주말 매출 비중 높음 → 주말 집중 전략"),
+                )
+            )
 
         # 고객층 기반
         main_age = d["main_age_group"]
@@ -608,12 +732,18 @@ class DataService:
         elif "30" in main_age:
             recs.append(by_age.get("contains_30", by_age.get("30s", "30대 주요 고객 → 품질 중심")))
         elif "40" in main_age or "50" in main_age:
-            recs.append(by_age.get("contains_40_or_50", by_age.get("40s_plus", "40-50대 주요 고객 → 편안한 분위기")))
+            recs.append(
+                by_age.get(
+                    "contains_40_or_50", by_age.get("40s_plus", "40-50대 주요 고객 → 편안한 분위기")
+                )
+            )
 
         # 경쟁 기반
         by_comp = rec_text.get("by_competition") or rec_text.get("competition", {})
         if d["store_count"] > 15:
-            recs.append(by_comp.get("store_count_gt_15", by_comp.get("high", "경쟁 과다 → 차별화 필수")))
+            recs.append(
+                by_comp.get("store_count_gt_15", by_comp.get("high", "경쟁 과다 → 차별화 필수"))
+            )
 
         # 상권 유형 기반
         by_area = rec_text.get("by_district_type") or rec_text.get("area", {})
@@ -641,12 +771,7 @@ class DataService:
         resident_total = d.get("resident_total", 0)
         resident_score = min(1.0, resident_total / 2000)
 
-        score = (
-            sps_pctile * 30
-            + ticket_score * 35
-            + worker_prime_ratio * 20
-            + resident_score * 15
-        )
+        score = sps_pctile * 30 + ticket_score * 35 + worker_prime_ratio * 20 + resident_score * 15
         return round(score, 1)
 
     def _determine_positioning(self, d: dict[str, Any]) -> tuple[str, str, float]:
@@ -728,7 +853,7 @@ class DataService:
             "직장인 효율": f"직장인 {worker_total:,}명, 피크 {peak_time} → 빠른 회전, 런치세트 추천",
             "테이크아웃/저가": f"유동인구 {ft_total:,}명, 교통 요지 → 속도·가격 경쟁력 필요",
             "동네 커뮤니티": f"상주인구 {resident_total:,}명, 가구 {total_households}세대 → 단골 전략, 편안한 분위기",
-            "학생/스터디": f"20대 비율 {ratio_20*100:.0f}%, 대학 인접 → 공간 제공, 합리적 가격",
+            "학생/스터디": f"20대 비율 {ratio_20 * 100:.0f}%, 대학 인접 → 공간 제공, 합리적 가격",
         }
 
         return (best, details.get(best, ""), round(best_score, 1))
@@ -805,12 +930,30 @@ class DataService:
                 "avg_ticket": int(d["monthly_sales"] / max(1, d["monthly_transactions"])),
             },
             "time_breakdown": {
-                "새벽(0-6시)": {"sales": d["time_00_06_sales"], "transactions": d["time_00_06_transactions"]},
-                "아침(6-11시)": {"sales": d["time_06_11_sales"], "transactions": d["time_06_11_transactions"]},
-                "점심(11-14시)": {"sales": d["time_11_14_sales"], "transactions": d["time_11_14_transactions"]},
-                "오후(14-17시)": {"sales": d["time_14_17_sales"], "transactions": d["time_14_17_transactions"]},
-                "저녁(17-21시)": {"sales": d["time_17_21_sales"], "transactions": d["time_17_21_transactions"]},
-                "밤(21-24시)": {"sales": d["time_21_24_sales"], "transactions": d["time_21_24_transactions"]},
+                "새벽(0-6시)": {
+                    "sales": d["time_00_06_sales"],
+                    "transactions": d["time_00_06_transactions"],
+                },
+                "아침(6-11시)": {
+                    "sales": d["time_06_11_sales"],
+                    "transactions": d["time_06_11_transactions"],
+                },
+                "점심(11-14시)": {
+                    "sales": d["time_11_14_sales"],
+                    "transactions": d["time_11_14_transactions"],
+                },
+                "오후(14-17시)": {
+                    "sales": d["time_14_17_sales"],
+                    "transactions": d["time_14_17_transactions"],
+                },
+                "저녁(17-21시)": {
+                    "sales": d["time_17_21_sales"],
+                    "transactions": d["time_17_21_transactions"],
+                },
+                "밤(21-24시)": {
+                    "sales": d["time_21_24_sales"],
+                    "transactions": d["time_21_24_transactions"],
+                },
             },
             "day_breakdown": {
                 "월": {"sales": d["mon_sales"], "transactions": d["mon_transactions"]},
@@ -824,7 +967,10 @@ class DataService:
             "customer_breakdown": {
                 "gender": {
                     "male": {"sales": d["male_sales"], "transactions": d["male_transactions"]},
-                    "female": {"sales": d["female_sales"], "transactions": d["female_transactions"]},
+                    "female": {
+                        "sales": d["female_sales"],
+                        "transactions": d["female_transactions"],
+                    },
                 },
                 "age": {
                     "10대": {"sales": d["age_10_sales"], "transactions": d["age_10_transactions"]},

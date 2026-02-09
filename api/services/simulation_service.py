@@ -6,9 +6,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import math
-from typing import Any, Optional, TypedDict
+from pathlib import Path
+from typing import Any, TypedDict
 
 from api.services.data_service import DataService, estimate_rent, get_data_service
 from config.industry_config import load_industry_config, DEFAULT_INDUSTRY
@@ -17,16 +19,18 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# 업계 벤치마크 상수 (기본값 — config 미로드 시 폴백)
+# 업계 벤치마크 상수 (DEPRECATED)
+# - KREI 데이터가 존재하면 runtime에 실데이터로 대체된다.
 # ---------------------------------------------------------------------------
 
-DISTRICT_TYPE_FACTORS = {
+_LEGACY_FALLBACK = {
     "골목상권": {"interior_per_pyeong": 1_800_000, "labor_ratio": 0.25, "deposit_mult": 10},
     "발달상권": {"interior_per_pyeong": 2_500_000, "labor_ratio": 0.27, "deposit_mult": 15},
     "전통시장": {"interior_per_pyeong": 1_500_000, "labor_ratio": 0.24, "deposit_mult": 8},
     "관광특구": {"interior_per_pyeong": 2_800_000, "labor_ratio": 0.26, "deposit_mult": 15},
 }
 
+# DEPRECATED: legacy equipment ranges (use KREI kitchen_total when available)
 EQUIPMENT_COST = {
     "espresso_machine": (8_000_000, 15_000_000),
     "grinder": (2_000_000, 5_000_000),
@@ -36,9 +40,13 @@ EQUIPMENT_COST = {
 }
 
 INITIAL_INVENTORY = (3_000_000, 5_000_000)
-PERMITS_AND_MISC = (5_000_000, 10_000_000)
 
-COGS_RATIO = 0.32
+# DEPRECATED: only used if KREI/permitting data unavailable
+_LEGACY_PERMITS_AND_MISC = (5_000_000, 10_000_000)
+
+# DEPRECATED: replaced by KREI food_pct
+_LEGACY_COGS_RATIO = 0.32
+
 UTILITIES_RATIO = 0.035
 OTHER_RATIO = 0.075
 
@@ -52,6 +60,7 @@ def estimate_seats(pyeong: int) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 # 타입 정의
 # ---------------------------------------------------------------------------
+
 
 class RevenueEstimate(TypedDict):
     monthly_sales_per_store: int
@@ -130,6 +139,7 @@ class SimulationResult(TypedDict, total=False):
 # 서비스
 # ---------------------------------------------------------------------------
 
+
 class SimulationService:
     def __init__(
         self,
@@ -146,7 +156,12 @@ class SimulationService:
 
         # KOSIS 보강 상태
         self._kosis_enriched: bool = False
-        self._cost_data_source: str = "업종 평균 추정치"
+        self._cost_data_source: str = "Legacy config defaults (KREI 미적용)"
+        self._rent_ratio: float = 0.0
+        self._kosis_profit_margin: float = 0.0
+
+        # 가능한 경우, 초기화 시점에 KREI를 우선 적용 (sync)
+        self._try_krei_enrichment()
 
     # -------------------------------------------------------------------
     # Config loading with fallback to module-level defaults
@@ -166,7 +181,7 @@ class SimulationService:
             # Ensure each sub-dict has required keys; keep as-is (values are plain dicts)
             self._district_type_factors: dict[str, dict[str, Any]] = raw_dtf
         except (KeyError, TypeError):
-            self._district_type_factors = DISTRICT_TYPE_FACTORS
+            self._district_type_factors = _LEGACY_FALLBACK
 
         # EQUIPMENT_COST — config stores [min, max] lists; convert to tuples
         try:
@@ -181,7 +196,7 @@ class SimulationService:
         try:
             self._cogs_ratio: float = float(cfg["COGS_RATIO"])
         except (KeyError, TypeError, ValueError):
-            self._cogs_ratio = COGS_RATIO
+            self._cogs_ratio = _LEGACY_COGS_RATIO
 
         try:
             self._utilities_ratio: float = float(cfg["UTILITIES_RATIO"])
@@ -205,7 +220,7 @@ class SimulationService:
             raw_pm = cfg["PERMITS_AND_MISC"]
             self._permits_and_misc: tuple[int, int] = (raw_pm[0], raw_pm[1])
         except (KeyError, TypeError, IndexError):
-            self._permits_and_misc = PERMITS_AND_MISC
+            self._permits_and_misc = _LEGACY_PERMITS_AND_MISC
 
     def _build_percentile_cache(self) -> None:
         type_sales: dict[str, list[int]] = {}
@@ -246,68 +261,64 @@ class SimulationService:
     def _try_krei_enrichment(self) -> bool:
         """KREI 원시자료 데이터로 원가율 보강. 성공하면 True."""
         try:
-            from api.services.krei_data_service import (
-                get_cost_ratios,
-                get_startup_investment,
-                get_avg_area,
-            )
+            from api.services.krei_data_service import get_cost_benchmarks
 
-            cost = get_cost_ratios(self.industry_code, seoul_only=True)
-            if cost is None or cost.get("n", 0) < 5:
+            base = get_cost_benchmarks(self.industry_code, district_type=None, seoul_only=True)
+            if base is None or base.get("n", 0) < 5:
                 logger.info("KREI 데이터 부족 — KOSIS 폴백 (%s)", self.industry_code)
                 return False
 
             updated = False
-            n = cost.get("n", 0)
+            n = int(base.get("n", 0) or 0)
 
-            # 식재료비 비율 → _cogs_ratio (% → 소수)
-            if cost.get("food_pct"):
-                self._cogs_ratio = round(cost["food_pct"] / 100.0, 4)
+            # 식재료비 비율 → _cogs_ratio
+            food_pct = base.get("food_pct")
+            if isinstance(food_pct, (int, float)):
+                self._cogs_ratio = float(food_pct)
                 updated = True
                 logger.info(
                     "KREI 식재료비 비율 적용: %.1f%% (%s)",
-                    cost["food_pct"], self.industry_code,
-                )
-
-            # 인건비 비율 → DISTRICT_TYPE_FACTORS의 labor_ratio
-            if cost.get("labor_pct"):
-                krei_labor = cost["labor_pct"] / 100.0
-                for dt_name, factors in self._district_type_factors.items():
-                    original = factors.get("labor_ratio", 0.25)
-                    delta = original - 0.25
-                    factors["labor_ratio"] = round(krei_labor + delta, 4)
-                updated = True
-                logger.info(
-                    "KREI 인건비 비율 적용: %.1f%% (기준) (%s)",
-                    cost["labor_pct"], self.industry_code,
+                    float(food_pct) * 100.0,
+                    self.industry_code,
                 )
 
             # 임차료 비율 (참고용)
-            if cost.get("rent_pct"):
-                self._rent_ratio = round(cost["rent_pct"] / 100.0, 4)
+            rent_pct = base.get("rent_pct")
+            if isinstance(rent_pct, (int, float)):
+                self._rent_ratio = float(rent_pct)
                 updated = True
 
             # 영업이익률
-            if cost.get("profit_pct") is not None:
-                self._kosis_profit_margin = round(cost["profit_pct"] / 100.0, 4)
+            profit_pct = base.get("profit_pct")
+            if isinstance(profit_pct, (int, float)):
+                self._kosis_profit_margin = float(profit_pct)
                 updated = True
 
-            # 인테리어 단가 보강 (KREI 투자비 ÷ 평균면적)
-            invest = get_startup_investment(self.industry_code, seoul_only=True)
-            avg_area = get_avg_area(self.industry_code, seoul_only=True)
-            if invest and avg_area and avg_area > 0 and invest.get("interior"):
-                interior_man = invest["interior"]  # 만원
-                interior_per_pyeong = int(interior_man * 10_000 / avg_area)
-                for dt_name, factors in self._district_type_factors.items():
-                    factors["interior_per_pyeong"] = interior_per_pyeong
-                updated = True
-                logger.info(
-                    "KREI 인테리어 단가 적용: %s원/평 (%s)",
-                    f"{interior_per_pyeong:,}", self.industry_code,
-                )
+            # 상권유형별 벤치마크 적용 (노동비/인테리어/보증금 배수)
+            for dt_name, factors in self._district_type_factors.items():
+                bm = get_cost_benchmarks(self.industry_code, district_type=dt_name, seoul_only=True)
+                if not bm:
+                    continue
+
+                labor_pct = bm.get("labor_pct")
+                if isinstance(labor_pct, (int, float)):
+                    factors["labor_ratio"] = float(labor_pct)
+                    updated = True
+
+                interior_pp = bm.get("interior_per_pyeong")
+                if isinstance(interior_pp, int):
+                    factors["interior_per_pyeong"] = int(interior_pp)
+                    updated = True
+
+                dep_mult = bm.get("deposit_to_rent_ratio")
+                if isinstance(dep_mult, (int, float)) and dep_mult > 0:
+                    factors["deposit_mult"] = float(dep_mult)
+                    updated = True
 
             if updated:
-                self._cost_data_source = f"KREI 외식업체경영실태조사 2023 (n={n})"
+                self._cost_data_source = (
+                    f"KREI 외식업체경영실태조사 2023 (서울 {self.display_name}, n={n})"
+                )
                 logger.info("KREI 원가구조 반영 완료 (%s)", self.industry_code)
                 return True
 
@@ -328,24 +339,28 @@ class SimulationService:
 
             updated = False
 
-            if cost.get("food_cost_ratio"):
-                self._cogs_ratio = cost["food_cost_ratio"]
+            food_ratio = cost.get("food_cost_ratio")
+            if isinstance(food_ratio, (int, float)):
+                self._cogs_ratio = float(food_ratio)
                 updated = True
 
-            if cost.get("labor_cost_ratio"):
-                kosis_labor = cost["labor_cost_ratio"]
+            labor_ratio = cost.get("labor_cost_ratio")
+            if isinstance(labor_ratio, (int, float)):
+                kosis_labor = float(labor_ratio)
                 for dt_name, factors in self._district_type_factors.items():
                     original = factors.get("labor_ratio", 0.25)
                     delta = original - 0.25
                     factors["labor_ratio"] = round(kosis_labor + delta, 4)
                 updated = True
 
-            if cost.get("rent_ratio"):
-                self._rent_ratio = cost["rent_ratio"]
+            kosis_rent_ratio = cost.get("rent_ratio")
+            if isinstance(kosis_rent_ratio, (int, float)):
+                self._rent_ratio = float(kosis_rent_ratio)
                 updated = True
 
-            if cost.get("profit_margin"):
-                self._kosis_profit_margin = cost["profit_margin"]
+            kosis_profit = cost.get("profit_margin")
+            if isinstance(kosis_profit, (int, float)):
+                self._kosis_profit_margin = float(kosis_profit)
                 updated = True
 
             if updated:
@@ -391,8 +406,13 @@ class SimulationService:
 
         peak_day = district.get("peak_day", "월")
         day_fields = {
-            "월": "mon_sales", "화": "tue_sales", "수": "wed_sales",
-            "목": "thu_sales", "금": "fri_sales", "토": "sat_sales", "일": "sun_sales",
+            "월": "mon_sales",
+            "화": "tue_sales",
+            "수": "wed_sales",
+            "목": "thu_sales",
+            "금": "fri_sales",
+            "토": "sat_sales",
+            "일": "sun_sales",
         }
         peak_day_total = district.get(day_fields.get(peak_day, "mon_sales"), 0)
         peak_day_sales = int(peak_day_total / sc)
@@ -421,25 +441,60 @@ class SimulationService:
         area_pyeong: int = 10,
     ) -> StartupCost:
         factors = self._district_type_factors.get(
-            district_type, self._district_type_factors.get("골목상권", DISTRICT_TYPE_FACTORS["골목상권"])
+            district_type, self._district_type_factors.get("골목상권", _LEGACY_FALLBACK["골목상권"])
         )
-        deposit_mult = factors["deposit_mult"]
+
+        deposit_mult = float(factors.get("deposit_mult", 10))
         deposit = int(monthly_rent * deposit_mult)
 
         interior = int(factors["interior_per_pyeong"] * area_pyeong)
 
-        eq_min = sum(lo for lo, _ in self._equipment_cost.values())
-        eq_max = sum(hi for _, hi in self._equipment_cost.values())
-
-        # KREI 투자비 데이터로 보강 (deposit 보정)
         try:
-            from api.services.krei_data_service import get_rent_benchmark
-            rent_bm = get_rent_benchmark(self.industry_code, district_type, seoul_only=True)
-            if rent_bm and rent_bm.get("deposit_median"):
-                krei_deposit = int(rent_bm["deposit_median"] * 10_000)  # 만원 → 원
-                # KREI 보증금과 계산 보증금 중 더 신뢰할 수 있는 값 사용
-                deposit = krei_deposit
+            from api.services.krei_data_service import get_cost_benchmarks
+
+            bm = get_cost_benchmarks(
+                self.industry_code, district_type=district_type, seoul_only=True
+            )
         except Exception:
+            bm = None
+
+        # KREI 보증금 직접 사용
+        dep = bm.get("deposit_median") if bm else None
+        if isinstance(dep, int) and dep > 0:
+            deposit = int(dep)
+
+        # KREI 주방/설비 비용 우선 (없으면 legacy range)
+        kitchen_total_val = bm.get("kitchen_total") if bm else None
+        if isinstance(kitchen_total_val, int) and kitchen_total_val > 0:
+            kitchen_total = int(kitchen_total_val)
+            eq_min = kitchen_total
+            eq_max = kitchen_total
+        else:
+            eq_min = sum(lo for lo, _ in self._equipment_cost.values())
+            eq_max = sum(hi for _, hi in self._equipment_cost.values())
+
+        # 인허가 + 기타 (업종별 permits + KREI 총투자 기반 잔여분)
+        permits_min = self._permits_and_misc[0]
+        permits_max = self._permits_and_misc[1]
+        try:
+            permits_path = Path(__file__).parent.parent / "data" / "industry_permits.json"
+            with open(permits_path, encoding="utf-8") as f:
+                permits_data = json.load(f)
+            industry_permits = permits_data.get(self.industry_code, {}).get("permits", [])
+            total_permit_cost = sum(int(p.get("cost", 0) or 0) for p in industry_permits)
+
+            invest_total_val = bm.get("invest_total") if bm else None
+            if isinstance(invest_total_val, int) and invest_total_val > 0:
+                invest_total = int(invest_total_val)
+                misc_overhead = max(0, invest_total - interior - eq_max - deposit)
+                total_misc = total_permit_cost + misc_overhead
+                permits_min = total_misc
+                permits_max = total_misc
+            else:
+                permits_min = max(permits_min, total_permit_cost)
+                permits_max = max(permits_max, total_permit_cost)
+        except Exception:
+            # Keep legacy fallback
             pass
 
         return StartupCost(
@@ -449,10 +504,10 @@ class SimulationService:
             equipment_max=eq_max,
             initial_inventory_min=self._initial_inventory[0],
             initial_inventory_max=self._initial_inventory[1],
-            permits_misc_min=self._permits_and_misc[0],
-            permits_misc_max=self._permits_and_misc[1],
-            total_min=int(deposit + interior + eq_min + self._initial_inventory[0] + self._permits_and_misc[0]),
-            total_max=int(deposit + interior + eq_max + self._initial_inventory[1] + self._permits_and_misc[1]),
+            permits_misc_min=permits_min,
+            permits_misc_max=permits_max,
+            total_min=int(deposit + interior + eq_min + self._initial_inventory[0] + permits_min),
+            total_max=int(deposit + interior + eq_max + self._initial_inventory[1] + permits_max),
             interior_grade="mid",
             area_pyeong=area_pyeong,
         )
@@ -468,7 +523,7 @@ class SimulationService:
         district_type: str,
     ) -> OperatingCost:
         factors = self._district_type_factors.get(
-            district_type, self._district_type_factors.get("골목상권", DISTRICT_TYPE_FACTORS["골목상권"])
+            district_type, self._district_type_factors.get("골목상권", _LEGACY_FALLBACK["골목상권"])
         )
         cogs = int(monthly_revenue * self._cogs_ratio)
         labor = int(monthly_revenue * factors["labor_ratio"])
@@ -524,7 +579,8 @@ class SimulationService:
     # -----------------------------------------------------------------------
 
     async def enrich_with_franchise_data(
-        self, result: SimulationResult,
+        self,
+        result: SimulationResult,
     ) -> SimulationResult:
         """공정위 가맹사업 데이터로 시뮬레이션 결과를 보강한다."""
         try:
@@ -543,12 +599,8 @@ class SimulationService:
                 # 브랜드 수, 가맹점 수 합산
                 statuses = benchmark.get("industry_status", [])
                 if statuses:
-                    franchise_info["brand_count"] = sum(
-                        s.get("brand_count", 0) for s in statuses
-                    )
-                    franchise_info["store_count"] = sum(
-                        s.get("store_count", 0) for s in statuses
-                    )
+                    franchise_info["brand_count"] = sum(s.get("brand_count", 0) for s in statuses)
+                    franchise_info["store_count"] = sum(s.get("store_count", 0) for s in statuses)
                 result["franchise_benchmark"] = franchise_info
         except Exception as e:
             logger.warning("공정위 데이터 보강 실패 (무시): %s", e)
@@ -581,7 +633,9 @@ class SimulationService:
         sc = max(1, district.get("store_count", 1))
         sps = int(district["monthly_sales"] / sc)
         pctile = self.data_service._sales_percentile.get(district["district_code"], 0.5)
-        estimated_rent = estimate_rent(district["district_type"], sps, pctile, industry_code=self.industry_code)
+        estimated_rent = estimate_rent(
+            district["district_type"], sps, pctile, industry_code=self.industry_code
+        )
 
         revenue = self.estimate_revenue(district)
         startup = self.estimate_startup_cost(
