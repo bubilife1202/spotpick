@@ -1557,41 +1557,42 @@ async def generate_business_plan(req: BusinessPlanRequest) -> BusinessPlanRespon
     )
 
     # 7. Sections 2-9 — all async, run in parallel via asyncio.gather
-    try:
-        (
-            section_market,
-            section_competition,
-            section_menu,
-            section_marketing_r,
-            section_financials_r,
-            section_risk_r,
-            section_roadmap_r,
-            section_franchise_r,
-        ) = await asyncio.gather(
-            _section_market_analysis(district, industry_name),
-            _section_competition(district, industry_name),
-            _section_menu_pricing(config, industry_name, district),
-            _section_marketing(district, industry_name, req.target_customers),
-            _section_financials(sim_result, req.budget, district, industry_name),
-            _section_risk(district, sim_result, scorecard, industry_name, req.budget),
-            _section_roadmap(industry_name, req.budget),
-            _section_franchise_comparison(sim_result, industry_name, req.budget, district),
-        )
-    except Exception as e:
-        logger.error("사업계획서 섹션 생성 실패: %s", e)
-        raise HTTPException(status_code=500, detail=f"사업계획서 섹션 생성 중 오류: {str(e)}")
-
-    sections = [
-        section_overview,
-        section_market,
-        section_competition,
-        section_menu,
-        section_marketing_r,
-        section_financials_r,
-        section_risk_r,
-        section_roadmap_r,
-        section_franchise_r,
+    _section_meta = [
+        ("market", "2. 상권·시장 분석"),
+        ("competition", "3. 경쟁 환경"),
+        ("menu", "4. 메뉴·가격 전략"),
+        ("marketing", "5. 마케팅 전략"),
+        ("financials", "6. 재무 계획"),
+        ("risk", "7. 리스크 분석"),
+        ("roadmap", "8. 실행 로드맵"),
+        ("franchise_comparison", "9. 프랜차이즈 vs 독립창업 비교"),
     ]
+
+    results = await asyncio.gather(
+        _section_market_analysis(district, industry_name),
+        _section_competition(district, industry_name),
+        _section_menu_pricing(config, industry_name, district),
+        _section_marketing(district, industry_name, req.target_customers),
+        _section_financials(sim_result, req.budget, district, industry_name),
+        _section_risk(district, sim_result, scorecard, industry_name, req.budget),
+        _section_roadmap(industry_name, req.budget),
+        _section_franchise_comparison(sim_result, industry_name, req.budget, district),
+        return_exceptions=True,
+    )
+
+    section_list = []
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            sec_id, sec_title = _section_meta[i]
+            logger.error("섹션 %d 생성 실패: %s", i + 2, r)
+            r = SectionResponse(
+                id=sec_id,
+                title=sec_title,
+                content="이 섹션을 생성하지 못했습니다. 다시 시도해주세요.",
+            )
+        section_list.append(r)
+
+    sections = [section_overview] + section_list
 
     return BusinessPlanResponse(
         business_name=business_name,

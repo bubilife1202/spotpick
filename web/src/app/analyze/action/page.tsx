@@ -51,28 +51,50 @@ function ActionContent() {
     const generatePlan = async () => {
       setLoading(true);
       setError(null);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+      const requestBody = {
+        industry_code: industryCode,
+        district_code: districtCode,
+        budget,
+        area_pyeong: 15,
+      };
+
       try {
         const res = await fetch(`${API_BASE}/business-plan/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            industry_code: industryCode,
-            district_code: districtCode,
-            budget,
-            area_pyeong: 15,
-          }),
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
         });
 
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Business plan request body:", requestBody);
+          console.error("Business plan error response:", errorData);
+          const detail = errorData.detail || `API 오류 (${res.status})`;
+          throw new Error(detail);
+        }
+
         const data = await res.json();
         setSections(data.sections || []);
         if (data.sections?.length > 0) {
           setExpandedSection(data.sections[0].id);
         }
       } catch (err) {
-        setError("사업계획서 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
+        console.error("Business plan request body:", requestBody);
         console.error("Business plan error:", err);
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setError("사업계획서 생성 시간이 초과되었습니다. 다시 시도해주세요.");
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("사업계획서 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
+        }
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
