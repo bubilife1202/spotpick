@@ -276,9 +276,10 @@ function ActionContent() {
   }, []);
 
   useEffect(() => {
-    if (experienceLevel) store.setExperienceLevel(experienceLevel);
-    if (employeeCount) store.setEmployeeCount(employeeCount);
-  }, [experienceLevel, employeeCount, store]);
+    const { setExperienceLevel, setEmployeeCount } = useAnalyzeStore.getState();
+    if (experienceLevel) setExperienceLevel(experienceLevel);
+    if (employeeCount) setEmployeeCount(employeeCount);
+  }, [experienceLevel, employeeCount]);
 
   const storageKey = `spotpick:checklist:${industryCode}:${districtCode || "none"}`;
 
