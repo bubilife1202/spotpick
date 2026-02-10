@@ -154,6 +154,9 @@ def create_app() -> FastAPI:
     cafe_type_router = cast(APIRouter, import_module("api.routes.cafe_type").router)
     app.include_router(cafe_type_router, prefix="/api/v1", tags=["CafeType"])
 
+    tax_router = cast(APIRouter, import_module("api.routes.tax").router)
+    app.include_router(tax_router, prefix="/api/v1", tags=["Tax"])
+
     return app
 
 

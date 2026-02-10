@@ -1,0 +1,95 @@
+{
+  "meta": {
+    "name": "spotpick_legal_references",
+    "as_of": "2026-02-10",
+    "jurisdiction": "KR",
+    "currency": "KRW",
+    "notice": "Numbers with periodic policy updates should be revalidated before filing or contract execution."
+  },
+  "sources": [
+    {
+      "title": "국세청 - 사업자등록/부가가치세",
+      "url": "https://www.nts.go.kr"
+    },
+    {
+      "title": "국가법령정보센터 - 상가건물 임대차보호법",
+      "url": "https://www.law.go.kr"
+    },
+    {
+      "title": "고용노동부 - 최저임금",
+      "url": "https://www.moel.go.kr"
+    },
+    {
+      "title": "국민건강보험공단/국민연금공단/고용보험",
+      "url": "https://www.nhis.or.kr"
+    }
+  ],
+  "tax": {
+    "vat_rate": 0.1,
+    "simplified_taxpayer_threshold_won": 104000000,
+    "vat_exemption_threshold_won": 48000000,
+    "filing_calendar": [
+      {
+        "name": "부가가치세 예정/확정",
+        "period": "연 2회 중심",
+        "typical_months": [
+          "01",
+          "07"
+        ]
+      },
+      {
+        "name": "종합소득세",
+        "period": "연 1회",
+        "typical_months": [
+          "05"
+        ]
+      }
+    ]
+  },
+  "labor": {
+    "minimum_wage": {
+      "effective_year": 2025,
+      "hourly_won": 10030,
+      "monthly_won_209h": 2096270,
+      "verification_required": true
+    },
+    "social_insurance": {
+      "national_pension_employer_rate": 0.045,
+      "health_insurance_employer_rate": 0.03545,
+      "long_term_care_rate_on_health": 0.1295,
+      "employment_insurance_employer_rate": 0.009,
+      "industrial_accident_default_rate": 0.01,
+      "verification_required": true
+    }
+  },
+  "lease": {
+    "deposit_to_monthly_conversion_annual_rate": 0.05,
+    "rent_increase_cap_rate": 0.05,
+    "contract_renewal_request_years": 10,
+    "protected_deposit_thresholds_won": {
+      "seoul": 900000000,
+      "metropolitan_overconcentration": 690000000,
+      "metropolitan_city": 540000000,
+      "etc": 370000000
+    },
+    "verification_required": true
+  },
+  "compliance": {
+    "food_sanitation": {
+      "pre_opening_education_required": true,
+      "business_report_required": true,
+      "typical_processing_days": "3-7"
+    },
+    "fire_safety": {
+      "facility_check_required": true,
+      "verification_required": true
+    }
+  },
+  "glossary": {
+    "환산보증금": "보증금 + (월차임 x 100). 상가임대차보호법 적용 여부 판단에 사용됩니다.",
+    "간이과세자": "부가가치세법상 일정 연매출 기준 이하 개인사업자 유형입니다.",
+    "일반과세자": "간이과세 기준을 초과하거나 간이과세 제외 업종에 해당하는 사업자 유형입니다.",
+    "대항력": "임차인이 제3자에게 임대차를 주장할 수 있는 법적 효력입니다.",
+    "권리금": "영업시설, 거래처, 신용, 위치상 이점 등에 대한 영업상 재산가치의 양도 대가입니다."
+  }
+}
