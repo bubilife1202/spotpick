@@ -157,6 +157,9 @@ def create_app() -> FastAPI:
     tax_router = cast(APIRouter, import_module("api.routes.tax").router)
     app.include_router(tax_router, prefix="/api/v1", tags=["Tax"])
 
+    labor_router = cast(APIRouter, import_module("api.routes.labor").router)
+    app.include_router(labor_router, prefix="/api/v1", tags=["Labor"])
+
     return app
 
 
