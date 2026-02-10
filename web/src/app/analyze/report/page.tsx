@@ -13,6 +13,7 @@ import { CompetitionMap } from "@/components/CompetitionMap";
 import { ProGateSection } from "@/components/ProGateSection";
 import { SalesTrendChart } from "@/components/SalesTrendChart";
 import { FloatingTOC } from "@/components/FloatingTOC";
+import { CafeTypeCard } from "@/components/CafeTypeCard";
 import {
   MapPin,
   ArrowRight,
@@ -1967,6 +1968,18 @@ function ReportContent() {
               onViewAlternative={(code) => {
                 handleDistrictSelect(code);
               }}
+            />
+          </div>
+        )}
+
+        {/* ── CAFE TYPE RECOMMENDATION ── */}
+        {!top3Loading && selectedCode && (
+          <div className="mb-6">
+            <CafeTypeCard
+              industryCode={industryCode}
+              districtCode={selectedCode}
+              budgetMan={budget}
+              experienceLevel={experienceLevel || undefined}
             />
           </div>
         )}

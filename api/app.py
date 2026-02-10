@@ -151,6 +151,9 @@ def create_app() -> FastAPI:
     verdict_router = cast(APIRouter, import_module("api.routes.verdict").router)
     app.include_router(verdict_router, prefix="/api/v1", tags=["Verdict"])
 
+    cafe_type_router = cast(APIRouter, import_module("api.routes.cafe_type").router)
+    app.include_router(cafe_type_router, prefix="/api/v1", tags=["CafeType"])
+
     return app
 
 

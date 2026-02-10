@@ -21,6 +21,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="서울시 상권 데이터 분석")
     parser.add_argument(
@@ -34,6 +35,7 @@ def parse_args():
 # ---------------------------------------------------------------------------
 # 추가 API 데이터 로딩 유틸
 # ---------------------------------------------------------------------------
+
 
 def _load_extra_json(filename: str) -> list:
     """data/seoul/{filename}.json 로드. 없으면 빈 리스트."""
@@ -148,9 +150,11 @@ def enrich_district(district: dict, extra: dict) -> dict:
     district["total_households"] = _safe_int(r.get("TOT_HSHLD_CO"))
     district["apt_households"] = _safe_int(r.get("APT_HSHLD_CO"))
     district["non_apt_households"] = _safe_int(r.get("NON_APT_HSHLD_CO"))
-    district["apt_ratio"] = round(
-        district["apt_households"] / max(1, district["total_households"]), 4
-    ) if district["total_households"] > 0 else 0.0
+    district["apt_ratio"] = (
+        round(district["apt_households"] / max(1, district["total_households"]), 4)
+        if district["total_households"] > 0
+        else 0.0
+    )
 
     # --- 유동인구 ---
     ft = extra.get("foot_traffic", {}).get(code, {})
@@ -178,7 +182,11 @@ def enrich_district(district: dict, extra: dict) -> dict:
     district["facility_hospital"] = _safe_int(fac.get("GNRL_HSPTL_CO"))
     district["facility_pharmacy"] = _safe_int(fac.get("PHARMCY_CO"))
     district["facility_kindergarten"] = _safe_int(fac.get("KNDRGR_CO"))
-    district["facility_school"] = _safe_int(fac.get("ELESCH_CO")) + _safe_int(fac.get("MSKUL_CO")) + _safe_int(fac.get("HGSCHL_CO"))
+    district["facility_school"] = (
+        _safe_int(fac.get("ELESCH_CO"))
+        + _safe_int(fac.get("MSKUL_CO"))
+        + _safe_int(fac.get("HGSCHL_CO"))
+    )
     district["facility_university"] = _safe_int(fac.get("UNIV_CO"))
     district["facility_dept_store"] = _safe_int(fac.get("DRTS_CO"))  # 백화점
     district["facility_supermarket"] = _safe_int(fac.get("LRGMRT_CO"))  # 대형마트
@@ -207,8 +215,10 @@ def enrich_district(district: dict, extra: dict) -> dict:
 
     # --- 상권변화지표 ---
     ch = extra.get("change", {}).get(code, {})
-    district["change_indicator"] = ch.get("TRDAR_CHNGE_IX_CD_NM", "")  # LL/LH/HL/HH 코드명
-    district["change_indicator_code"] = ch.get("TRDAR_CHNGE_IX_CD", "")
+    # NOTE: 서울시 상권변화지표 API 필드명은 TRDAR_CHNGE_IX / TRDAR_CHNGE_IX_NM
+    # (일부 문서/예제에 *_CD 형태가 등장하지만 실제 응답에는 없음)
+    district["change_indicator"] = ch.get("TRDAR_CHNGE_IX_NM", "")
+    district["change_indicator_code"] = ch.get("TRDAR_CHNGE_IX", "")
     district["avg_operation_months"] = _safe_float(ch.get("OPR_SALE_MT_AVRG"))  # 평균영업개월수
 
     # --- 점포(전업종) ---

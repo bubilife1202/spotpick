@@ -28,6 +28,7 @@ const INDUSTRY_OPTIONS = [
 const BUDGET_OPTIONS = [
   { label: "3천만원", value: 3000, desc: "소형 매장" },
   { label: "5천만원", value: 5000, desc: "표준 매장" },
+  { label: "8천만원", value: 8000, desc: "현실 예산" },
   { label: "1억원", value: 10000, desc: "중형 매장" },
   { label: "2억원", value: 20000, desc: "대형 매장" },
 ];
@@ -137,6 +138,11 @@ export default function AnalyzePage() {
   const store = useAnalyzeStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const [budgetDraft, setBudgetDraft] = useState<number>(() => {
+    const b = Number(store.budget || 5000);
+    return Number.isFinite(b) && b > 0 ? b : 5000;
+  });
+
   // Compute initial restored step from store
   const computeRestoredStep = useCallback(() => {
     if (store.preferredDistricts.length > 0 || (store.employeeCount && store.experienceLevel && store.budget)) {
@@ -236,6 +242,13 @@ export default function AnalyzePage() {
     store.setBudget(value);
     const b = BUDGET_OPTIONS.find((opt) => opt.value === value);
     advance(2, b ? b.label : `${value}만원`);
+  };
+
+  const clampBudget = (v: number) => {
+    const min = 1000;
+    const max = 30000;
+    if (!Number.isFinite(v)) return 5000;
+    return Math.max(min, Math.min(max, Math.round(v / 100) * 100));
   };
 
   const handleExperience = (key: string) => {
@@ -377,7 +390,7 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[1]}
                 </p>
               </AiMessage>
-              <div className="ml-11 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="ml-11 grid grid-cols-2 gap-3 sm:grid-cols-5">
                 {BUDGET_OPTIONS.map((b) => (
                   <button
                     key={b.value}
@@ -393,6 +406,60 @@ export default function AnalyzePage() {
                     </span>
                   </button>
                 ))}
+              </div>
+
+              <div className="ml-11 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      직접 입력
+                    </p>
+                    <p className="mt-1 text-sm font-extrabold text-slate-900">
+                      {budgetDraft.toLocaleString()}만원
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      카페 서울 평균 창업비용 8,976만원 (KREI 2023)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleBudget(clampBudget(budgetDraft))}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md active:scale-[0.98]"
+                  >
+                    이 값으로 선택
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4">
+                  <input
+                    type="range"
+                    min={1000}
+                    max={30000}
+                    step={100}
+                    value={budgetDraft}
+                    onChange={(e) => setBudgetDraft(clampBudget(Number(e.target.value)))}
+                    className="w-full"
+                    aria-label="예산 슬라이더 (만원)"
+                  />
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={budgetDraft}
+                      onChange={(e) => setBudgetDraft(clampBudget(Number(e.target.value)))}
+                      className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm"
+                      min={1000}
+                      max={30000}
+                      step={100}
+                      inputMode="numeric"
+                      aria-label="예산 직접 입력 (만원)"
+                    />
+                    <span className="text-sm font-semibold text-slate-500">만원</span>
+                    <span className="text-xs text-slate-400">
+                      (1,000~30,000)
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
