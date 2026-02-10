@@ -64,6 +64,7 @@
   },
   "lease": {
     "deposit_to_monthly_conversion_annual_rate": 0.05,
+    "monthly_rent_to_deposit_multiplier": 100,
     "rent_increase_cap_rate": 0.05,
     "contract_renewal_request_years": 10,
     "protected_deposit_thresholds_won": {
