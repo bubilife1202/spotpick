@@ -14,6 +14,7 @@ import { ProGateSection } from "@/components/ProGateSection";
 import { SalesTrendChart } from "@/components/SalesTrendChart";
 import { FloatingTOC } from "@/components/FloatingTOC";
 import { CafeTypeCard } from "@/components/CafeTypeCard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   MapPin,
   ArrowRight,
@@ -41,6 +42,16 @@ import {
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const FETCH_TIMEOUT_MS = 30_000;
+
+/** Fetch with 30s AbortController timeout */
+function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
 
 // ─── Skeleton component ────────────────────────────────────────────────
 function Skeleton({ className }: { className?: string }) {
@@ -162,23 +173,27 @@ function VerdictHeroCard({
   };
   const config = configMap[verdict];
 
-  if (verdictLoading) {
+  if (verdictLoading || !verdictData) {
     return (
-      <div className="animate-pulse rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-10">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
-          <p className="text-sm font-medium text-slate-400">AI 코치가 판정 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!verdictData) {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-10">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
-          <p className="text-sm text-slate-500">분석 중...</p>
+      <div className="overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-6 sm:p-10">
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative">
+            <Loader2 className="h-10 w-10 animate-spin text-blue-400 sm:h-12 sm:w-12" />
+            <div className="absolute inset-0 animate-ping rounded-full bg-blue-400/10" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-slate-300">AI 코치가 판정 중...</p>
+            <p className="mt-1 text-xs text-slate-500">Go/No-Go 신뢰도를 계산하고 있습니다</p>
+          </div>
+          <div className="mt-2 w-full max-w-xs space-y-3">
+            <Skeleton className="mx-auto h-8 w-20 !bg-slate-700/50" />
+            <Skeleton className="mx-auto h-4 w-48 !bg-slate-700/40" />
+            <div className="flex justify-center gap-2">
+              <Skeleton className="h-3 w-24 !bg-slate-700/30" />
+              <Skeleton className="h-3 w-16 !bg-slate-700/30" />
+            </div>
+            <Skeleton className="mx-auto h-12 w-28 rounded-2xl !bg-slate-700/40" />
+          </div>
         </div>
       </div>
     );
@@ -323,11 +338,11 @@ function VerdictLoadingSkeleton() {
         <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
         <div className="absolute inset-0 h-12 w-12 animate-ping rounded-full bg-blue-400/20" />
       </div>
-      <p className="mb-2 text-base font-bold text-slate-800">AI가 1,077개 상권을 분석하고 있어요...</p>
+      <p className="mb-2 px-4 text-center text-sm font-bold text-slate-800 sm:text-base">AI가 1,077개 상권을 분석하고 있어요...</p>
       <p className="mb-8 text-sm text-slate-400">최적의 Go/No-Go 판정을 계산 중입니다</p>
 
       {/* 3 skeleton verdict cards */}
-      <div className="grid w-full max-w-xl grid-cols-3 gap-3">
+      <div className="grid w-full max-w-xl grid-cols-3 gap-2 sm:gap-3">
         {[0, 1, 2].map((i) => (
           <div
             key={`skel-${i}`}
@@ -358,7 +373,7 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
     if (!districtCode) return;
     setLoading(true);
     setBriefing("");
-    fetch(`${API_BASE}/districts/${districtCode}/briefing?industry_code=${industryCode}`)
+    fetchWithTimeout(`${API_BASE}/districts/${districtCode}/briefing?industry_code=${industryCode}`)
       .then((r) => r.json())
       .then((data) => setBriefing(data.briefing || ""))
       .catch(() => {})
@@ -406,7 +421,7 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
   useEffect(() => {
     if (!districtCode) return;
     setLoading(true);
-    fetch(`${API_BASE}/districts/${districtCode}/risk?industry_code=${industryCode}`)
+    fetchWithTimeout(`${API_BASE}/districts/${districtCode}/risk?industry_code=${industryCode}`)
       .then((r) => r.json())
       .then((data) => setRiskAlertData(data))
       .catch(() => {})
@@ -672,7 +687,7 @@ function ScorecardSection({ data, loading, districtName, industryName }: { data:
                     {score}점
                   </span>
                 </div>
-                <p className="ml-[76px] text-[10px] text-slate-400">{getScoreInterpretation(score)}</p>
+                <p className="ml-[76px] hidden text-[10px] text-slate-400 sm:block">{getScoreInterpretation(score)}</p>
               </div>
             );
           },
@@ -742,8 +757,8 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
           const pct = monthlySales > 0 ? (absValue / monthlySales) * 100 : 0;
           return (
             <div key={item.label}>
-              <div className="flex items-center gap-3">
-                <span className="w-16 text-xs font-medium text-slate-600">{item.label}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <span className="w-14 shrink-0 text-xs font-medium text-slate-600 sm:w-16">{item.label}</span>
                 <div className="flex-1">
                   <div className="h-5 overflow-hidden rounded bg-slate-50">
                     <div
@@ -752,12 +767,12 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
                     />
                   </div>
                 </div>
-                <span className={cn("w-20 text-right text-xs font-bold", item.value >= 0 ? "text-slate-700" : "text-rose-600")}>
+                <span className={cn("w-16 shrink-0 text-right text-[11px] font-bold sm:w-20 sm:text-xs", item.value >= 0 ? "text-slate-700" : "text-rose-600")}>
                   {item.value >= 0 ? "" : "-"}{formatWon(absValue)}
                 </span>
               </div>
               {item.desc && (
-                <p className="ml-[76px] text-[10px] text-slate-400">({item.desc})</p>
+                <p className="ml-14 hidden text-[10px] text-slate-400 sm:ml-[76px] sm:block">({item.desc})</p>
               )}
             </div>
           );
@@ -765,27 +780,27 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
       </div>
 
       {/* Break-even */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-slate-50 p-3 text-center">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="rounded-xl bg-slate-50 p-2 text-center sm:p-3">
           <p className="text-[10px] text-slate-400">순이익률</p>
-          <p className="text-sm font-extrabold text-slate-900">
+          <p className="text-xs font-extrabold text-slate-900 sm:text-sm">
             {((breakEven.net_profit_margin || 0) * 100).toFixed(1)}%
           </p>
-          <p className="text-[9px] text-slate-400">순이익 ÷ 매출</p>
+          <p className="hidden text-[9px] text-slate-400 sm:block">순이익 ÷ 매출</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3 text-center">
+        <div className="rounded-xl bg-slate-50 p-2 text-center sm:p-3">
           <p className="text-[10px] text-slate-400">투자회수</p>
-          <p className="text-sm font-extrabold text-slate-900">
+          <p className="text-xs font-extrabold text-slate-900 sm:text-sm">
             {breakEven.break_even_months_min || "-"}~{breakEven.break_even_months_max || "-"}개월
           </p>
-          <p className="text-[9px] text-slate-400">초기투자 ÷ 월순이익</p>
+          <p className="hidden text-[9px] text-slate-400 sm:block">초기투자 ÷ 월순이익</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3 text-center">
+        <div className="rounded-xl bg-slate-50 p-2 text-center sm:p-3">
           <p className="text-[10px] text-slate-400">일 손익분기</p>
-          <p className="text-sm font-extrabold text-slate-900">
+          <p className="text-xs font-extrabold text-slate-900 sm:text-sm">
             {formatWon(breakEven.daily_break_even_sales || 0)}
           </p>
-          <p className="text-[9px] text-slate-400">월 고정비 ÷ 30일</p>
+          <p className="hidden text-[9px] text-slate-400 sm:block">월 고정비 ÷ 30일</p>
         </div>
       </div>
 
@@ -1181,18 +1196,18 @@ function InlineSimulatorSection({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-blue-50 p-3 text-center">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="rounded-xl bg-blue-50 p-2 text-center sm:p-3">
           <p className="text-[10px] text-blue-500">조정 매출</p>
-          <p className="text-sm font-extrabold text-blue-700">{formatWon(adjustedSales)}</p>
+          <p className="text-xs font-extrabold text-blue-700 sm:text-sm">{formatWon(adjustedSales)}</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3 text-center">
+        <div className="rounded-xl bg-slate-50 p-2 text-center sm:p-3">
           <p className="text-[10px] text-slate-500">총 비용</p>
-          <p className="text-sm font-extrabold text-slate-700">{formatWon(totalCost)}</p>
+          <p className="text-xs font-extrabold text-slate-700 sm:text-sm">{formatWon(totalCost)}</p>
         </div>
-        <div className={cn("rounded-xl p-3 text-center", adjustedProfit >= 0 ? "bg-emerald-50" : "bg-rose-50")}>
+        <div className={cn("rounded-xl p-2 text-center sm:p-3", adjustedProfit >= 0 ? "bg-emerald-50" : "bg-rose-50")}>
           <p className={cn("text-[10px]", adjustedProfit >= 0 ? "text-emerald-500" : "text-rose-500")}>순이익</p>
-          <p className={cn("text-sm font-extrabold", adjustedProfit >= 0 ? "text-emerald-700" : "text-rose-700")}>
+          <p className={cn("text-xs font-extrabold sm:text-sm", adjustedProfit >= 0 ? "text-emerald-700" : "text-rose-700")}>
             {adjustedProfit < 0 ? "-" : ""}{formatWon(Math.abs(adjustedProfit))}
           </p>
         </div>
@@ -1402,6 +1417,52 @@ function AccordionItem({
   );
 }
 
+// ─── Section Group (3 grouped categories) ──────────────────────────────
+function SectionGroup({
+  id,
+  emoji,
+  title,
+  subtitle,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  id: string;
+  emoji: string;
+  title: string;
+  subtitle: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div id={`group-${id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50/80"
+      >
+        <span className="text-xl">{emoji}</span>
+        <div className="flex-1">
+          <span className="text-sm font-bold text-slate-900">{title}</span>
+          <p className="text-[11px] text-slate-400">{subtitle}</p>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300",
+            isOpen && "rotate-180",
+          )}
+        />
+      </button>
+      {isOpen && (
+        <div className="space-y-3 border-t border-slate-100 px-2 py-3 sm:px-3">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Report Page ──────────────────────────────────────────────────
 function ReportContent() {
   const searchParams = useSearchParams();
@@ -1474,7 +1535,18 @@ function ReportContent() {
   const [localdataLoading, setLocaldataLoading] = useState(false);
   const [salesTrendLoading, setSalesTrendLoading] = useState(false);
 
-  // Accordion state: first 3 sections expanded by default
+  // Group-level accordion state (verdict-driven)
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(["core"]));
+  const toggleGroup = (id: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Per-section accordion within groups
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["revenue", "scorecard", "competition"]));
   const toggleSection = (id: string) => {
     setOpenSections((prev) => {
@@ -1502,7 +1574,7 @@ function ReportContent() {
         }
         if (experienceLevel) params.set("experience_level", experienceLevel);
         if (employeeCount) params.set("employee_count", employeeCount);
-        const res = await fetch(`${API_BASE}/recommendations/dashboard?${params}`);
+        const res = await fetchWithTimeout(`${API_BASE}/recommendations/dashboard?${params}`);
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         const data = await res.json();
         const results = (data.results || []).map(
@@ -1549,7 +1621,7 @@ function ReportContent() {
         if (budget > 0) params.set("budget_max", String(budget));
         if (experienceLevel) params.set("experience_level", experienceLevel);
         if (selectedDist?.estimated_rent) params.set("estimated_rent", String(selectedDist.estimated_rent));
-        const res = await fetch(`${API_BASE}/verdict/${industryCode}/${selectedCode}?${params}`);
+        const res = await fetchWithTimeout(`${API_BASE}/verdict/${industryCode}/${selectedCode}?${params}`);
         if (res.ok) {
           const data = await res.json();
           setVerdictData(data);
@@ -1576,7 +1648,7 @@ function ReportContent() {
       // B1: Scorecard
       if (!cached?.scorecard) {
         setScorecardLoading(true);
-        fetch(`${API_BASE}/scorecard/${industryCode}/${districtCode}`)
+        fetchWithTimeout(`${API_BASE}/scorecard/${industryCode}/${districtCode}`)
           .then((r) => r.json())
           .then((data) => {
             setScorecardData({ ...data, district_code: districtCode, industry_code: industryCode });
@@ -1591,7 +1663,7 @@ function ReportContent() {
       // B2: Simulation
       if (!cached?.simulation) {
         setSimulationLoading(true);
-        fetch(`${API_BASE}/simulation/simulate`, {
+        fetchWithTimeout(`${API_BASE}/simulation/simulate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1615,7 +1687,7 @@ function ReportContent() {
       // B3: Competition
       if (!cached?.competition) {
         setCompetitionLoading(true);
-        fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             const storesInfo = {
@@ -1626,7 +1698,7 @@ function ReportContent() {
               franchise_stores: 0,
             };
             const query = encodeURIComponent(`${distName} ${industryName}`);
-            return fetch(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}&query=${query}`)
+            return fetchWithTimeout(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}&query=${query}`)
               .then((r2) => r2.json())
               .then((comp) => {
                 const merged = { stores: { ...storesInfo, ...comp } };
@@ -1647,7 +1719,7 @@ function ReportContent() {
       // B5: Customer
       if (!cached?.customer) {
         setCustomerLoading(true);
-        fetch(`${API_BASE}/explore/sales-breakdown?district_code=${districtCode}&industry_code=${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/explore/sales-breakdown?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setCustomerData(data);
@@ -1662,7 +1734,7 @@ function ReportContent() {
       // B7: Franchise
       if (!cached?.franchise) {
         setFranchiseLoading(true);
-        fetch(`${API_BASE}/franchise/benchmark/${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/franchise/benchmark/${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setFranchiseData(data);
@@ -1677,7 +1749,7 @@ function ReportContent() {
       // D: Risk
       if (!cached?.risk) {
         setRiskLoading(true);
-        fetch(`${API_BASE}/districts/${districtCode}/analysis?industry_code=${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/districts/${districtCode}/analysis?industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setRiskData(data);
@@ -1694,7 +1766,7 @@ function ReportContent() {
         setSupportLoading(true);
         const districtParam = distName ? `&district=${encodeURIComponent(distName)}` : "";
         const budgetParam = budget > 0 ? `&budget_max=${Math.round(budget * 10000)}` : "";
-        fetch(`${API_BASE}/support/programs?industry_code=${industryCode}${districtParam}${budgetParam}`)
+        fetchWithTimeout(`${API_BASE}/support/programs?industry_code=${industryCode}${districtParam}${budgetParam}`)
           .then((r) => r.json())
           .then((data) => {
             setSupportData(data);
@@ -1709,7 +1781,7 @@ function ReportContent() {
       // B4: Location Profile
       if (!cached?.location) {
         setLocationLoading(true);
-        fetch(`${API_BASE}/location/profile?district_code=${districtCode}&industry_code=${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/location/profile?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setLocationData(data);
@@ -1724,7 +1796,7 @@ function ReportContent() {
       // B6: Rent Trend
       if (!cached?.rent) {
         setRentLoading(true);
-        fetch(`${API_BASE}/kosis/rent-trend?district_code=${districtCode}`)
+        fetchWithTimeout(`${API_BASE}/kosis/rent-trend?district_code=${districtCode}`)
           .then((r) => r.json())
           .then((data) => {
             setRentData(data);
@@ -1739,7 +1811,7 @@ function ReportContent() {
       // Sales Trend
       if (!cached?.salesTrend) {
         setSalesTrendLoading(true);
-        fetch(`${API_BASE}/explore/sales-trend?district_code=${districtCode}&industry_code=${industryCode}`)
+        fetchWithTimeout(`${API_BASE}/explore/sales-trend?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setSalesTrendData(data);
@@ -1756,7 +1828,7 @@ function ReportContent() {
         setLocaldataLoading(true);
         const district = useAnalyzeStore.getState().topDistricts.find((d) => d.district_code === districtCode);
         if (district?.coordinates) {
-          fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
+          fetchWithTimeout(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
             .then((r) => r.json())
             .then((data) => {
               setLocaldataData(data);
@@ -1788,8 +1860,24 @@ function ReportContent() {
   const selectedDistrict = topDistricts.find((d) => d.district_code === selectedCode);
   const districtName = selectedDistrict?.district_name || "";
 
-  const isNoGo = verdictData?.verdict === "NO_GO";
+  const verdict: "GO" | "CAUTION" | "NO_GO" | null = verdictData?.verdict || null;
+  const isNoGo = verdict === "NO_GO";
   const [showDetailAnyway, setShowDetailAnyway] = useState(false);
+
+  // Verdict-driven section visibility
+  useEffect(() => {
+    if (!verdict) return;
+    if (verdict === "NO_GO") {
+      setOpenGroups(new Set());
+      setOpenSections(new Set());
+    } else if (verdict === "CAUTION") {
+      setOpenGroups(new Set(["core"]));
+      setOpenSections(new Set(["scorecard", "revenue", "competition"]));
+    } else {
+      setOpenGroups(new Set(["core"]));
+      setOpenSections(new Set(["scorecard", "revenue", "competition"]));
+    }
+  }, [verdict, selectedCode]);
 
   // Build CTA query params
   const ctaParams = new URLSearchParams({
@@ -1800,19 +1888,7 @@ function ReportContent() {
   if (experienceLevel) ctaParams.set("experience_level", experienceLevel);
   if (employeeCount) ctaParams.set("employee_count", employeeCount);
 
-  // Accordion section definitions
-  const accordionSections = [
-    {
-      id: "revenue",
-      icon: <TrendingUp className="h-4 w-4 text-emerald-500" />,
-      title: "수익 구조",
-      loading: simulationLoading,
-      content: (
-        <ProGateSection feature="revenue_waterfall">
-          <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
-      ),
-    },
+  const coreSections = [
     {
       id: "scorecard",
       icon: <Target className="h-4 w-4 text-blue-500" />,
@@ -1821,6 +1897,17 @@ function ReportContent() {
       content: (
         <ProGateSection feature="detailed_scorecard">
           <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "revenue",
+      icon: <TrendingUp className="h-4 w-4 text-emerald-500" />,
+      title: "수익 구조",
+      loading: simulationLoading,
+      content: (
+        <ProGateSection feature="revenue_waterfall">
+          <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
         </ProGateSection>
       ),
     },
@@ -1835,17 +1922,9 @@ function ReportContent() {
         </ProGateSection>
       ),
     },
-    {
-      id: "customer",
-      icon: <Users className="h-4 w-4 text-cyan-500" />,
-      title: "고객 분석",
-      loading: customerLoading,
-      content: (
-        <ProGateSection feature="full_customer_charts">
-          <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
-      ),
-    },
+  ];
+
+  const detailSections = [
     {
       id: "location",
       icon: <MapPin className="h-4 w-4 text-indigo-500" />,
@@ -1878,6 +1957,17 @@ function ReportContent() {
       ),
     },
     {
+      id: "customer",
+      icon: <Users className="h-4 w-4 text-cyan-500" />,
+      title: "고객 분석",
+      loading: customerLoading,
+      content: (
+        <ProGateSection feature="full_customer_charts">
+          <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
       id: "franchise",
       icon: <Building2 className="h-4 w-4 text-orange-500" />,
       title: "프랜차이즈",
@@ -1888,6 +1978,9 @@ function ReportContent() {
         </ProGateSection>
       ),
     },
+  ];
+
+  const riskSections = [
     {
       id: "risk",
       icon: <AlertTriangle className="h-4 w-4 text-amber-500" />,
@@ -1918,6 +2011,30 @@ function ReportContent() {
           <InlineSimulatorSection defaults={simulationData} loading={simulationLoading} districtName={districtName} />
         </ProGateSection>
       ),
+    },
+  ];
+
+  const sectionGroups = [
+    {
+      id: "core",
+      emoji: "🎯",
+      title: "핵심 판단 근거",
+      subtitle: "성공 점수 · 수익 구조 · 경쟁 환경",
+      sections: coreSections,
+    },
+    {
+      id: "detail",
+      emoji: "🔍",
+      title: "상세 분석",
+      subtitle: "입지 · 임대료 · 매출 트렌드 · 고객 · 프랜차이즈",
+      sections: detailSections,
+    },
+    {
+      id: "risk",
+      emoji: "🛡️",
+      title: "리스크 & 지원",
+      subtitle: "위험 요소 · 기회 · 지원금 · 시뮬레이터",
+      sections: riskSections,
     },
   ];
 
@@ -1986,7 +2103,7 @@ function ReportContent() {
 
         {/* ── TOP 3 DISTRICT SELECTOR ── */}
         {!top3Loading && (
-          <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+          <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
             <Top3Section
               districts={topDistricts}
               selectedCode={selectedCode}
@@ -2008,32 +2125,65 @@ function ReportContent() {
         {selectedCode && (
           <>
             {isNoGo && !showDetailAnyway ? (
-              <div className="mt-6 text-center">
-                <p className="text-sm text-slate-500">
-                  AI 코치가 이 상권을 추천하지 않습니다. 위의 대안 상권을 확인해보세요.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowDetailAnyway(true)}
-                  className="mt-3 text-xs font-medium text-slate-400 underline decoration-slate-300 hover:text-slate-600"
-                >
-                  그래도 상세 분석 보기
-                </button>
+              <div className="mt-8 space-y-4 text-center">
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-8">
+                  <p className="text-base font-semibold text-slate-700">
+                    AI 코치가 이 상권을 추천하지 않습니다
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    위의 대안 상권을 확인하거나, 조건을 변경해보세요.
+                  </p>
+                  <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <Link
+                      href={`/explore?industry_code=${encodeURIComponent(industryCode)}`}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      다른 상권 보기
+                    </Link>
+                    <Link
+                      href="/analyze"
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      조건 변경하기
+                    </Link>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailAnyway(true)}
+                    className="mt-5 text-xs font-medium text-slate-400 underline decoration-slate-300 hover:text-slate-600"
+                  >
+                    그래도 상세 분석 보기
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                {accordionSections.map((section) => (
-                  <AccordionItem
-                    key={section.id}
-                    id={section.id}
-                    icon={section.icon}
-                    title={section.title}
-                    isOpen={openSections.has(section.id)}
-                    onToggle={() => toggleSection(section.id)}
-                    loading={section.loading}
+              <div className="space-y-4">
+                {sectionGroups.map((group) => (
+                  <SectionGroup
+                    key={group.id}
+                    id={group.id}
+                    emoji={group.emoji}
+                    title={group.title}
+                    subtitle={group.subtitle}
+                    isOpen={openGroups.has(group.id)}
+                    onToggle={() => toggleGroup(group.id)}
                   >
-                    {section.content}
-                  </AccordionItem>
+                    {group.sections.map((section) => (
+                      <AccordionItem
+                        key={section.id}
+                        id={section.id}
+                        icon={section.icon}
+                        title={section.title}
+                        isOpen={openSections.has(section.id)}
+                        onToggle={() => toggleSection(section.id)}
+                        loading={section.loading}
+                      >
+                        {section.content}
+                      </AccordionItem>
+                    ))}
+                  </SectionGroup>
                 ))}
               </div>
             )}
@@ -2070,14 +2220,16 @@ function ReportContent() {
 
 export default function AnalyzeReportPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        </div>
-      }
-    >
-      <ReportContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        }
+      >
+        <ReportContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }

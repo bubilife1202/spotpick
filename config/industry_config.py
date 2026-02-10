@@ -1,4 +1,5 @@
 """Industry configuration loader — reads JSON config files per industry."""
+
 from __future__ import annotations
 
 import json
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 INDUSTRIES_DIR = Path(__file__).parent.parent / "data" / "industries"
+PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
 DEFAULT_INDUSTRY = "CS100010"
 
 
@@ -20,15 +22,29 @@ def load_industry_config(code: str = DEFAULT_INDUSTRY) -> dict[str, Any]:
         return json.load(f)
 
 
-def get_available_industries() -> list[dict[str, str]]:
-    """Return list of available industry codes and names."""
-    industries = []
+def get_available_industries() -> list[dict[str, Any]]:
+    """Return list of available industry codes and names.
+
+    NOTE: This endpoint is used by the frontend to decide what to enable.
+    We treat an industry as "data_available" when its processed districts file exists.
+    """
+    industries: list[dict[str, Any]] = []
     for p in sorted(INDUSTRIES_DIR.glob("CS*.json")):
         with open(p, encoding="utf-8") as f:
             data = json.load(f)
-        industries.append({
-            "code": data["code"],
-            "name": data["name"],
-            "display_name": data.get("display_name", data["name"]),
-        })
+
+        code = str(data.get("code") or "")
+        districts_file = PROCESSED_DIR / f"{code}_districts.json"
+        data_available = districts_file.exists() and districts_file.stat().st_size > 10
+
+        industries.append(
+            {
+                "code": code,
+                "name": str(data.get("name") or ""),
+                "display_name": str(data.get("display_name") or data.get("name") or code),
+                "icon": str(data.get("icon") or "🏪"),
+                "color": str(data.get("color") or "blue"),
+                "data_available": bool(data_available),
+            }
+        )
     return industries

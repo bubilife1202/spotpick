@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/explore")
 
 # ── Seoul 25개 자치구 중심 좌표 ──────────────────────────────────────────────
-_GU_CENTERS: list[dict[str, Any]] = []
+_gu_centers_cache: list[dict[str, Any]] = []
 _GU_MAP_CACHE: dict[str, dict[str, str]] = {}  # industry_code -> {district_code: gu_name}
 
 # stores_all.json 캐시: {industry_code -> {district_code -> {...}}}
@@ -63,6 +63,7 @@ def _load_stores_by_industry(industry_code: str) -> dict[str, dict[str, Any]]:
 
     return _STORES_CACHE.get(industry_code, {})
 
+
 _INDUSTRY_NAMES: dict[str, str] = {
     "CS100001": "한식",
     "CS100002": "중식",
@@ -78,13 +79,13 @@ _INDUSTRY_NAMES: dict[str, str] = {
 
 
 def _load_gu_centers() -> list[dict[str, Any]]:
-    global _GU_CENTERS
-    if _GU_CENTERS:
-        return _GU_CENTERS
+    global _gu_centers_cache
+    if _gu_centers_cache:
+        return _gu_centers_cache
     geo_file = Path(__file__).parent.parent.parent / "data" / "geo" / "seoul_gu_centers.json"
     with open(geo_file, encoding="utf-8") as f:
-        _GU_CENTERS = json.load(f)
-    return _GU_CENTERS
+        _gu_centers_cache = json.load(f)
+    return _gu_centers_cache
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -92,7 +93,10 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     r = 6371.0
     d_lat = math.radians(lat2 - lat1)
     d_lng = math.radians(lng2 - lng1)
-    a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lng / 2) ** 2
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lng / 2) ** 2
+    )
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -141,8 +145,9 @@ def gu_summary(
     base_svc = get_data_service("CS100010")
     gu_map = _get_gu_map("CS100010")
 
-    # 업종별 점포 데이터
-    stores_data = _load_stores_by_industry(industry_code)
+    # 업종별 데이터 (매출/점포/생존율)
+    ind_svc = get_data_service(industry_code)
+    ind_by_code = getattr(ind_svc, "_district_by_code", {}) or {}
 
     # Group base districts by gu
     gu_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -165,38 +170,33 @@ def gu_summary(
         # 공유 데이터 (유동인구 — 업종 무관)
         total_foot_traffic = sum(d.get("foot_traffic_total", 0) for d in districts)
 
-        # 업종별 데이터 from stores_all.json
+        # 업종별 데이터 from processed districts (real data)
         total_stores = 0
         total_new = 0
         total_closed = 0
         total_franchise = 0
-        districts_with_stores = 0
+        total_sales = 0
+        total_survival = 0.0
+        survival_n = 0
+
         for d in districts:
             code = str(d["district_code"])
-            sd = stores_data.get(code)
-            if sd:
-                total_stores += sd["store_count"]
-                total_new += sd["new_stores"]
-                total_closed += sd["closed_stores"]
-                total_franchise += sd["franchise_stores"]
-                districts_with_stores += 1
+            ind_d = ind_by_code.get(code)
+            if not isinstance(ind_d, dict):
+                continue
 
-        # 매출: 카페만 실데이터, 나머지는 점포당 추정
-        if industry_code == "CS100010":
-            total_sales = sum(d.get("monthly_sales", 0) for d in districts)
-            avg_survival = sum(d.get("survival_rate", 0) for d in districts) / n
-        else:
-            # 업종별 추정 매출 (점포당 평균 * 점포수)
-            industry_avg_sales = {
-                "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
-                "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
-                "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
-            }
-            per_store = industry_avg_sales.get(industry_code, 25_000_000)
-            total_sales = total_stores * per_store
-            # 생존율: 점포 성장률 기반 추정
-            growth = (total_new + 1) / max(1, total_closed + 1)
-            avg_survival = min(1.0, max(0.3, 0.5 + (growth - 1) * 0.15))
+            total_stores += int(ind_d.get("store_count", 0) or 0)
+            total_new += int(ind_d.get("new_stores", 0) or 0)
+            total_closed += int(ind_d.get("closed_stores", 0) or 0)
+            total_franchise += int(ind_d.get("franchise_stores", 0) or 0)
+            total_sales += int(ind_d.get("monthly_sales", 0) or 0)
+
+            sr = ind_d.get("survival_rate")
+            if isinstance(sr, (int, float)):
+                total_survival += float(sr)
+                survival_n += 1
+
+        avg_survival = (total_survival / max(1, survival_n)) if survival_n > 0 else 0.0
 
         # Score
         sales_per_store = total_sales / max(1, total_stores)
@@ -208,20 +208,24 @@ def gu_summary(
             1,
         )
 
-        results.append({
-            "gu_name": gu_name,
-            "center_lat": center["lat"],
-            "center_lng": center["lng"],
-            "avg_score": score,
-            "avg_monthly_sales": round(total_sales / max(1, n)),
-            "total_foot_traffic": total_foot_traffic,
-            "total_store_count": total_stores,
-            "avg_survival_rate": round(avg_survival, 4),
-            "district_count": districts_with_stores if districts_with_stores > 0 else n,
-            "new_stores_total": total_new,
-            "closed_stores_total": total_closed,
-            "franchise_ratio": min(100.0, round(total_franchise / max(1, total_stores) * 100, 1)),
-        })
+        results.append(
+            {
+                "gu_name": gu_name,
+                "center_lat": center["lat"],
+                "center_lng": center["lng"],
+                "avg_score": score,
+                "avg_monthly_sales": round(total_sales / max(1, n)),
+                "total_foot_traffic": total_foot_traffic,
+                "total_store_count": total_stores,
+                "avg_survival_rate": round(avg_survival, 4),
+                "district_count": n,
+                "new_stores_total": total_new,
+                "closed_stores_total": total_closed,
+                "franchise_ratio": min(
+                    100.0, round(total_franchise / max(1, total_stores) * 100, 1)
+                ),
+            }
+        )
 
     results.sort(key=lambda x: x["avg_score"], reverse=True)
     return {"gu_list": results, "total": len(results)}
@@ -237,14 +241,9 @@ def districts_geo(
 
     base_svc = get_data_service("CS100010")
     gu_map = _get_gu_map("CS100010")
-    stores_data = _load_stores_by_industry(industry_code)
 
-    industry_avg_sales = {
-        "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
-        "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
-        "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
-        "CS100010": 0,  # use real data
-    }
+    ind_svc = get_data_service(industry_code)
+    ind_by_code = getattr(ind_svc, "_district_by_code", {}) or {}
 
     districts: list[dict[str, Any]] = []
     for d in base_svc.districts:
@@ -252,39 +251,38 @@ def districts_geo(
         if gu_map.get(code) != gu:
             continue
 
-        sd = stores_data.get(code, {})
-        store_count = sd.get("store_count", 0) if sd else d.get("store_count", 0)
-        new_stores = sd.get("new_stores", 0) if sd else d.get("new_stores", 0)
-        closed_stores = sd.get("closed_stores", 0) if sd else d.get("closed_stores", 0)
+        ind_d = ind_by_code.get(code, {})
+        if not isinstance(ind_d, dict):
+            ind_d = {}
 
-        if industry_code == "CS100010":
-            monthly_sales = d.get("monthly_sales", 0)
-            survival_rate = d.get("survival_rate", 0)
-        else:
-            per_store = industry_avg_sales.get(industry_code, 25_000_000)
-            monthly_sales = store_count * per_store
-            growth = (new_stores + 1) / max(1, closed_stores + 1)
-            survival_rate = min(1.0, max(0.3, 0.5 + (growth - 1) * 0.15))
+        store_count = int(ind_d.get("store_count", 0) or 0)
+        new_stores = int(ind_d.get("new_stores", 0) or 0)
+        closed_stores = int(ind_d.get("closed_stores", 0) or 0)
+        franchise_stores = int(ind_d.get("franchise_stores", 0) or 0)
+        monthly_sales = int(ind_d.get("monthly_sales", 0) or 0)
+        survival_rate = float(ind_d.get("survival_rate", 0) or 0.0)
 
         sc = max(1, store_count)
-        districts.append({
-            "district_code": d["district_code"],
-            "district_name": d["district_name"],
-            "district_type": d.get("district_type", ""),
-            "lat": d.get("lat", 0.0),
-            "lng": d.get("lng", 0.0),
-            "monthly_sales": monthly_sales,
-            "sales_per_store": round(monthly_sales / sc),
-            "store_count": store_count,
-            "survival_rate": survival_rate,
-            "foot_traffic_total": d.get("foot_traffic_total", 0),
-            "new_stores": new_stores,
-            "closed_stores": closed_stores,
-            "franchise_stores": sd.get("franchise_stores", 0) if sd else 0,
-            "peak_time": d.get("peak_time", ""),
-            "main_age_group": d.get("main_age_group", ""),
-            "change_indicator": d.get("change_indicator", ""),
-        })
+        districts.append(
+            {
+                "district_code": d["district_code"],
+                "district_name": d["district_name"],
+                "district_type": d.get("district_type", ""),
+                "lat": d.get("lat", 0.0),
+                "lng": d.get("lng", 0.0),
+                "monthly_sales": monthly_sales,
+                "sales_per_store": round(monthly_sales / sc),
+                "store_count": store_count,
+                "survival_rate": survival_rate,
+                "foot_traffic_total": d.get("foot_traffic_total", 0),
+                "new_stores": new_stores,
+                "closed_stores": closed_stores,
+                "franchise_stores": franchise_stores,
+                "peak_time": d.get("peak_time", ""),
+                "main_age_group": d.get("main_age_group", ""),
+                "change_indicator": d.get("change_indicator", ""),
+            }
+        )
 
     districts.sort(key=lambda x: x["monthly_sales"], reverse=True)
     return {"gu": gu, "districts": districts, "total": len(districts)}
@@ -395,18 +393,20 @@ def industry_ranking(
             monthly_sales = coffee_district.get("monthly_sales", 0)
             survival_rate = coffee_district.get("survival_rate", 0)
 
-        rankings.append({
-            "industry_code": ind_code,
-            "industry_name": ind_name,
-            "score": score,
-            "store_count": sc,
-            "new_stores": new,
-            "closed_stores": closed,
-            "franchise_stores": franchise,
-            "monthly_sales": monthly_sales,
-            "survival_rate": survival_rate,
-            "reason": " · ".join(reasons),
-        })
+        rankings.append(
+            {
+                "industry_code": ind_code,
+                "industry_name": ind_name,
+                "score": score,
+                "store_count": sc,
+                "new_stores": new,
+                "closed_stores": closed,
+                "franchise_stores": franchise,
+                "monthly_sales": monthly_sales,
+                "survival_rate": survival_rate,
+                "reason": " · ".join(reasons),
+            }
+        )
 
     rankings.sort(key=lambda x: x["score"], reverse=True)
 
@@ -437,11 +437,28 @@ _FRANCHISE_BRANDS: dict[str, list[str]] = {
     "CS100007": ["BBQ", "BHC", "교촌", "굽네치킨", "네네치킨", "페리카나"],
     "CS100008": ["죠스떡볶이", "국대떡볶이", "신전떡볶이"],
     "CS100009": ["장수생맥주", "호프집"],
-    "CS100010": ["스타벅스", "투썸플레이스", "이디야", "메가커피", "컴포즈커피", "빽다방", "할리스"],
+    "CS100010": [
+        "스타벅스",
+        "투썸플레이스",
+        "이디야",
+        "메가커피",
+        "컴포즈커피",
+        "빽다방",
+        "할리스",
+    ],
 }
 
 _INDIE_NAMES: dict[str, list[str]] = {
-    "CS100001": ["엄마손밥집", "고향식당", "정성한상", "황금솥", "우리집밥상", "시골보리밥", "착한정식", "맛있는집"],
+    "CS100001": [
+        "엄마손밥집",
+        "고향식당",
+        "정성한상",
+        "황금솥",
+        "우리집밥상",
+        "시골보리밥",
+        "착한정식",
+        "맛있는집",
+    ],
     "CS100002": ["동방반점", "황궁짬뽕", "용문중화", "진미반점"],
     "CS100003": ["도쿄라멘", "사쿠라스시", "하루이자카야", "미소라멘"],
     "CS100004": ["로마키친", "파스타팩토리", "리틀다이닝", "그린테이블"],
@@ -463,6 +480,7 @@ def _generate_mock_stores_inline(
     """현실적 Mock 점포 데이터 생성 (SEMAS API 불가 시 폴백)."""
     try:
         from api.services.semas_store_service import _generate_mock_stores
+
         return _generate_mock_stores(lat, lng, industry_code, count=None)
     except Exception:
         pass
@@ -494,16 +512,18 @@ def _generate_mock_stores_inline(
 
         dlat = rng.uniform(-0.003, 0.003)
         dlng = rng.uniform(-0.004, 0.004)
-        stores.append({
-            "store_name": name,
-            "category": cat,
-            "address": "",
-            "lat": round(lat + dlat, 7),
-            "lng": round(lng + dlng, 7),
-            "is_franchise": is_fc,
-            "place_url": None,
-            "phone": None,
-        })
+        stores.append(
+            {
+                "store_name": name,
+                "category": cat,
+                "address": "",
+                "lat": round(lat + dlat, 7),
+                "lng": round(lng + dlng, 7),
+                "is_franchise": is_fc,
+                "place_url": None,
+                "phone": None,
+            }
+        )
     return stores
 
 
@@ -543,9 +563,15 @@ async def get_stores(
         monthly_sales = district.get("monthly_sales", 0)
     else:
         industry_avg_sales = {
-            "CS100001": 28_000_000, "CS100002": 32_000_000, "CS100003": 35_000_000,
-            "CS100004": 30_000_000, "CS100005": 25_000_000, "CS100006": 38_000_000,
-            "CS100007": 22_000_000, "CS100008": 18_000_000, "CS100009": 20_000_000,
+            "CS100001": 28_000_000,
+            "CS100002": 32_000_000,
+            "CS100003": 35_000_000,
+            "CS100004": 30_000_000,
+            "CS100005": 25_000_000,
+            "CS100006": 38_000_000,
+            "CS100007": 22_000_000,
+            "CS100008": 18_000_000,
+            "CS100009": 20_000_000,
         }
         per_store = industry_avg_sales.get(industry_code, 25_000_000)
         monthly_sales = store_count_stat * per_store
@@ -564,6 +590,7 @@ async def get_stores(
     stores: list[dict[str, Any]] = []
     try:
         from api.services.semas_store_service import fetch_stores_in_district
+
         stores = await fetch_stores_in_district(str(district_code), industry_code)
     except Exception as e:
         logger.info("SEMAS API 사용 불가 (mock fallback): %s", e)
@@ -576,15 +603,18 @@ async def get_stores(
     # Step 3: Try Kakao Local enrichment (if service exists)
     try:
         from api.services.kakao_local_service import search_places_in_area
+
         kakao_places = await search_places_in_area(
-            lat=lat, lng=lng,
+            lat=lat,
+            lng=lng,
             industry_code=industry_code,
             radius=500,
             max_pages=3,
         )
         kakao_lookup: dict[str, dict[str, Any]] = {}
         for p in kakao_places:
-            kakao_lookup[p["place_name"]] = p
+            # PlaceResult is a TypedDict; normalize to plain dict for easier access.
+            kakao_lookup[p["place_name"]] = dict(p)
         for store in stores:
             name = store["store_name"]
             matched = kakao_lookup.get(name)
@@ -604,17 +634,19 @@ async def get_stores(
 
     result_stores: list[dict[str, Any]] = []
     for s in stores:
-        result_stores.append({
-            "store_name": s.get("store_name", ""),
-            "category": s.get("category", ""),
-            "address": s.get("address", ""),
-            "lat": s.get("lat", 0.0),
-            "lng": s.get("lng", 0.0),
-            "is_franchise": s.get("is_franchise", False),
-            "place_url": s.get("place_url"),
-            "phone": s.get("phone"),
-            "estimated_monthly_sales": estimated_sales,
-        })
+        result_stores.append(
+            {
+                "store_name": s.get("store_name", ""),
+                "category": s.get("category", ""),
+                "address": s.get("address", ""),
+                "lat": s.get("lat", 0.0),
+                "lng": s.get("lng", 0.0),
+                "is_franchise": s.get("is_franchise", False),
+                "place_url": s.get("place_url"),
+                "phone": s.get("phone"),
+                "estimated_monthly_sales": estimated_sales,
+            }
+        )
 
     return {
         "stores": result_stores,
@@ -859,7 +891,12 @@ def sales_breakdown(
     else:
         # 다른 업종은 업종 전용 데이터 파일이 있을 때만 실데이터 사용
         # (data_service는 카페 데이터로 폴백하므로, 파일 존재 여부를 직접 확인)
-        industry_file = Path(__file__).parent.parent.parent / "data" / "processed" / f"{industry_code}_districts.json"
+        industry_file = (
+            Path(__file__).parent.parent.parent
+            / "data"
+            / "processed"
+            / f"{industry_code}_districts.json"
+        )
         if industry_file.exists():
             try:
                 ind_svc = get_data_service(industry_code)
@@ -890,14 +927,14 @@ def sales_breakdown(
 
 
 # ── Sales Trend (quarterly) ──────────────────────────────────────────
-_SALES_TREND_CACHE: dict[str, list[dict[str, Any]]] = {}
+_sales_trend_cache: dict[str, list[dict[str, Any]]] = {}
 
 
 def _load_all_sales_data() -> dict[str, list[dict[str, Any]]]:
     """Load all quarterly sales files and index by district_code+industry_code."""
-    global _SALES_TREND_CACHE
-    if _SALES_TREND_CACHE:
-        return _SALES_TREND_CACHE
+    global _sales_trend_cache
+    if _sales_trend_cache:
+        return _sales_trend_cache
 
     sales_dir = Path(__file__).parent.parent.parent / "data" / "seoul"
     result: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -916,16 +953,18 @@ def _load_all_sales_data() -> dict[str, list[dict[str, Any]]]:
                     period = f"{year}Q{quarter}"
                 else:
                     period = period_raw
-                result[key].append({
-                    "period": period,
-                    "monthly_sales": float(r.get("THSMON_SELNG_AMT", 0) or 0),
-                    "transactions": int(float(r.get("THSMON_SELNG_CO", 0) or 0)),
-                })
+                result[key].append(
+                    {
+                        "period": period,
+                        "monthly_sales": float(r.get("THSMON_SELNG_AMT", 0) or 0),
+                        "transactions": int(float(r.get("THSMON_SELNG_CO", 0) or 0)),
+                    }
+                )
         except Exception as e:
             logger.warning("Failed to load %s: %s", f.name, e)
 
-    _SALES_TREND_CACHE = dict(result)
-    return _SALES_TREND_CACHE
+    _sales_trend_cache = dict(result)
+    return _sales_trend_cache
 
 
 @router.get("/sales-trend")

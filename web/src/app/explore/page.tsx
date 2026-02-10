@@ -71,7 +71,7 @@ const INDUSTRIES: { code: string; name: string; icon: string }[] = [
   { code: "CS100003", name: "일식", icon: "🍣" },
   { code: "CS100004", name: "양식", icon: "🍝" },
   { code: "CS100006", name: "패스트푸드", icon: "🍔" },
-  { code: "CS100008", name: "분식", icon: "🍜" },
+  { code: "CS100008", name: "분식", icon: "🍢" },
   { code: "CS100009", name: "호프/주점", icon: "🍺" },
 ];
 
@@ -1187,8 +1187,37 @@ function ExploreContent() {
 
   // State
   const [industryCode, setIndustryCode] = useState("CS100010");
+  const [industryAvailability, setIndustryAvailability] = useState<Record<string, boolean>>({});
   const [dataLayer, setDataLayer] = useState<DataLayer>("score");
   const [showLayerPicker, setShowLayerPicker] = useState(false);
+
+  // Industry availability from API (used to disable chips)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/industries`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.industries ?? [];
+        if (!Array.isArray(items)) return;
+        const next: Record<string, boolean> = {};
+        for (const item of items) {
+          const code = item?.code;
+          if (typeof code !== "string") continue;
+          next[code] = item?.data_available === false ? false : true;
+        }
+        if (!cancelled && Object.keys(next).length > 0) {
+          setIndustryAvailability(next);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Data
   const [guData, setGuData] = useState<GuSummary[]>([]);
@@ -1235,15 +1264,14 @@ function ExploreContent() {
   // Apply incoming URL params (best-effort)
   useEffect(() => {
     if (!incomingIndustryCode) return;
-    // Cafe-only until multi-industry data is available
-    if (incomingIndustryCode !== "CS100010") return;
+    if (industryAvailability[incomingIndustryCode] === false) return;
     setIndustryCode(incomingIndustryCode);
     try {
       localStorage.setItem("builder_curation_industry_code", incomingIndustryCode);
     } catch {
       // ignore
     }
-  }, [incomingIndustryCode]);
+  }, [incomingIndustryCode, industryAvailability]);
 
   // ── Prefetch all districts in background for instant transitions ──
   useEffect(() => {
@@ -1553,7 +1581,7 @@ function ExploreContent() {
           <div className="flex-1 overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 px-1">
               {INDUSTRIES.map((ind) => {
-                const disabled = ind.code !== "CS100010";
+                const disabled = industryAvailability[ind.code] === false;
                 return (
                   <button
                     key={ind.code}

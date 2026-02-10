@@ -34,7 +34,7 @@ function Header() {
 function HeroSection() {
   const stats = [
     { value: "1,077", label: "서울 전체 상권" },
-    { value: "카페", label: "현재 완전 지원" },
+    { value: "10개", label: "업종 데이터" },
     { value: "7대", label: "공공 빅데이터" },
     { value: "3분", label: "AI 진단 완료" },
   ];
@@ -52,20 +52,16 @@ function HeroSection() {
           AI 창업 의사결정 플랫폼
         </span>
 
-        <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+        <h1 className="mt-6 text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
           창업, 감으로 하지 마세요
         </h1>
 
         <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
           서울 <strong className="text-slate-800">1,077개 상권</strong> ·{" "}
-          <strong className="text-slate-800">카페 창업</strong> ·{" "}
+          <strong className="text-slate-800">외식 10개 업종</strong> ·{" "}
           <strong className="text-slate-800">7대 공공 빅데이터</strong>
           <br />
           5가지 질문에 답하면, AI가 정직하게 Go/No-Go를 판정합니다
-          <br />
-          <span className="text-xs font-medium text-slate-400">
-            현재 카페 업종만 완전 지원 (다른 업종은 준비 중)
-          </span>
         </p>
 
         <div className="mt-8 flex items-center justify-center">
@@ -83,13 +79,13 @@ function HeroSection() {
           </Link>
         </div>
 
-        <div className="mt-14 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-5 shadow-sm backdrop-blur"
+              className="rounded-2xl border border-slate-200/80 bg-white/70 px-3 py-4 shadow-sm backdrop-blur sm:px-4 sm:py-5"
             >
-              <p className="text-2xl font-extrabold text-slate-900 sm:text-3xl">
+              <p className="text-xl font-extrabold text-slate-900 sm:text-3xl">
                 {stat.value}
               </p>
               <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
@@ -129,7 +125,7 @@ function PipelineSection() {
     <section className="bg-white py-20 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+          <h2 className="text-2xl font-extrabold text-slate-900 sm:text-4xl">
             3단계로 끝나는 창업 분석
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
@@ -176,7 +172,7 @@ function FinalCtaBanner() {
     <section className="bg-gradient-to-r from-blue-600 to-indigo-600 py-16 sm:py-20">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <Sparkles className="mx-auto h-8 w-8 text-white/80" />
-        <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl">
+        <h2 className="mt-4 text-2xl font-extrabold text-white sm:text-4xl">
           베타 기간 전체 무료
         </h2>
          <p className="mx-auto mt-3 max-w-xl text-base text-blue-100 sm:text-lg">

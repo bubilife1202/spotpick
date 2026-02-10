@@ -112,3 +112,5 @@ tmp/
 !web/public/**/*.png
 console-errors.txt
 network-requests.txt
+*-network-*.json
+network-*.json

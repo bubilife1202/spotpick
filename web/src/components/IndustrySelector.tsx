@@ -39,6 +39,7 @@ interface Industry {
   code: string;
   display_name: string;
   icon: string;
+  available?: boolean;
 }
 
 interface IndustrySelectorProps {
@@ -86,10 +87,11 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
 
         const items = Array.isArray(data) ? data : data.industries ?? [];
         if (!cancelled && items.length > 0) {
-          const mapped: Industry[] = items.map((item: { code?: string; display_name?: string; icon?: string }) => ({
+          const mapped: Industry[] = items.map((item: { code?: string; display_name?: string; icon?: string; data_available?: boolean }) => ({
             code: item.code ?? "",
             display_name: item.display_name ?? item.code ?? "",
             icon: item.icon ?? ICON_MAP[item.code ?? ""] ?? "🍽️",
+            available: item.data_available ?? true,
           }));
           setIndustries(mapped);
         }
@@ -105,6 +107,8 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
   }, []);
 
   const handleSelect = (code: string) => {
+    const industry = industries.find((i) => i.code === code);
+    if (industry && industry.available === false) return;
     const next = selected === code ? "" : code;
     setSelected(next);
 
@@ -127,6 +131,9 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
     return (
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
         {industries.map((industry) => (
+          (() => {
+            const disabled = industry.available === false;
+            return (
           <button
             key={industry.code}
             onClick={() => handleSelect(industry.code)}
@@ -134,12 +141,21 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
               "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all whitespace-nowrap",
               selected === industry.code
                 ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                : disabled
+                  ? "border-gray-200 bg-white text-gray-400 opacity-60 cursor-not-allowed"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
             )}
           >
             <span className="text-base">{ICON_MAP[industry.code] ?? industry.icon}</span>
             <span>{industry.display_name}</span>
+            {disabled && (
+              <span className="ml-1 rounded-full bg-slate-400 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                준비 중
+              </span>
+            )}
           </button>
+            );
+          })()
         ))}
       </div>
     );
@@ -154,6 +170,9 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
       )}
     >
       {industries.map((industry) => (
+        (() => {
+          const disabled = industry.available === false;
+          return (
         <button
           key={industry.code}
           onClick={() => handleSelect(industry.code)}
@@ -161,7 +180,9 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
             "p-4 rounded-xl border-2 text-left transition-all",
             selected === industry.code
               ? "border-blue-500 bg-blue-50 shadow-sm"
-              : "border-gray-200 hover:border-gray-300 bg-white"
+              : disabled
+                ? "border-gray-200 bg-white opacity-60 cursor-not-allowed"
+                : "border-gray-200 hover:border-gray-300 bg-white"
           )}
         >
           <span className="text-2xl block mb-1">
@@ -175,7 +196,14 @@ export function IndustrySelector({ value, onChange, compact }: IndustrySelectorP
           >
             {industry.display_name}
           </p>
+          {disabled && (
+            <span className="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+              준비 중
+            </span>
+          )}
         </button>
+          );
+        })()
       ))}
     </div>
   );

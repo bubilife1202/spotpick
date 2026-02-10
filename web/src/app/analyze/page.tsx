@@ -8,6 +8,8 @@ import { useAnalyzeStore } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import { MapPin, ArrowRight, Sparkles } from "lucide-react";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+
 /* ────────────────────────────────────────────────────────────────────────────
    DATA
    ──────────────────────────────────────────────────────────────────────────── */
@@ -20,7 +22,7 @@ const INDUSTRY_OPTIONS = [
   { code: "CS100005", name: "베이커리", icon: "🍞" },
   { code: "CS100006", name: "패스트푸드", icon: "🍔" },
   { code: "CS100007", name: "치킨", icon: "🍗" },
-  { code: "CS100008", name: "분식", icon: "🍜" },
+  { code: "CS100008", name: "분식", icon: "🍢" },
   { code: "CS100009", name: "호프/주점", icon: "🍺" },
   { code: "CS100010", name: "카페", icon: "☕" },
 ];
@@ -138,6 +140,40 @@ export default function AnalyzePage() {
   const store = useAnalyzeStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const [industryAvailability, setIndustryAvailability] = useState<Record<string, boolean>>(() => {
+    const base: Record<string, boolean> = {};
+    for (const opt of INDUSTRY_OPTIONS) base[opt.code] = true;
+    return base;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/industries`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.industries ?? [];
+        if (!Array.isArray(items)) return;
+
+        const next: Record<string, boolean> = {};
+        for (const item of items) {
+          const code = item?.code;
+          if (typeof code !== "string") continue;
+          next[code] = item?.data_available === false ? false : true;
+        }
+        if (!cancelled && Object.keys(next).length > 0) {
+          setIndustryAvailability((prev) => ({ ...prev, ...next }));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [budgetDraft, setBudgetDraft] = useState<number>(() => {
     const b = Number(store.budget || 5000);
     return Number.isFinite(b) && b > 0 ? b : 5000;
@@ -230,13 +266,12 @@ export default function AnalyzePage() {
 
   /* ── Handlers ─────────────────────────────────────────────────────────── */
 
-   const handleIndustry = (code: string) => {
-     // Only allow cafe (CS100010)
-     if (code !== "CS100010") return;
-     store.setIndustry(code);
-     const ind = INDUSTRY_OPTIONS.find((i) => i.code === code);
-     advance(1, ind ? `${ind.icon} ${ind.name}` : code);
-   };
+  const handleIndustry = (code: string) => {
+    if (industryAvailability[code] === false) return;
+    store.setIndustry(code);
+    const ind = INDUSTRY_OPTIONS.find((i) => i.code === code);
+    advance(1, ind ? `${ind.icon} ${ind.name}` : code);
+  };
 
   const handleBudget = (value: number) => {
     store.setBudget(value);
@@ -335,7 +370,7 @@ export default function AnalyzePage() {
             <p className="mt-1 text-sm text-slate-500">
               몇 가지 질문으로 당신에게 딱 맞는 상권을 찾아드릴게요.
               <span className="ml-1 text-xs font-medium text-slate-400">
-                (현재 카페 업종만 완전 지원)
+                (준비 중 업종은 표시됩니다)
               </span>
             </p>
           </AiMessage>
@@ -356,28 +391,34 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[0]}
                 </p>
               </AiMessage>
-               <div className="ml-11 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                 {INDUSTRY_OPTIONS.map((ind) => (
-                   <button
-                     key={ind.code}
-                     type="button"
-                     onClick={() => handleIndustry(ind.code)}
-                     className={cn(
-                       "relative flex flex-col items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-600 transition-all duration-200 active:scale-95",
-                       ind.code === "CS100010"
-                         ? "hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md"
-                         : "opacity-40 cursor-not-allowed pointer-events-none"
-                     )}
-                   >
-                     <span className="text-2xl">{ind.icon}</span>
-                     <span className="text-xs font-semibold">{ind.name}</span>
-                     {ind.code !== "CS100010" && (
-                       <span className="absolute -right-1 -top-1 rounded-full bg-slate-400 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                         준비 중
+               <div className="ml-0 grid grid-cols-2 gap-2 sm:ml-11 sm:grid-cols-5">
+                 {INDUSTRY_OPTIONS.map((ind) => {
+                   const available = industryAvailability[ind.code] !== false;
+                   return (
+                     <button
+                       key={ind.code}
+                       type="button"
+                       onClick={() => handleIndustry(ind.code)}
+                       className={cn(
+                         "relative flex flex-col items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-600 transition-all duration-200 active:scale-95",
+                         available
+                           ? "hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md"
+                           : "opacity-40 cursor-not-allowed"
+                       )}
+                     >
+                       <span className="text-2xl">{ind.icon}</span>
+                       <span className="text-xs font-semibold">{ind.name}</span>
+                       <span
+                         className={cn(
+                           "absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white",
+                           available ? "bg-emerald-500" : "bg-slate-400"
+                         )}
+                       >
+                         {available ? "지원" : "준비 중"}
                        </span>
-                     )}
-                   </button>
-                 ))}
+                     </button>
+                   );
+                 })}
                </div>
             </div>
           )}
@@ -390,7 +431,7 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[1]}
                 </p>
               </AiMessage>
-              <div className="ml-11 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div className="ml-0 grid grid-cols-2 gap-3 sm:ml-11 sm:grid-cols-5">
                 {BUDGET_OPTIONS.map((b) => (
                   <button
                     key={b.value}
@@ -408,7 +449,7 @@ export default function AnalyzePage() {
                 ))}
               </div>
 
-              <div className="ml-11 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="ml-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:ml-11">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -418,7 +459,7 @@ export default function AnalyzePage() {
                       {budgetDraft.toLocaleString()}만원
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      카페 서울 평균 창업비용 8,976만원 (KREI 2023)
+                      업종별 평균 창업비용 참고 (KREI 2023)
                     </p>
                   </div>
                   <button
@@ -472,7 +513,7 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[2]}
                 </p>
               </AiMessage>
-              <div className="ml-11 grid gap-2.5 sm:grid-cols-3">
+              <div className="ml-0 grid gap-2.5 sm:ml-11 sm:grid-cols-3">
                 {EXPERIENCE_OPTIONS.map((opt) => (
                   <button
                     key={opt.key}
@@ -499,7 +540,7 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[3]}
                 </p>
               </AiMessage>
-              <div className="ml-11 grid gap-2.5 sm:grid-cols-3">
+              <div className="ml-0 grid gap-2.5 sm:ml-11 sm:grid-cols-3">
                 {EMPLOYEE_OPTIONS.map((opt) => (
                   <button
                     key={opt.key}
@@ -526,7 +567,7 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[4]}
                 </p>
               </AiMessage>
-              <div className="ml-11 space-y-3">
+              <div className="ml-0 space-y-3 sm:ml-11">
                 <div className="flex flex-wrap gap-2">
                   {AREA_PRESETS.map((area) => (
                     <button
@@ -563,7 +604,7 @@ export default function AnalyzePage() {
               </AiMessage>
 
               {/* Summary card */}
-              <div className="ml-11 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50">
+              <div className="ml-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 sm:ml-11">
                 <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                     분석 요약
@@ -593,7 +634,7 @@ export default function AnalyzePage() {
               </div>
 
               {/* CTA */}
-              <div className="ml-11">
+              <div className="ml-0 sm:ml-11">
                 <button
                   type="button"
                   onClick={handleStartAnalysis}

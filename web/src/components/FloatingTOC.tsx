@@ -12,17 +12,9 @@ interface TOCItem {
 
 const REPORT_SECTIONS: TOCItem[] = [
   { id: "section-top3", label: "TOP 3 추천", icon: "🏆" },
-  { id: "section-b1", label: "성공 점수", icon: "🎯" },
-  { id: "section-b2", label: "수익 구조", icon: "📈" },
-  { id: "section-b3", label: "경쟁 환경", icon: "🏪" },
-  { id: "section-b5", label: "고객 분석", icon: "👥" },
-  { id: "section-b4", label: "입지 분석", icon: "📍" },
-  { id: "section-b6", label: "임대료", icon: "💰" },
-  { id: "section-trend", label: "매출 트렌드", icon: "📊" },
-  { id: "section-b7", label: "프랜차이즈", icon: "🏢" },
-  { id: "section-c", label: "시뮬레이터", icon: "🎛️" },
-  { id: "section-d", label: "리스크", icon: "⚠️" },
-  { id: "section-e", label: "지원금", icon: "🎁" },
+  { id: "group-core", label: "핵심 판단 근거", icon: "🎯" },
+  { id: "group-detail", label: "상세 분석", icon: "🔍" },
+  { id: "group-risk", label: "리스크 & 지원", icon: "🛡️" },
 ];
 
 export function FloatingTOC() {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn, formatMoney } from "@/lib/utils";
 import { useAnalyzeStore } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   MapPin,
   Loader2,
@@ -40,6 +41,15 @@ import {
 // ── Constants ───────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const FETCH_TIMEOUT_MS = 30_000;
+
+function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
 
 const EXPERIENCE_LABELS: Record<string, string> = {
   beginner: "🌱 처음이에요",
@@ -429,15 +439,18 @@ function useFetch<T>(url: string | null): FetchState<T> & { refetch: () => void 
   const fetchData = useCallback(() => {
     if (!url) return;
     setState({ data: null, loading: true, error: null });
-    fetch(url)
+    fetchWithTimeout(url)
       .then((res) => {
         if (!res.ok) throw new Error(`API 오류 (${res.status})`);
         return res.json();
       })
       .then((data: T) => setState({ data, loading: false, error: null }))
-      .catch((err: Error) =>
-        setState({ data: null, loading: false, error: err.message }),
-      );
+      .catch((err: Error) => {
+        const message = err.name === "AbortError"
+          ? "요청 시간이 초과되었습니다. 다시 시도해주세요."
+          : err.message;
+        setState({ data: null, loading: false, error: message });
+      });
   }, [url]);
 
   useEffect(() => {
@@ -688,22 +701,22 @@ function Phase2Content({
               const barWidth = maxAmount > 0 ? (row.amount / maxAmount) * 100 : 0;
               return (
                 <div key={`cost-${row.label}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-xs font-medium text-slate-600 sm:w-28">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="w-16 shrink-0 text-[11px] font-medium text-slate-600 sm:w-28 sm:text-xs">
                       {row.label}
                     </span>
-                    <div className="flex flex-1 items-center gap-2">
+                    <div className="flex flex-1 items-center gap-1.5 sm:gap-2">
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all duration-500"
                           style={{ width: `${Math.min(100, barWidth)}%` }}
                         />
                       </div>
-                      <span className="w-10 shrink-0 text-right text-[11px] font-semibold text-slate-500">
+                      <span className="w-8 shrink-0 text-right text-[10px] font-semibold text-slate-500 sm:w-10 sm:text-[11px]">
                         {pct}%
                       </span>
                     </div>
-                    <span className="w-20 shrink-0 text-right text-xs font-bold text-slate-800 sm:w-24">
+                    <span className="w-16 shrink-0 text-right text-[11px] font-bold text-slate-800 sm:w-24 sm:text-xs">
                       {formatMoney(row.amount)}
                     </span>
                   </div>
@@ -1766,8 +1779,8 @@ function ActionContent() {
         </div>
 
         {/* Context Card */}
-        <div className="mb-6 animate-slide-up rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-6 animate-slide-up rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                 <Briefcase className="h-4 w-4" />
@@ -1899,14 +1912,16 @@ function ActionContent() {
 
 export default function AnalyzeActionPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        </div>
-      }
-    >
-      <ActionContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        }
+      >
+        <ActionContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
