@@ -163,6 +163,9 @@ def create_app() -> FastAPI:
     lease_router = cast(APIRouter, import_module("api.routes.lease").router)
     app.include_router(lease_router, prefix="/api/v1", tags=["Lease"])
 
+    compliance_router = cast(APIRouter, import_module("api.routes.compliance").router)
+    app.include_router(compliance_router, prefix="/api/v1", tags=["Compliance"])
+
     return app
 
 
