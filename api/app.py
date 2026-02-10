@@ -166,6 +166,9 @@ def create_app() -> FastAPI:
     compliance_router = cast(APIRouter, import_module("api.routes.compliance").router)
     app.include_router(compliance_router, prefix="/api/v1", tags=["Compliance"])
 
+    blueprint_router = cast(APIRouter, import_module("api.routes.blueprint").router)
+    app.include_router(blueprint_router, prefix="/api/v1", tags=["Blueprint"])
+
     return app
 
 
