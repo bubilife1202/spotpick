@@ -105,3 +105,10 @@ PDF_EXPORT_USAGE.md
 PDF_QUALITY_REPORT.md
 SUPPORT_PROGRAMS.md
 .vercel
+
+# Debug artifacts
+tmp/
+*.png
+!web/public/**/*.png
+console-errors.txt
+network-requests.txt
