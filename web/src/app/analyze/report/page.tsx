@@ -1470,21 +1470,24 @@ function ReportContent() {
 
   const industryCode = searchParams?.get("industry_code") || store.industryCode;
   const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
-  const industryName = store.industryName || "카페";
-
-  // New params from conversation flow
   const experienceLevel = searchParams?.get("experience_level") || store.experienceLevel;
   const employeeCount = searchParams?.get("employee_count") || store.employeeCount;
 
   useEffect(() => {
     const s = useAnalyzeStore.getState();
+    s.setStep(2);
+    if (industryCode && industryCode !== s.industryCode) {
+      s.setIndustry(industryCode);
+    }
     if (experienceLevel && experienceLevel !== s.experienceLevel) {
       s.setExperienceLevel(experienceLevel);
     }
     if (employeeCount && employeeCount !== s.employeeCount) {
       s.setEmployeeCount(employeeCount);
     }
-  }, [experienceLevel, employeeCount]);
+  }, [industryCode, experienceLevel, employeeCount]);
+
+  const industryName = store.industryName;
 
   const preferredDistricts = searchParams?.get("preferred_districts") || "";
 
@@ -2089,8 +2092,8 @@ function ReportContent() {
           </div>
         )}
 
-        {/* ── CAFE TYPE RECOMMENDATION ── */}
-        {!top3Loading && selectedCode && (
+        {/* ── CAFE TYPE RECOMMENDATION (카페 업종 전용) ── */}
+        {!top3Loading && selectedCode && industryCode === "CS100010" && (
           <div className="mb-6">
             <CafeTypeCard
               industryCode={industryCode}

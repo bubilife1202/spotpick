@@ -1492,16 +1492,19 @@ function ActionContent() {
   const employeeCount =
     searchParams?.get("employee_count") || store.employeeCount || "";
 
-  // Set step in store
+  // Sync store from URL params
   useEffect(() => {
-    useAnalyzeStore.getState().setStep(3);
-  }, []);
-
-  useEffect(() => {
-    const { setExperienceLevel, setEmployeeCount } = useAnalyzeStore.getState();
-    if (experienceLevel) setExperienceLevel(experienceLevel);
-    if (employeeCount) setEmployeeCount(employeeCount);
-  }, [experienceLevel, employeeCount]);
+    const s = useAnalyzeStore.getState();
+    s.setStep(3);
+    if (industryCode && industryCode !== s.industryCode) {
+      s.setIndustry(industryCode);
+    }
+    if (experienceLevel) s.setExperienceLevel(experienceLevel);
+    if (employeeCount) s.setEmployeeCount(employeeCount);
+    if (districtCode && districtCode !== s.selectedDistrictCode) {
+      s.setSelectedDistrict(districtCode);
+    }
+  }, [industryCode, districtCode, experienceLevel, employeeCount]);
 
   // Active phase
   const [activePhase, setActivePhase] = useState(1);
