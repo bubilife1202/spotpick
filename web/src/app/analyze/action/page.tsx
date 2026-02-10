@@ -131,12 +131,42 @@ interface FetchState<T> {
   error: string | null;
 }
 
+interface MenuStrategyItem {
+  name: string;
+  category?: string;
+  selling_price?: number;
+  total_cost?: number;
+  margin_rate?: number;
+}
+
 interface BlueprintData {
-  business_concept?: string;
-  target_customer?: string;
-  menu_strategy?: string;
-  positioning?: string;
-  key_differentiator?: string;
+  concept_title?: string;
+  recommended_business_type?: string;
+  operation_model?: {
+    experience_level?: string;
+    employee_count?: string;
+    recommended_business_type?: { id?: string; label?: string; desc?: string };
+    suggested_opening_hours?: string;
+    focus?: string;
+  };
+  menu_strategy?: {
+    top_margin_items?: MenuStrategyItem[];
+    low_margin_items?: MenuStrategyItem[];
+    avg_margin_rate?: number;
+    recommended_bundle?: string;
+  };
+  pricing_strategy?: {
+    current_avg_ticket?: number;
+    target_avg_ticket?: number;
+    suggestion?: string;
+  };
+  launch_plan?: Array<{ phase: string; name: string; target_date?: string; deliverables?: string[] }>;
+  financial_targets?: {
+    monthly_break_even_revenue?: number;
+    target_monthly_revenue?: number;
+    roi_months?: number;
+    [key: string]: unknown;
+  };
   recommendations?: Array<{ title: string; description: string }>;
   risk_factors?: Array<{ title: string; description: string; severity?: string }>;
   [key: string]: unknown;
@@ -436,52 +466,81 @@ function Phase1Content({
 
   const recommendations = data.recommendations || [];
   const risks = data.risk_factors || [];
+  const menu = data.menu_strategy;
+  const operation = data.operation_model;
+  const pricing = data.pricing_strategy;
+  const topItems = menu?.top_margin_items || [];
 
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Key concept cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {data.business_concept && (
+        {data.concept_title && (
           <StatCard
             label="비즈니스 컨셉"
-            value={data.business_concept}
+            value={data.concept_title}
             icon={<Lightbulb className="h-3.5 w-3.5" />}
             accent="violet"
           />
         )}
-        {data.target_customer && (
+        {data.recommended_business_type && (
           <StatCard
-            label="타겟 고객"
-            value={data.target_customer}
+            label="추천 운영형태"
+            value={data.recommended_business_type}
             icon={<Users className="h-3.5 w-3.5" />}
             accent="blue"
           />
         )}
-        {data.menu_strategy && (
+        {operation?.suggested_opening_hours && (
           <StatCard
-            label="메뉴 전략"
-            value={data.menu_strategy}
-            icon={<ClipboardCheck className="h-3.5 w-3.5" />}
+            label="추천 영업시간"
+            value={operation.suggested_opening_hours}
+            icon={<Clock className="h-3.5 w-3.5" />}
             accent="emerald"
           />
         )}
-        {data.positioning && (
+        {pricing?.suggestion && (
           <StatCard
-            label="포지셔닝"
-            value={data.positioning}
+            label="가격 전략"
+            value={pricing.suggestion}
             icon={<TrendingUp className="h-3.5 w-3.5" />}
             accent="amber"
           />
         )}
       </div>
 
-      {data.key_differentiator && (
+      {/* Menu strategy — high margin items */}
+      {topItems.length > 0 && (
+        <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+            고마진 메뉴 추천
+          </p>
+          <div className="space-y-1.5">
+            {topItems.slice(0, 3).map((item) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <span className="font-medium text-emerald-900">{item.name}</span>
+                <span className="text-xs font-semibold text-emerald-600">
+                  마진율 {((item.margin_rate || 0) * 100).toFixed(0)}%
+                </span>
+              </div>
+            ))}
+          </div>
+          {menu?.recommended_bundle && (
+            <p className="mt-2 text-xs text-emerald-700">
+              💡 {menu.recommended_bundle}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Operation focus */}
+      {operation?.focus && (
         <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 p-4">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-violet-500">
-            핵심 차별화 포인트
+            운영 핵심 포인트
           </p>
           <p className="text-sm font-semibold leading-relaxed text-violet-900">
-            {data.key_differentiator}
+            {operation.focus}
           </p>
         </div>
       )}
@@ -1183,8 +1242,8 @@ function Phase5Content({
     {
       id: "launch-menu",
       title: "메뉴 확정 & 가격 설정",
-      description: blueprintData?.menu_strategy
-        ? `AI 추천: ${blueprintData.menu_strategy}. 원가율 30-35% 기준으로 가격을 설정하세요.`
+      description: blueprintData?.menu_strategy?.recommended_bundle
+        ? `AI 추천: ${blueprintData.menu_strategy.recommended_bundle}. 평균 마진율 ${((blueprintData.menu_strategy.avg_margin_rate || 0) * 100).toFixed(0)}% 기준으로 가격을 설정하세요.`
         : "원가율 30-35%를 기준으로 메뉴 가격을 설정하세요. 주변 경쟁 매장의 가격대도 참고하세요.",
       priority: "high",
       estimate: "1-2주",
