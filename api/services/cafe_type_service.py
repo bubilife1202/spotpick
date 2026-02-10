@@ -12,7 +12,9 @@ Important:
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Literal, TypedDict, cast
 
 
@@ -179,6 +181,103 @@ def _experience_level(raw: str | None) -> ExperienceLevel | None:
     if raw in ("beginner", "experienced", "expert"):
         return cast(ExperienceLevel, raw)
     return None
+
+
+@dataclass(frozen=True)
+class _Norm:
+    """Percentile normalizer for derived metrics (industry-specific)."""
+
+    arrays: dict[str, list[float]]
+
+    def pct(self, metric: str, value: float) -> float:
+        arr = self.arrays.get(metric)
+        if not arr or len(arr) < 2:
+            return 0.5
+        if not math.isfinite(value):
+            return 0.5
+        idx = bisect_left(arr, value)
+        return _clamp(idx / float(len(arr) - 1), 0.0, 1.0)
+
+
+_NORM_METRICS: tuple[str, ...] = (
+    "worker_dominance",
+    "lunch_ratio",
+    "morning_ratio",
+    "weekday_ratio",
+    "weekend_ratio",
+    "afternoon_ratio",
+    "evening_ratio",
+    "young_ratio",
+    "age_20_ratio",
+    "older_ratio",
+    "female_ratio",
+    "indie_ratio",
+    "franchise_ratio_adj",
+    "log_foot_traffic",
+    "log_resident",
+    "log_households",
+    "store_count",
+    "avg_operation_months",
+    "facility_score",
+    "closed_ratio",
+    "time_spread",
+)
+
+
+@lru_cache(maxsize=32)
+def _get_norm(industry_code: str) -> _Norm:
+    """Compute percentile arrays for the given industry.
+
+    Cached per industry_code to avoid re-sorting on every request.
+    """
+    from api.services.data_service import get_data_service
+
+    svc = get_data_service(industry_code)
+    arrays: dict[str, list[float]] = {k: [] for k in _NORM_METRICS}
+
+    for row in getattr(svc, "districts", []) or []:
+        if not isinstance(row, dict):
+            continue
+        d = _derive(cast(dict[str, Any], row))
+        closed_ratio = _safe_div(
+            float(d.closed_stores), float(max(1, d.store_count + d.closed_stores))
+        )
+
+        arrays["worker_dominance"].append(float(d.worker_dominance))
+        arrays["lunch_ratio"].append(float(d.lunch_ratio))
+        arrays["morning_ratio"].append(float(d.morning_ratio))
+        arrays["weekday_ratio"].append(float(d.weekday_ratio))
+        arrays["weekend_ratio"].append(float(d.weekend_ratio))
+        arrays["afternoon_ratio"].append(float(d.afternoon_ratio))
+        arrays["evening_ratio"].append(float(d.evening_ratio))
+        arrays["young_ratio"].append(float(d.young_ratio))
+        arrays["age_20_ratio"].append(float(d.age_20_ratio))
+        arrays["older_ratio"].append(float(d.older_ratio))
+        arrays["female_ratio"].append(float(d.female_ratio))
+        arrays["indie_ratio"].append(float(d.indie_ratio))
+        arrays["franchise_ratio_adj"].append(float(d.franchise_ratio_adj))
+        arrays["log_foot_traffic"].append(float(d.log_foot_traffic))
+        arrays["log_resident"].append(math.log10(max(1.0, float(d.resident_total))))
+        arrays["log_households"].append(math.log10(max(1.0, float(d.total_households))))
+        arrays["store_count"].append(float(d.store_count))
+        arrays["avg_operation_months"].append(float(d.avg_operation_months))
+        arrays["facility_score"].append(float(d.facility_score))
+        arrays["closed_ratio"].append(float(closed_ratio))
+        arrays["time_spread"].append(float(d.time_spread))
+
+    for k in list(arrays.keys()):
+        arrays[k].sort()
+
+    return _Norm(arrays=arrays)
+
+
+def _pct_scaled(
+    norm: _Norm | None, metric: str, raw: float, fallback: float, *, invert: bool = False
+) -> float:
+    if norm is None:
+        return fallback
+    p = norm.pct(metric, raw)
+    return 1.0 - p if invert else p
 
 
 @dataclass(frozen=True)
@@ -441,7 +540,7 @@ def _compute_confidence(d: Derived, final_scores: dict[CafeTypeCode, float]) -> 
     return round(_clamp(c1 + c2 + c3 + c4, 0.0, 100.0), 1)
 
 
-def _score_express(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_express(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -457,49 +556,57 @@ def _score_express(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "worker_dominance",
         "직장인 비중",
-        _S(d.worker_dominance, 0.55, 0.85),
+        _pct_scaled(
+            norm, "worker_dominance", d.worker_dominance, _S(d.worker_dominance, 0.55, 0.85)
+        ),
         25,
         f"직장인 비중 {_fmt_pct(d.worker_dominance)}",
     )
     add(
         "lunch_ratio",
         "점심 피크",
-        _S(d.lunch_ratio, 0.22, 0.36),
+        _pct_scaled(norm, "lunch_ratio", d.lunch_ratio, _S(d.lunch_ratio, 0.22, 0.36)),
         15,
         f"점심(11-14) 매출 {_fmt_pct(d.lunch_ratio)}",
     )
     add(
         "morning_ratio",
         "아침 수요",
-        _S(d.morning_ratio, 0.10, 0.22),
+        _pct_scaled(norm, "morning_ratio", d.morning_ratio, _S(d.morning_ratio, 0.10, 0.22)),
         10,
         f"아침(06-11) 매출 {_fmt_pct(d.morning_ratio)}",
     )
     add(
         "weekday_ratio",
         "주중 집중",
-        _S(d.weekday_ratio, 0.62, 0.78),
+        _pct_scaled(norm, "weekday_ratio", d.weekday_ratio, _S(d.weekday_ratio, 0.62, 0.78)),
         10,
         f"주중 매출비율 {_fmt_pct(d.weekday_ratio)}",
     )
     add(
         "foot_traffic",
         "유동인구",
-        _S(d.log_foot_traffic, 5.5, 6.9),
+        _pct_scaled(norm, "log_foot_traffic", d.log_foot_traffic, _S(d.log_foot_traffic, 5.5, 6.9)),
         15,
         f"유동인구 {_fmt_int(d.foot_traffic_total)}",
     )
     add(
         "young_ratio",
         "2030 비중",
-        _S(d.young_ratio, 0.40, 0.60),
+        _pct_scaled(norm, "young_ratio", d.young_ratio, _S(d.young_ratio, 0.40, 0.60)),
         10,
         f"2030 매출비중 {_fmt_pct(d.young_ratio)}",
     )
     add(
         "afternoon_penalty",
         "오후 편중",
-        _S_inv(d.afternoon_ratio, 0.22, 0.33),
+        _pct_scaled(
+            norm,
+            "afternoon_ratio",
+            d.afternoon_ratio,
+            _S_inv(d.afternoon_ratio, 0.22, 0.33),
+            invert=True,
+        ),
         5,
         f"오후(14-17) 편중 {_fmt_pct(d.afternoon_ratio)}",
     )
@@ -518,7 +625,7 @@ def _score_express(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     return round(score, 1), comps
 
 
-def _score_specialty(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_specialty(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -534,49 +641,60 @@ def _score_specialty(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "indie_ratio",
         "개인카페 환경",
-        _S(d.indie_ratio, 0.50, 0.80),
-        20,
+        _pct_scaled(norm, "indie_ratio", d.indie_ratio, _S(d.indie_ratio, 0.50, 0.80)),
+        25,
         f"개인카페 비중 {_fmt_pct(d.indie_ratio)}",
     )
     add(
         "afternoon_ratio",
         "오후 목적지 수요",
-        _S(d.afternoon_ratio, 0.22, 0.34),
+        _pct_scaled(norm, "afternoon_ratio", d.afternoon_ratio, _S(d.afternoon_ratio, 0.22, 0.34)),
         15,
         f"오후(14-17) 매출 {_fmt_pct(d.afternoon_ratio)}",
     )
     add(
         "young_ratio",
         "2030 수요",
-        _S(d.young_ratio, 0.42, 0.62),
+        _pct_scaled(norm, "young_ratio", d.young_ratio, _S(d.young_ratio, 0.42, 0.62)),
         15,
         f"2030 매출비중 {_fmt_pct(d.young_ratio)}",
     )
     add(
         "avg_operation_months",
         "운영 지속성",
-        _S(d.avg_operation_months, 24.0, 120.0),
+        _pct_scaled(
+            norm,
+            "avg_operation_months",
+            d.avg_operation_months,
+            _S(d.avg_operation_months, 24.0, 120.0),
+        ),
         10,
         f"평균 운영 {d.avg_operation_months:.0f}개월",
     )
     add(
         "competition_bell",
         "적정 경쟁",
-        _S_bell(float(d.store_count), 30.0, 40.0),
+        _S_bell(
+            _pct_scaled(
+                norm, "store_count", float(d.store_count), _S_bell(float(d.store_count), 30.0, 40.0)
+            ),
+            0.60,
+            0.35,
+        ),
         10,
         f"카페 점포수 {d.store_count}개",
     )
     add(
         "foot_traffic",
         "유동인구",
-        _S(d.log_foot_traffic, 5.0, 6.5),
+        _pct_scaled(norm, "log_foot_traffic", d.log_foot_traffic, _S(d.log_foot_traffic, 5.0, 6.5)),
         10,
         f"유동인구 {_fmt_int(d.foot_traffic_total)}",
     )
     add(
         "weekend_ratio",
         "주말 수요",
-        _S(d.weekend_ratio, 0.28, 0.45),
+        _pct_scaled(norm, "weekend_ratio", d.weekend_ratio, _S(d.weekend_ratio, 0.28, 0.45)),
         5,
         f"주말 매출비율 {_fmt_pct(d.weekend_ratio)}",
     )
@@ -595,7 +713,7 @@ def _score_specialty(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     return round(score, 1), comps
 
 
-def _score_dessert(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_dessert(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -611,42 +729,47 @@ def _score_dessert(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "female_ratio",
         "여성 수요",
-        _S(d.female_ratio, 0.50, 0.62),
+        _pct_scaled(norm, "female_ratio", d.female_ratio, _S(d.female_ratio, 0.50, 0.62)),
         20,
         f"여성 매출비중 {_fmt_pct(d.female_ratio)}",
     )
     add(
         "afternoon_ratio",
         "오후 디저트 시간",
-        _S(d.afternoon_ratio, 0.22, 0.34),
+        _pct_scaled(norm, "afternoon_ratio", d.afternoon_ratio, _S(d.afternoon_ratio, 0.22, 0.34)),
         15,
         f"오후(14-17) 매출 {_fmt_pct(d.afternoon_ratio)}",
     )
     add(
         "weekend_ratio",
         "주말 레저",
-        _S(d.weekend_ratio, 0.30, 0.48),
+        _pct_scaled(norm, "weekend_ratio", d.weekend_ratio, _S(d.weekend_ratio, 0.30, 0.48)),
         20,
         f"주말 매출비율 {_fmt_pct(d.weekend_ratio)}",
     )
     add(
         "young_ratio",
         "2030 수요",
-        _S(d.young_ratio, 0.42, 0.62),
+        _pct_scaled(norm, "young_ratio", d.young_ratio, _S(d.young_ratio, 0.42, 0.62)),
         15,
         f"2030 매출비중 {_fmt_pct(d.young_ratio)}",
     )
     add(
         "foot_traffic",
         "유동인구",
-        _S(d.log_foot_traffic, 5.0, 6.5),
+        _pct_scaled(norm, "log_foot_traffic", d.log_foot_traffic, _S(d.log_foot_traffic, 5.0, 6.5)),
         10,
         f"유동인구 {_fmt_int(d.foot_traffic_total)}",
     )
     add(
         "avg_operation_months",
         "운영 지속성",
-        _S(d.avg_operation_months, 24.0, 120.0),
+        _pct_scaled(
+            norm,
+            "avg_operation_months",
+            d.avg_operation_months,
+            _S(d.avg_operation_months, 24.0, 120.0),
+        ),
         10,
         f"평균 운영 {d.avg_operation_months:.0f}개월",
     )
@@ -665,7 +788,7 @@ def _score_dessert(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     return round(score, 1), comps
 
 
-def _score_neighborhood(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_neighborhood(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -681,14 +804,20 @@ def _score_neighborhood(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "not_office",
         "비오피스",
-        _S_inv(d.worker_dominance, 0.45, 0.80),
+        _pct_scaled(
+            norm,
+            "worker_dominance",
+            d.worker_dominance,
+            _S_inv(d.worker_dominance, 0.45, 0.80),
+            invert=True,
+        ),
         20,
         f"직장인 비중 {_fmt_pct(d.worker_dominance)}",
     )
     add(
         "older_ratio",
         "중장년 수요",
-        _S(d.older_ratio, 0.30, 0.55),
+        _pct_scaled(norm, "older_ratio", d.older_ratio, _S(d.older_ratio, 0.30, 0.55)),
         15,
         f"40+ 매출비중 {_fmt_pct(d.older_ratio)}",
     )
@@ -696,28 +825,44 @@ def _score_neighborhood(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "households",
         "거주 기반",
-        _S(float(d.total_households), 800.0, 8000.0),
+        _pct_scaled(
+            norm,
+            "log_households",
+            math.log10(max(1.0, float(d.total_households))),
+            _S(float(d.total_households), 800.0, 8000.0),
+        ),
         15,
         f"총 가구수 {_fmt_int(d.total_households)}",
     )
     add(
         "underserved",
         "공급 과잉 아님",
-        _S_inv(float(d.store_count), 3.0, 40.0),
+        _pct_scaled(
+            norm,
+            "store_count",
+            float(d.store_count),
+            _S_inv(float(d.store_count), 3.0, 40.0),
+            invert=True,
+        ),
         15,
         f"카페 점포수 {d.store_count}개",
     )
     add(
         "avg_operation_months",
         "운영 지속성",
-        _S(d.avg_operation_months, 24.0, 120.0),
+        _pct_scaled(
+            norm,
+            "avg_operation_months",
+            d.avg_operation_months,
+            _S(d.avg_operation_months, 24.0, 120.0),
+        ),
         10,
         f"평균 운영 {d.avg_operation_months:.0f}개월",
     )
     add(
         "time_spread",
         "꾸준함",
-        _S(d.time_spread, 0.15, 0.45),
+        _pct_scaled(norm, "time_spread", d.time_spread, _S(d.time_spread, 0.15, 0.45)),
         5,
         "시간대 수요가 비교적 고르게 분포",
     )
@@ -736,7 +881,7 @@ def _score_neighborhood(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     return round(score, 1), comps
 
 
-def _score_study(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_study(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -759,42 +904,65 @@ def _score_study(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "age20",
         "20대 수요",
-        _S(d.age_20_ratio, 0.20, 0.38),
+        _pct_scaled(norm, "age_20_ratio", d.age_20_ratio, _S(d.age_20_ratio, 0.20, 0.38)),
         20,
         f"20대 매출비중 {_fmt_pct(d.age_20_ratio)}",
     )
     add(
         "evening",
         "저녁 체류",
-        _S(d.evening_ratio, 0.18, 0.30),
+        _pct_scaled(norm, "evening_ratio", d.evening_ratio, _S(d.evening_ratio, 0.18, 0.30)),
         15,
         f"저녁(17-21) 매출 {_fmt_pct(d.evening_ratio)}",
     )
     add(
         "not_office",
         "비오피스",
-        _S_inv(d.worker_dominance, 0.45, 0.80),
+        _pct_scaled(
+            norm,
+            "worker_dominance",
+            d.worker_dominance,
+            _S_inv(d.worker_dominance, 0.45, 0.80),
+            invert=True,
+        ),
         10,
         f"직장인 비중 {_fmt_pct(d.worker_dominance)}",
     )
     add(
         "foot_traffic",
         "유동인구",
-        _S_bell(d.log_foot_traffic, 5.8, 1.2),
+        _S_bell(
+            _pct_scaled(
+                norm, "log_foot_traffic", d.log_foot_traffic, _S_bell(d.log_foot_traffic, 5.8, 1.2)
+            ),
+            0.60,
+            0.50,
+        ),
         10,
         f"유동인구 {_fmt_int(d.foot_traffic_total)}",
     )
     add(
         "resident",
         "거주 기반",
-        _S(float(d.resident_total), 1000.0, 8000.0),
+        _pct_scaled(
+            norm,
+            "log_resident",
+            math.log10(max(1.0, float(d.resident_total))),
+            _S(float(d.resident_total), 1000.0, 8000.0),
+        ),
         10,
         f"상주인구 {_fmt_int(d.resident_total)}",
     )
     add(
         "indie",
         "체류형 차별화",
-        _S_inv(d.franchise_ratio_adj, 0.30, 0.65),
+        _pct_scaled(
+            norm,
+            "franchise_ratio_adj",
+            d.franchise_ratio_adj,
+            _S_inv(d.franchise_ratio_adj, 0.30, 0.65),
+            invert=True,
+        ),
         5,
         f"프랜차이즈 비중 {_fmt_pct(d.franchise_ratio_adj)}",
     )
@@ -813,7 +981,7 @@ def _score_study(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     return round(score, 1), comps
 
 
-def _score_standard(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
+def _score_standard(d: Derived, norm: _Norm | None) -> tuple[float, list[CafeTypeComponent]]:
     comps: list[CafeTypeComponent] = []
 
     def add(key: str, label: str, scaled: float, weight: float, detail: str) -> None:
@@ -829,7 +997,12 @@ def _score_standard(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "avg_operation_months",
         "운영 지속성",
-        _S(d.avg_operation_months, 24.0, 120.0),
+        _pct_scaled(
+            norm,
+            "avg_operation_months",
+            d.avg_operation_months,
+            _S(d.avg_operation_months, 24.0, 120.0),
+        ),
         20,
         f"평균 운영 {d.avg_operation_months:.0f}개월",
     )
@@ -837,42 +1010,57 @@ def _score_standard(d: Derived) -> tuple[float, list[CafeTypeComponent]]:
     add(
         "closed_ratio",
         "폐업 압력",
-        _S_inv(closed_ratio, 0.05, 0.20),
+        _pct_scaled(
+            norm, "closed_ratio", closed_ratio, _S_inv(closed_ratio, 0.05, 0.20), invert=True
+        ),
         10,
         f"폐업 비율 {_fmt_pct(closed_ratio)}",
     )
     add(
         "foot_traffic",
         "유동인구",
-        _S(d.log_foot_traffic, 5.0, 6.5),
+        _pct_scaled(norm, "log_foot_traffic", d.log_foot_traffic, _S(d.log_foot_traffic, 5.0, 6.5)),
         20,
         f"유동인구 {_fmt_int(d.foot_traffic_total)}",
     )
     add(
         "competition_bell",
         "적정 경쟁",
-        _S_bell(float(d.store_count), 25.0, 35.0),
+        _S_bell(
+            _pct_scaled(
+                norm, "store_count", float(d.store_count), _S_bell(float(d.store_count), 25.0, 35.0)
+            ),
+            0.60,
+            0.40,
+        ),
         15,
         f"카페 점포수 {d.store_count}개",
     )
     add(
         "time_spread",
         "수요 분산",
-        _S(d.time_spread, 0.15, 0.40),
+        _pct_scaled(norm, "time_spread", d.time_spread, _S(d.time_spread, 0.15, 0.40)),
         10,
         "시간대 수요가 한쪽에 치우치지 않음",
     )
     add(
         "households",
         "거주 기반",
-        _S(float(d.total_households), 500.0, 5000.0),
+        _pct_scaled(
+            norm,
+            "log_households",
+            math.log10(max(1.0, float(d.total_households))),
+            _S(float(d.total_households), 500.0, 5000.0),
+        ),
         10,
         f"총 가구수 {_fmt_int(d.total_households)}",
     )
     add(
         "facility",
         "입지 편의",
-        _S(float(d.facility_score), 30.0, 70.0),
+        _pct_scaled(
+            norm, "facility_score", float(d.facility_score), _S(float(d.facility_score), 30.0, 70.0)
+        ),
         10,
         f"시설 점수 {d.facility_score}",
     )
@@ -901,13 +1089,19 @@ def compute_cafe_type_recommendation(
     d = _derive(district)
     exp = _experience_level(experience_level)
 
+    norm: _Norm | None = None
+    try:
+        norm = _get_norm(industry_code)
+    except Exception:
+        norm = None
+
     raw: dict[CafeTypeCode, tuple[float, list[CafeTypeComponent]]] = {
-        "EXPRESS": _score_express(d),
-        "SPECIALTY": _score_specialty(d),
-        "DESSERT": _score_dessert(d),
-        "NEIGHBORHOOD": _score_neighborhood(d),
-        "STUDY": _score_study(d),
-        "STANDARD": _score_standard(d),
+        "EXPRESS": _score_express(d, norm),
+        "SPECIALTY": _score_specialty(d, norm),
+        "DESSERT": _score_dessert(d, norm),
+        "NEIGHBORHOOD": _score_neighborhood(d, norm),
+        "STUDY": _score_study(d, norm),
+        "STANDARD": _score_standard(d, norm),
     }
 
     # Standard boost: if no niche dominates, standard becomes more attractive.
@@ -1009,6 +1203,29 @@ def compute_cafe_type_recommendation(
             }
         )
 
+    if budget_max_man is not None and budget_max_man > 0 and ranked:
+        top_type = ranked[0][0]
+        ideal = IDEAL_BUDGET_MAN[top_type]
+        if budget_max_man < ideal:
+            warnings.append(
+                {
+                    "code": "TIGHT_BUDGET",
+                    "message": f"1위 타입({TYPE_NAMES_KR[top_type]}) 기준 예산이 타이트합니다 (이상치 {ideal:,}만원).",
+                    "severity": "medium",
+                }
+            )
+
+    if exp == "beginner" and ranked:
+        top_type = ranked[0][0]
+        if DIFFICULTY[top_type] >= 3:
+            warnings.append(
+                {
+                    "code": "HARD_FOR_BEGINNER",
+                    "message": f"1위 타입({TYPE_NAMES_KR[top_type]})은 난이도가 높습니다. 트레이닝/인력 보강을 권장합니다.",
+                    "severity": "medium",
+                }
+            )
+
     rankings: list[CafeTypeRanking] = []
     for idx, (code, score) in enumerate(ranked):
         elim, elim_reason = eliminated[code]
@@ -1039,25 +1256,3 @@ def compute_cafe_type_recommendation(
         "rankings": rankings,
         "warnings": warnings,
     }
-    if budget_max_man is not None and budget_max_man > 0 and ranked:
-        top_type = ranked[0][0]
-        ideal = IDEAL_BUDGET_MAN[top_type]
-        if budget_max_man < ideal:
-            warnings.append(
-                {
-                    "code": "TIGHT_BUDGET",
-                    "message": f"1위 타입({TYPE_NAMES_KR[top_type]}) 기준 예산이 타이트합니다 (이상치 {ideal:,}만원).",
-                    "severity": "medium",
-                }
-            )
-
-    if exp == "beginner" and ranked:
-        top_type = ranked[0][0]
-        if DIFFICULTY[top_type] >= 3:
-            warnings.append(
-                {
-                    "code": "HARD_FOR_BEGINNER",
-                    "message": f"1위 타입({TYPE_NAMES_KR[top_type]})은 난이도가 높습니다. 트레이닝/인력 보강을 권장합니다.",
-                    "severity": "medium",
-                }
-            )
