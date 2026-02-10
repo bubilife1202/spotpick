@@ -158,10 +158,15 @@ const USEFUL_LINKS = [
 ];
 
 const EXPERIENCE_LABELS: Record<string, string> = {
-  none: "없음",
-  low: "1년 미만",
-  mid: "1-3년",
-  high: "3년 이상",
+  beginner: "🌱 처음이에요",
+  experienced: "💼 경험 있어요",
+  expert: "🏆 전문가예요",
+};
+
+const EMPLOYEE_LABELS: Record<string, string> = {
+  solo: "👤 1인 운영",
+  "1-2": "👥 1-2명 고용",
+  "3+": "👥👥 3명 이상",
 };
 
 // ── Cost breakdown helpers ──────────────────────────────────────
@@ -188,6 +193,61 @@ function computeCosts(budgetManwon: number): CostRow[] {
   ];
 }
 
+function buildChecklistItems(params: {
+  experienceLevel: string;
+  employeeCount: string;
+}): ChecklistItem[] {
+  const items: ChecklistItem[] = CHECKLIST_ITEMS.map((i) => ({ ...i }));
+
+  if (params.experienceLevel === "beginner") {
+    const education: ChecklistItem = {
+      id: "education",
+      step: 0,
+      title: "기초 교육 & 벤치마킹",
+      description:
+        "초보라면 오픈 전에 기본 교육을 먼저 끝내세요. 성공 매장 5곳 + 실패 매장 5곳을 직접 방문해서 메뉴·동선·피크 타임을 기록하면 시행착오를 크게 줄일 수 있습니다.",
+      link: { label: "소진공 창업교육", url: "https://edu.semas.or.kr" },
+      estimate: "2-3일",
+      category: "조사",
+    };
+
+    // Insert after market-research (step 1)
+    const idx = items.findIndex((i) => i.id === "market-research");
+    items.splice(Math.max(0, idx + 1), 0, education);
+  }
+
+  if (params.employeeCount === "solo") {
+    const idx = items.findIndex((i) => i.id === "staff-hiring");
+    if (idx >= 0) {
+      items[idx] = {
+        ...items[idx],
+        title: "1인 운영 동선 & 자동화",
+        description:
+          "1인 운영이면 채용보다 동선·메뉴·자동화를 먼저 설계해야 합니다. 키오스크/POS, 배치프렙, 메뉴 단순화(핵심 10개 이하)로 피크 타임 병목을 없애세요.",
+        link: null,
+        estimate: "1-2주",
+      };
+    }
+  } else if (params.employeeCount && params.employeeCount !== "solo") {
+    const idx = items.findIndex((i) => i.id === "staff-hiring");
+    if (idx >= 0) {
+      const labor: ChecklistItem = {
+        id: "labor-contracts",
+        step: 0,
+        title: "근로계약서 & 4대보험",
+        description:
+          "오픈 전 근로계약서를 준비하고, 급여·근무표·4대보험/원천징수까지 체크하세요. 인건비는 매출의 25~30% 안쪽에서 설계하는 게 안전합니다.",
+        link: { label: "고용노동부", url: "https://www.moel.go.kr" },
+        estimate: "1-3일",
+        category: "운영",
+      };
+      items.splice(idx + 1, 0, labor);
+    }
+  }
+
+  return items.map((item, i) => ({ ...item, step: i + 1 }));
+}
+
 // ── Component ───────────────────────────────────────────────────
 
 function ActionContent() {
@@ -203,11 +263,55 @@ function ActionContent() {
     Number(searchParams?.get("budget_max")) ||
     store.budget;
 
+  const experienceLevel =
+    searchParams?.get("experience_level") || store.experienceLevel || "";
+  const employeeCount =
+    searchParams?.get("employee_count") || store.employeeCount || "";
+
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [checklistLoaded, setChecklistLoaded] = useState(false);
 
   useEffect(() => {
     useAnalyzeStore.getState().setStep(3);
   }, []);
+
+  useEffect(() => {
+    if (experienceLevel) store.setExperienceLevel(experienceLevel);
+    if (employeeCount) store.setEmployeeCount(employeeCount);
+  }, [experienceLevel, employeeCount, store]);
+
+  const storageKey = `spotpick:checklist:${industryCode}:${districtCode || "none"}`;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        setChecked(new Set());
+        setChecklistLoaded(true);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const ids = parsed.filter((x) => typeof x === "string");
+        setChecked(new Set(ids));
+      } else {
+        setChecked(new Set());
+      }
+    } catch {
+      setChecked(new Set());
+    } finally {
+      setChecklistLoaded(true);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!checklistLoaded) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(checked)));
+    } catch {
+      // ignore storage failures (private mode, quota, etc.)
+    }
+  }, [checked, storageKey, checklistLoaded]);
 
   const toggle = (id: string) => {
     setChecked((prev) => {
@@ -223,12 +327,15 @@ function ActionContent() {
   );
   const districtName = selectedDistrict?.district_name || "선택된 상권";
   const industryName = store.industryName || "업종";
-  const experienceLabel =
-    EXPERIENCE_LABELS[store.experienceLevel] || store.experienceLevel || "미입력";
+  const experienceLabel = EXPERIENCE_LABELS[experienceLevel] || experienceLevel || "미입력";
+  const employeeLabel = EMPLOYEE_LABELS[employeeCount] || employeeCount || "미입력";
+  const profileLabel = [experienceLabel, employeeLabel].filter(Boolean).join(" · ");
 
-  const checkedCount = checked.size;
-  const totalCount = CHECKLIST_ITEMS.length;
-  const progressPct = Math.round((checkedCount / totalCount) * 100);
+  const checklistItems = buildChecklistItems({ experienceLevel, employeeCount });
+
+  const checkedCount = checklistItems.filter((i) => checked.has(i.id)).length;
+  const totalCount = checklistItems.length;
+  const progressPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
   const costs = computeCosts(budget);
   const maxRatio = Math.max(...costs.map((c) => c.ratio));
@@ -325,11 +432,9 @@ function ActionContent() {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  경험
+                  프로필
                 </p>
-                <p className="truncate text-xs font-bold text-slate-800">
-                  {experienceLabel}
-                </p>
+                <p className="truncate text-xs font-bold text-slate-800">{profileLabel}</p>
               </div>
             </div>
           </div>
@@ -356,7 +461,7 @@ function ActionContent() {
         {/* Checklist by Category */}
         <div className="space-y-8">
           {CATEGORIES.map((cat) => {
-            const items = CHECKLIST_ITEMS.filter(
+            const items = checklistItems.filter(
               (item) => item.category === cat.key,
             );
             if (items.length === 0) return null;

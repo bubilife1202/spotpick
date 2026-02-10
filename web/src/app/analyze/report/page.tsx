@@ -97,11 +97,13 @@ function getScoreInterpretation(score: number): string {
 // ─── Verdict Card (Hero) ────────────────────────────────────────────────
 function VerdictHeroCard({
   district,
+  industryCode,
   verdictData,
   verdictLoading,
   onViewAlternative,
 }: {
   district: TopDistrict;
+  industryCode: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   verdictData: any;
   verdictLoading: boolean;
@@ -114,6 +116,7 @@ function VerdictHeroCard({
   const reasons: any[] = verdictData?.reasons || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const alternatives: any[] = verdictData?.alternatives || [];
+  const hasBudgetGate = reasons.some((r) => r && r.factor === "예산");
 
   const configMap = {
     GO: {
@@ -279,6 +282,31 @@ function VerdictHeroCard({
                 </p>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {verdict === "NO_GO" && alternatives.length === 0 && (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          <h4 className="mb-2 text-sm font-bold text-slate-900">다음 선택지</h4>
+          <p className="text-xs leading-relaxed text-slate-600">
+            {hasBudgetGate
+              ? "현재 예산으로는 표준 매장 기준으로 추천하기 어렵습니다. 예산을 상향하거나, 소형/테이크아웃 형태로 전략을 바꾸는 것을 권장합니다."
+              : "리스크가 커서 추천하기 어렵습니다. 조건을 조정하거나 다른 상권을 확인해보세요."}
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/analyze"
+              className="inline-flex flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800"
+            >
+              조건 변경하기
+            </Link>
+            <Link
+              href={`/explore?industry_code=${encodeURIComponent(industryCode)}`}
+              className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+            >
+              상권 더 둘러보기
+            </Link>
           </div>
         </div>
       )}
@@ -1463,6 +1491,7 @@ function ReportContent() {
       try {
         const params = new URLSearchParams({
           industry_code: industryCode,
+          budget_min: String(budget),
           budget_max: String(budget),
           limit: "3",
         });
@@ -1932,6 +1961,7 @@ function ReportContent() {
           <div className="mb-6">
             <VerdictHeroCard
               district={selectedDistrict}
+              industryCode={industryCode}
               verdictData={verdictData}
               verdictLoading={verdictLoading}
               onViewAlternative={(code) => {

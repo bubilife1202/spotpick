@@ -17,7 +17,7 @@ async def get_verdict(
     district_code: str,
     budget_max: Annotated[
         Optional[int],
-        Query(description="Total budget in 만원 (e.g., 5000)"),
+        Query(description="Total startup budget in 만원 (e.g., 5000)"),
     ] = None,
     experience_level: Annotated[
         Optional[str],
@@ -43,6 +43,51 @@ async def get_verdict(
     from api.services.data_service import get_data_service, estimate_rent as calc_rent
     from api.services.verdict_service import compute_verdict
 
+    # Convert total startup budget (만원) to an affordable monthly rent ceiling (원).
+    # This aligns the verdict engine's `budget_max` with estimated_rent (원/month).
+    rent_budget_max_won: Optional[int] = None
+    if budget_max is not None and budget_max > 0:
+        try:
+            from api.services.krei_data_service import get_startup_investment
+
+            inv = get_startup_investment(industry_code)
+            if inv and inv.get("total"):
+                startup_total_man = int(inv.get("total") or 0)
+                if budget_max < startup_total_man:
+                    return {
+                        "verdict": "NO_GO",
+                        "confidence": 90,
+                        "summary": f"NO_GO — 예산이 업종 평균 창업비용에 미달합니다.",
+                        "reasons": [
+                            {
+                                "factor": "예산",
+                                "level": "danger",
+                                "detail": "예산이 업종 평균 창업비용보다 낮습니다",
+                                "data_value": f"{budget_max:,}만원",
+                                "threshold": f"평균 {startup_total_man:,}만원 ({str(inv.get('source') or 'KREI 2023')})",
+                            }
+                        ],
+                        "danger_count": 1,
+                        "warning_count": 0,
+                        "positive_count": 0,
+                        "alternatives": [],
+                        "data_source": str(inv.get("source") or "KREI 2023"),
+                    }
+        except Exception:
+            # If KREI data is unavailable, proceed without the budget feasibility gate.
+            pass
+
+        try:
+            from api.routes.dashboard import _budget_to_rent
+
+            _, rent_budget_max_won = _budget_to_rent(
+                budget_min=budget_max,
+                budget_max=budget_max,
+                industry_code=industry_code,
+            )
+        except Exception:
+            rent_budget_max_won = None
+
     try:
         svc = get_data_service(industry_code)
     except Exception as e:
@@ -64,10 +109,15 @@ async def get_verdict(
         store_count = max(1, int(district.get("store_count", 1) or 1))
         sales_per_store = int(district.get("monthly_sales", 0) or 0) // store_count
         district_type = str(district.get("district_type") or "골목상권")
+        code = district.get("district_code")
+        pctile = 0.5
+        if isinstance(code, str) and code:
+            pctile = float(getattr(svc, "_sales_percentile", {}).get(code, 0.5))
         estimated_rent = calc_rent(
             district_type,
             sales_per_store,
-            0.5,
+            pctile,
+            getattr(svc, "_rent_ranges", None),
             industry_code=industry_code,
         )
 
@@ -75,7 +125,7 @@ async def get_verdict(
     result = compute_verdict(
         district=district,
         industry_code=industry_code,
-        budget_max=budget_max,
+        budget_max=rent_budget_max_won,
         experience_level=experience_level,
         estimated_rent=estimated_rent,
     )

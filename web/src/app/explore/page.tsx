@@ -8,6 +8,7 @@ import {
   useMemo,
   Suspense,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import MapGL, { Marker, NavigationControl } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import {
@@ -1179,7 +1180,10 @@ function ScoreLegend({ layer }: { layer: DataLayer }) {
 // ---------------------------------------------------------------------------
 
 function ExploreContent() {
+  const searchParams = useSearchParams();
   const mapRef = useRef<MapRef>(null);
+
+  const incomingIndustryCode = searchParams?.get("industry_code") || "";
 
   // State
   const [industryCode, setIndustryCode] = useState("CS100010");
@@ -1227,6 +1231,19 @@ function ExploreContent() {
       return () => clearTimeout(t);
     }
   }, [showGuide]);
+
+  // Apply incoming URL params (best-effort)
+  useEffect(() => {
+    if (!incomingIndustryCode) return;
+    // Cafe-only until multi-industry data is available
+    if (incomingIndustryCode !== "CS100010") return;
+    setIndustryCode(incomingIndustryCode);
+    try {
+      localStorage.setItem("builder_curation_industry_code", incomingIndustryCode);
+    } catch {
+      // ignore
+    }
+  }, [incomingIndustryCode]);
 
   // ── Prefetch all districts in background for instant transitions ──
   useEffect(() => {
@@ -1535,22 +1552,35 @@ function ExploreContent() {
           {/* Industry chips — horizontal scroll */}
           <div className="flex-1 overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 px-1">
-              {INDUSTRIES.map((ind) => (
-                <button
-                  key={ind.code}
-                  type="button"
-                  onClick={() => handleIndustryChange(ind.code)}
-                  className={cn(
-                    "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border flex-shrink-0",
-                    industryCode === ind.code
-                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                  )}
-                >
-                  <span className="text-sm">{ind.icon}</span>
-                  {ind.name}
-                </button>
-              ))}
+              {INDUSTRIES.map((ind) => {
+                const disabled = ind.code !== "CS100010";
+                return (
+                  <button
+                    key={ind.code}
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      handleIndustryChange(ind.code);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border flex-shrink-0",
+                      industryCode === ind.code
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : disabled
+                          ? "bg-white text-slate-400 border-slate-200 opacity-50 cursor-not-allowed"
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+                    )}
+                  >
+                    <span className="text-sm">{ind.icon}</span>
+                    {ind.name}
+                    {disabled && (
+                      <span className="ml-1 rounded-full bg-slate-400 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        준비
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
