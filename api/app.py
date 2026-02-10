@@ -169,6 +169,9 @@ def create_app() -> FastAPI:
     blueprint_router = cast(APIRouter, import_module("api.routes.blueprint").router)
     app.include_router(blueprint_router, prefix="/api/v1", tags=["Blueprint"])
 
+    funding_router = cast(APIRouter, import_module("api.routes.funding").router)
+    app.include_router(funding_router, prefix="/api/v1", tags=["Funding"])
+
     return app
 
 
