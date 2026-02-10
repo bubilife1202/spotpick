@@ -321,6 +321,9 @@ export default function AnalyzePage() {
             </p>
             <p className="mt-1 text-sm text-slate-500">
               몇 가지 질문으로 당신에게 딱 맞는 상권을 찾아드릴게요.
+              <span className="ml-1 text-xs font-medium text-slate-400">
+                (현재 카페 업종만 완전 지원)
+              </span>
             </p>
           </AiMessage>
 

@@ -32,12 +32,12 @@ function Header() {
 }
 
 function HeroSection() {
-   const stats = [
-     { value: "1,077", label: "서울 전체 상권" },
-     { value: "10종", label: "외식업 전 업종" },
-     { value: "7대", label: "공공 빅데이터" },
-     { value: "3분", label: "AI 진단 완료" },
-   ];
+  const stats = [
+    { value: "1,077", label: "서울 전체 상권" },
+    { value: "카페", label: "현재 완전 지원" },
+    { value: "7대", label: "공공 빅데이터" },
+    { value: "3분", label: "AI 진단 완료" },
+  ];
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-20 sm:py-28">
@@ -56,13 +56,17 @@ function HeroSection() {
           창업, 감으로 하지 마세요
         </h1>
 
-         <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-           서울 <strong className="text-slate-800">1,077개 상권</strong> ·{" "}
-           <strong className="text-slate-800">외식업 전 업종</strong> ·{" "}
-           <strong className="text-slate-800">7대 공공 빅데이터</strong>
-           <br />
-           5가지 질문에 답하면, AI가 정직하게 Go/No-Go를 판정합니다
-         </p>
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          서울 <strong className="text-slate-800">1,077개 상권</strong> ·{" "}
+          <strong className="text-slate-800">카페 창업</strong> ·{" "}
+          <strong className="text-slate-800">7대 공공 빅데이터</strong>
+          <br />
+          5가지 질문에 답하면, AI가 정직하게 Go/No-Go를 판정합니다
+          <br />
+          <span className="text-xs font-medium text-slate-400">
+            현재 카페 업종만 완전 지원 (다른 업종은 준비 중)
+          </span>
+        </p>
 
         <div className="mt-8 flex items-center justify-center">
           <Link
@@ -129,7 +133,7 @@ function PipelineSection() {
             3단계로 끝나는 창업 분석
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-slate-500 sm:text-lg">
-            업종과 예산만 입력하면, AI가 모든 분석을 한 번에
+            5가지 질문에 답하면, AI가 모든 분석을 한 번에
           </p>
         </div>
 

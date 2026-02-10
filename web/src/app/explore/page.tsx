@@ -1575,7 +1575,7 @@ function ExploreContent() {
                     {ind.name}
                     {disabled && (
                       <span className="ml-1 rounded-full bg-slate-400 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                        준비
+                        준비 중
                       </span>
                     )}
                   </button>
