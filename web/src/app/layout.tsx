@@ -6,12 +6,12 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SpotPick - AI 창업 입지 분석",
-  description: "1,077개 상권 데이터와 AI가 분석하는 최적의 창업 입지 추천. 업종 선택부터 사업계획서까지 원스톱.",
+  title: "SpotPick - AI 창업 코치",
+  description: "창업, 물어볼 데가 없으셨죠? AI가 당신의 상황을 듣고, 해도 되는지 솔직하게 말해드립니다.",
   keywords: ["창업", "상권분석", "입지추천", "AI", "카페창업", "소상공인", "서울상권"],
   openGraph: {
-    title: "SpotPick - AI 창업 입지 분석",
-    description: "1,077개 상권 데이터와 AI가 분석하는 최적의 창업 입지 추천",
+    title: "SpotPick - AI 창업 코치",
+    description: "창업, 물어볼 데가 없으셨죠? AI가 당신의 상황을 듣고, 해도 되는지 솔직하게 말해드립니다.",
     type: "website",
     locale: "ko_KR",
   },

@@ -8,7 +8,7 @@ import {
   useMemo,
   Suspense,
 } from "react";
-import Map, { Marker, NavigationControl } from "react-map-gl/maplibre";
+import MapGL, { Marker, NavigationControl } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import {
   MapPin,
@@ -30,7 +30,6 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useJourneyStore } from "@/lib/journey-store";
 import Link from "next/link";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -278,11 +277,7 @@ function GuMarker({
   const sc = scoreColor(colorScore);
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="relative">
       {/* Glow radius */}
       <div
         className={cn(
@@ -301,7 +296,10 @@ function GuMarker({
 
       {/* Main circle */}
       <button
+        type="button"
         onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-full",
           "bg-gradient-to-br shadow-lg transition-all duration-200",
@@ -371,13 +369,12 @@ function DistrictMarker({
   const sc = scoreColor(colorRank);
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="relative">
       <button
+        type="button"
         onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={cn(
           "relative flex items-center justify-center rounded-full",
           "bg-gradient-to-br shadow-md transition-all duration-200",
@@ -452,6 +449,7 @@ function LeftPanel({
   onBack: () => void;
   onDistrictClick: (d: DistrictGeo) => void;
 }): React.ReactNode {
+  void industryCode;
   // Default: show Seoul overview
   if (!selectedGu) {
     const totalDistricts = guData.reduce((s, g) => s + g.district_count, 0);
@@ -530,6 +528,7 @@ function LeftPanel({
     return (
       <div className="h-full overflow-y-auto p-4 space-y-4">
         <button
+          type="button"
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
@@ -640,6 +639,7 @@ function LeftPanel({
                 return (
                   <button
                     key={d.district_code}
+                    type="button"
                     onClick={() => onDistrictClick(d)}
                     className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer text-sm w-full text-left transition-colors"
                   >
@@ -677,6 +677,7 @@ function LeftPanel({
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
       <button
+        type="button"
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
       >
@@ -798,7 +799,7 @@ function LeftPanel({
       {/* Action buttons */}
       <div className="space-y-2">
         <Link
-          href={`/report?district_code=${selectedDistrict.district_code}&industry_code=${industryCode}`}
+          href="/analyze"
           className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
         >
           <FileText size={14} />
@@ -807,14 +808,14 @@ function LeftPanel({
         </Link>
         <div className="grid grid-cols-2 gap-2">
           <Link
-            href={`/simulator?district_code=${selectedDistrict.district_code}&industry_code=${industryCode}`}
+            href="/analyze"
             className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
           >
             <SlidersHorizontal size={12} />
             시뮬레이션
           </Link>
           <Link
-            href={`/business-plan?district_code=${selectedDistrict.district_code}&industry_code=${industryCode}`}
+            href="/analyze"
             className="flex items-center justify-center gap-1.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors"
           >
             <FileText size={12} />
@@ -911,9 +912,9 @@ function LeftPanel({
           <p className="text-xs text-slate-400">이 상권에 해당 업종 점포 데이터가 없습니다</p>
         ) : (
           <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-            {stores.slice(0, 30).map((s, i) => (
+            {stores.slice(0, 30).map((s) => (
               <div
-                key={i}
+                key={`${s.store_name}-${s.address}`}
                 className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 transition-colors"
               >
                 <span className={cn(
@@ -1120,7 +1121,8 @@ function BottomSheet({
       )}
     >
       {/* Drag handle */}
-      <div
+      <button
+        type="button"
         className="flex justify-center py-2 cursor-grab"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -1133,9 +1135,10 @@ function BottomSheet({
                 : "collapsed"
           )
         }
+        aria-label="Bottom sheet height toggle"
       >
         <div className="w-10 h-1 bg-slate-300 rounded-full" />
-      </div>
+      </button>
       <div className="flex-1 overflow-y-auto">{children}</div>
     </div>
   );
@@ -1224,9 +1227,6 @@ function ExploreContent() {
       return () => clearTimeout(t);
     }
   }, [showGuide]);
-
-  // Track journey step
-  useEffect(() => { useJourneyStore.getState().setStep(2); }, []);
 
   // ── Prefetch all districts in background for instant transitions ──
   useEffect(() => {
@@ -1411,21 +1411,6 @@ function ExploreContent() {
       setStores([]);
       setSalesBreakdown(null);
 
-      // Sync selected district with journey store
-      useJourneyStore.getState().selectDistrict({
-        district_code: d.district_code,
-        district_name: d.district_name,
-        district_type: d.district_type,
-        success_probability: 0,
-        estimated_rent: 0,
-        monthly_sales: d.monthly_sales,
-        store_count: d.store_count,
-        survival_rate: d.survival_rate,
-        peak_time: d.peak_time,
-        main_age_group: d.main_age_group,
-        coordinates: { lat: d.lat, lng: d.lng },
-      });
-
       mapRef.current?.flyTo({
         center: [d.lng, d.lat],
         zoom: 15,
@@ -1553,6 +1538,7 @@ function ExploreContent() {
               {INDUSTRIES.map((ind) => (
                 <button
                   key={ind.code}
+                  type="button"
                   onClick={() => handleIndustryChange(ind.code)}
                   className={cn(
                     "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border flex-shrink-0",
@@ -1610,6 +1596,7 @@ function ExploreContent() {
           {/* Data layer toggle */}
           <div className="absolute top-3 left-3 z-10">
             <button
+              type="button"
               onClick={() => setShowLayerPicker(!showLayerPicker)}
               className="flex items-center gap-1.5 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-slate-200 text-xs font-medium text-slate-700 hover:bg-white transition-colors"
             >
@@ -1622,6 +1609,7 @@ function ExploreContent() {
                 {DATA_LAYERS.map((l) => (
                   <button
                     key={l.key}
+                    type="button"
                     onClick={() => {
                       setDataLayer(l.key);
                       setShowLayerPicker(false);
@@ -1644,7 +1632,7 @@ function ExploreContent() {
           <ScoreLegend layer={dataLayer} />
 
           {/* Map */}
-          <Map
+          <MapGL
             ref={mapRef}
             initialViewState={{
               longitude: 126.978,
@@ -1704,9 +1692,9 @@ function ExploreContent() {
               ))}
             {/* Store-level pins (zoom >= 15 with selected district) */}
             {zoom >= 15 && selectedDistrict && stores.length > 0 &&
-              stores.map((s, i) => (
+              stores.map((s) => (
                 <Marker
-                  key={`store-${i}`}
+                  key={`${s.store_name}-${s.lat}-${s.lng}`}
                   longitude={s.lng}
                   latitude={s.lat}
                   anchor="bottom"
@@ -1732,7 +1720,7 @@ function ExploreContent() {
                   </div>
                 </Marker>
               ))}
-          </Map>
+          </MapGL>
 
           {/* Loading overlay */}
           {loadingGu && (
@@ -1759,13 +1747,14 @@ function ExploreContent() {
           {/* Guide hint */}
           {showGuide && !loadingGu && guData.length > 0 && (
             <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div
+              <button
+                type="button"
                 onClick={() => setShowGuide(false)}
                 className="bg-blue-600/95 backdrop-blur-sm text-white rounded-2xl px-5 py-3 shadow-xl cursor-pointer max-w-xs text-center"
               >
                 <p className="text-sm font-semibold mb-0.5">자치구를 클릭하거나 확대해보세요</p>
                 <p className="text-xs text-blue-200">마우스를 올리면 상세 정보를 볼 수 있어요</p>
-              </div>
+              </button>
             </div>
           )}
         </div>
@@ -1805,7 +1794,7 @@ function ExploreContent() {
       <nav className="flex-shrink-0 bg-white border-t border-slate-200 z-40">
         <div className="flex items-center justify-around py-2">
           <Link
-            href="/results"
+            href="/analyze"
             className="flex flex-col items-center gap-0.5 px-4 py-1 text-slate-400"
           >
             <Search size={18} />

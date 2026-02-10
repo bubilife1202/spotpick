@@ -365,7 +365,9 @@ def _compute_verdict_core(
 
     # Budget-based rent burden rules (explicit in verdict spec)
     if budget_max is not None and budget_max > 0 and estimated_rent > 0:
-        ratio = estimated_rent / budget_max
+        # budget_max is in 만원, estimated_rent is in 원 — normalize to same unit
+        budget_won = budget_max * 10_000  # convert 만원 → 원
+        ratio = estimated_rent / budget_won
         if ratio > 0.4:
             reasons.append(
                 {
@@ -474,7 +476,11 @@ def _compute_verdict_core(
         no_go_conditions.append("decline")
     if risk_danger_count >= 3:
         no_go_conditions.append("multi_risk")
-    if budget_max is not None and budget_max > 0 and estimated_rent > int(budget_max * 0.4):
+    if (
+        budget_max is not None
+        and budget_max > 0
+        and estimated_rent > int(budget_max * 10_000 * 0.4)
+    ):
         no_go_conditions.append("rent_budget")
     if (
         experience_level == "beginner"
@@ -491,7 +497,11 @@ def _compute_verdict_core(
         caution_conditions.append("competition")
     if closed_stores > new_stores:
         caution_conditions.append("net_negative")
-    if budget_max is not None and budget_max > 0 and estimated_rent > int(budget_max * 0.3):
+    if (
+        budget_max is not None
+        and budget_max > 0
+        and estimated_rent > int(budget_max * 10_000 * 0.3)
+    ):
         caution_conditions.append("rent_budget")
 
     if no_go_conditions:

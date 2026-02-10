@@ -36,7 +36,9 @@ class RateLimitMiddleware:
             client_ip = scope.get("client", ("unknown", 0))[0]
             now = time.time()
             # Clean old entries
-            self.requests[client_ip] = [t for t in self.requests[client_ip] if now - t < self.window]
+            self.requests[client_ip] = [
+                t for t in self.requests[client_ip] if now - t < self.window
+            ]
             if len(self.requests[client_ip]) >= self.max_requests:
                 response = JSONResponse(
                     {"detail": "Too many requests. Please try again later."},
@@ -145,6 +147,9 @@ def create_app() -> FastAPI:
 
     property_router = cast(APIRouter, import_module("api.routes.property").router)
     app.include_router(property_router, prefix="/api/v1", tags=["Property"])
+
+    verdict_router = cast(APIRouter, import_module("api.routes.verdict").router)
+    app.include_router(verdict_router, prefix="/api/v1", tags=["Verdict"])
 
     return app
 

@@ -33,6 +33,10 @@ import {
   ChevronRight,
   ChevronDown,
   CreditCard,
+  CheckCircle2,
+  XCircle,
+  ShieldAlert,
+  ArrowLeft,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -90,6 +94,232 @@ function getScoreInterpretation(score: number): string {
   return "주의가 필요합니다";
 }
 
+// ─── Verdict Card (Hero) ────────────────────────────────────────────────
+function VerdictHeroCard({
+  district,
+  verdictData,
+  verdictLoading,
+  onViewAlternative,
+}: {
+  district: TopDistrict;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  verdictData: any;
+  verdictLoading: boolean;
+  onViewAlternative?: (code: string) => void;
+}) {
+  const verdict: "GO" | "CAUTION" | "NO_GO" = verdictData?.verdict || "CAUTION";
+  const confidence: number = verdictData?.confidence || 0;
+  const summary: string = verdictData?.summary || "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reasons: any[] = verdictData?.reasons || [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const alternatives: any[] = verdictData?.alternatives || [];
+
+  const configMap = {
+    GO: {
+      icon: <CheckCircle2 className="h-10 w-10 text-emerald-400 sm:h-12 sm:w-12" />,
+      emoji: "🟢",
+      label: "GO",
+      subtitle: "가능성이 있습니다",
+      bg: "from-emerald-950 via-emerald-900 to-emerald-950",
+      border: "border-emerald-500/40",
+      glow: "shadow-emerald-500/20",
+      accent: "text-emerald-300",
+      accentBg: "bg-emerald-500/15",
+      badgeBg: "bg-emerald-500",
+      ringColor: "ring-emerald-400/30",
+    },
+    CAUTION: {
+      icon: <ShieldAlert className="h-10 w-10 text-amber-400 sm:h-12 sm:w-12" />,
+      emoji: "🟡",
+      label: "CAUTION",
+      subtitle: "조건부 추천입니다",
+      bg: "from-amber-950 via-amber-900 to-amber-950",
+      border: "border-amber-500/40",
+      glow: "shadow-amber-500/20",
+      accent: "text-amber-300",
+      accentBg: "bg-amber-500/15",
+      badgeBg: "bg-amber-500",
+      ringColor: "ring-amber-400/30",
+    },
+    NO_GO: {
+      icon: <XCircle className="h-10 w-10 text-rose-400 sm:h-12 sm:w-12" />,
+      emoji: "🔴",
+      label: "NO-GO",
+      subtitle: "추천하지 않습니다",
+      bg: "from-rose-950 via-rose-900 to-rose-950",
+      border: "border-rose-500/40",
+      glow: "shadow-rose-500/20",
+      accent: "text-rose-300",
+      accentBg: "bg-rose-500/15",
+      badgeBg: "bg-rose-500",
+      ringColor: "ring-rose-400/30",
+    },
+  };
+  const config = configMap[verdict];
+
+  if (verdictLoading) {
+    return (
+      <div className="animate-pulse rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-10">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+          <p className="text-sm font-medium text-slate-400">AI 코치가 판정 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!verdictData) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-10">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+          <p className="text-sm text-slate-500">분석 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const levelStyles = {
+    positive: { bg: "bg-emerald-500/10", text: "text-emerald-200", icon: "✅" },
+    warning: { bg: "bg-amber-500/10", text: "text-amber-200", icon: "⚠️" },
+    danger: { bg: "bg-rose-500/10", text: "text-rose-200", icon: "🚨" },
+  };
+
+  return (
+    <div className="animate-scale-in space-y-4">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-3xl border bg-gradient-to-br p-6 shadow-2xl sm:p-10",
+          config.bg,
+          config.border,
+          config.glow,
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E\")" }} />
+        <div className={cn("pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-10 blur-3xl", config.badgeBg)} />
+
+        <div className="relative flex flex-col items-center text-center">
+          <div className={cn("mb-3 flex items-center gap-2 rounded-full px-4 py-1.5 ring-1", config.accentBg, config.ringColor)}>
+            <span className="text-sm">{config.emoji}</span>
+            <span className={cn("text-sm font-extrabold tracking-wider", config.accent)}>
+              {config.label}
+            </span>
+            {confidence > 0 && (
+              <span className="ml-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                신뢰도 {confidence}%
+              </span>
+            )}
+          </div>
+
+          <div className="mb-2">{config.icon}</div>
+
+          <h2 className="mb-1 text-xl font-extrabold text-white sm:text-2xl">
+            {config.subtitle}
+          </h2>
+
+          <p className="mb-3 text-sm text-white/60">
+            1위 추천 상권: <span className="font-bold text-white/90">{district.district_name}</span>
+          </p>
+
+          {summary && (
+            <p className="mb-5 max-w-lg text-sm leading-relaxed text-white/70">{summary}</p>
+          )}
+
+          <div className={cn("mb-6 flex items-baseline gap-1 rounded-2xl px-6 py-3", config.accentBg)}>
+            <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{district.scorecard_total}</span>
+            <span className="text-sm font-medium text-white/50">/100</span>
+          </div>
+
+          {reasons.length > 0 && (
+            <div className="w-full max-w-md space-y-2">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {reasons.map((reason: any, idx: number) => {
+                const style = levelStyles[reason.level as keyof typeof levelStyles] || levelStyles.warning;
+                return (
+                  <div
+                    key={`${reason.factor}-${idx}`}
+                    className={cn("flex items-start gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm", style.bg, style.text)}
+                  >
+                    <span className="mt-0.5 shrink-0">{style.icon}</span>
+                    <div className="flex-1 leading-snug">
+                      <span className="font-bold">{reason.factor}</span>
+                      <span className="mx-1">·</span>
+                      <span>{reason.detail}</span>
+                      {(reason.data_value || reason.threshold) && (
+                        <span className="ml-1 text-xs opacity-70">
+                          ({reason.data_value}{reason.threshold ? ` / 기준: ${reason.threshold}` : ""})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {verdict === "NO_GO" && alternatives.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          <h4 className="mb-3 text-sm font-bold text-slate-900">AI가 추천하는 대안 상권</h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {alternatives.slice(0, 3).map((alt: any, i: number) => (
+              <button
+                key={alt.district_code || i}
+                type="button"
+                onClick={() => onViewAlternative?.(alt.district_code)}
+                className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50"
+              >
+                <p className="text-xs font-bold text-emerald-900">{alt.district_name}</p>
+                <p className="mt-0.5 text-[10px] text-emerald-700">
+                  생존율 {((alt.survival_rate || 0) * 100).toFixed(0)}% ·{" "}
+                  임대료 {((alt.estimated_rent || 0) / 10000).toFixed(0)}만원
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Loading State (Skeleton Verdict) ──────────────────────────────────
+function VerdictLoadingSkeleton() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="relative mb-6">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        <div className="absolute inset-0 h-12 w-12 animate-ping rounded-full bg-blue-400/20" />
+      </div>
+      <p className="mb-2 text-base font-bold text-slate-800">AI가 1,077개 상권을 분석하고 있어요...</p>
+      <p className="mb-8 text-sm text-slate-400">최적의 Go/No-Go 판정을 계산 중입니다</p>
+
+      {/* 3 skeleton verdict cards */}
+      <div className="grid w-full max-w-xl grid-cols-3 gap-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={`skel-${i}`}
+            className={cn(
+              "animate-pulse rounded-2xl border border-slate-200 bg-white p-4",
+              i === 0 && "animation-delay-100",
+              i === 1 && "animation-delay-200",
+              i === 2 && "animation-delay-300",
+            )}
+          >
+            <Skeleton className="mx-auto mb-3 h-8 w-8 rounded-full" />
+            <Skeleton className="mx-auto mb-2 h-3 w-16" />
+            <Skeleton className="mx-auto mb-2 h-6 w-12" />
+            <Skeleton className="mx-auto h-2 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── AI Briefing Card ──────────────────────────────────────────────────
 function BriefingCard({ districtCode, industryCode }: { districtCode: string; industryCode: string }) {
   const [briefing, setBriefing] = useState<string>("");
@@ -108,7 +338,6 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
 
   if (!districtCode) return null;
 
-  // Show skeleton while loading
   if (loading) {
     return (
       <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
@@ -194,7 +423,7 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any, i: number) => (
               <li
-                key={i}
+                key={`${s.title}-${i}`}
                 className={cn(
                   "text-xs",
                   isHigh ? "text-rose-700" : "text-amber-700",
@@ -210,7 +439,7 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
   );
 }
 
-// ─── Section A: TOP 3 Recommendations ──────────────────────────────────
+// ─── Section A: TOP 3 Compact Selector ─────────────────────────────────
 function Top3Section({
   districts,
   selectedCode,
@@ -254,11 +483,16 @@ function Top3Section({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {districts.map((d, i) => {
-          const verdict = getVerdictStyle(d.scorecard_total);
           const isSelected = d.district_code === selectedCode;
+          const scoreBadge = d.scorecard_total >= 70
+            ? { badge: "bg-emerald-500 text-white", label: "우수" }
+            : d.scorecard_total >= 50
+              ? { badge: "bg-amber-500 text-white", label: "보통" }
+              : { badge: "bg-rose-500 text-white", label: "주의" };
           return (
             <button
               key={d.district_code}
+              type="button"
               onClick={() => onSelect(d.district_code)}
               className={cn(
                 "relative rounded-xl border-2 p-4 text-left transition-all",
@@ -267,7 +501,6 @@ function Top3Section({
                   : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm",
               )}
             >
-              {/* Rank badge */}
               <div
                 className={cn(
                   "absolute -top-2.5 left-3 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white",
@@ -282,8 +515,8 @@ function Top3Section({
                   <p className="text-sm font-bold text-slate-900">{d.district_name}</p>
                   <span className="text-xs text-slate-500">{d.district_type}</span>
                 </div>
-                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", verdict.bg, verdict.color)}>
-                  {verdict.label}
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", scoreBadge.badge)}>
+                  {scoreBadge.label}
                 </span>
               </div>
 
@@ -316,7 +549,7 @@ function Top3Section({
         })}
       </div>
 
-      {/* Map visualization — always show */}
+      {/* Map visualization */}
       <MiniMap
         markers={districts.map((d, i) => ({
           lat: d.coordinates?.lat || 37.5665,
@@ -528,7 +761,7 @@ function RevenueSection({ data, loading, districtName, industryName }: { data: a
       </div>
 
       <a
-        href="#section-c"
+        href="#section-simulator"
         className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
       >
         시뮬레이터로 조정해보기 <ChevronRight className="h-3 w-3" />
@@ -640,15 +873,12 @@ function CustomerSection({ data, loading, districtName, industryName }: { data: 
     mon: "월", tue: "화", wed: "수", thu: "목", fri: "금", sat: "토", sun: "일",
   };
 
-  // Find peak time
   const peakTimeEntry = Object.entries(byTime).sort(([, a], [, b]) => (b as number) - (a as number))[0];
   const peakTimeLabel = peakTimeEntry ? timeLabels[peakTimeEntry[0]] || peakTimeEntry[0] : null;
 
-  // Find peak day
   const peakDayEntry = Object.entries(byDay).sort(([, a], [, b]) => (b as number) - (a as number))[0];
   const peakDayLabel = peakDayEntry ? dayLabels[peakDayEntry[0]] || peakDayEntry[0] : null;
 
-  // Calculate quarter count from data
   const quarterCount = data.quarter_count || data.quarters?.length || 0;
 
   return (
@@ -728,7 +958,7 @@ function CustomerSection({ data, loading, districtName, industryName }: { data: 
         </div>
       </div>
 
-      {/* Day distribution (if data exists) */}
+      {/* Day distribution */}
       {Object.keys(byDay).length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold text-slate-500">요일별 매출 비중</p>
@@ -784,14 +1014,13 @@ function FranchiseSection({ data, loading, industryName }: { data: any; loading:
               (비용비교 페이지에서 총 비용을 확인하세요)
             </p>
           </div>
-          {/* 공정위 startup_costs 데이터 */}
           {startupCosts.length > 0 && startupCosts.map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (item: any, i: number) => {
+            (item: any) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const status = industryStatus.find((s: any) => s.name === item.name);
               return (
-                <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
+                <div key={`${item.name}-${item.franchise_fee}-${item.education_fee}-${item.other_fee}`} className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-900">{item.name}</p>
                     <span className="text-xs font-bold text-slate-700">
@@ -814,11 +1043,10 @@ function FranchiseSection({ data, loading, industryName }: { data: any; loading:
               );
             },
           )}
-          {/* Legacy brands format */}
           {brands.length > 0 && brands.slice(0, 5).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (brand: any, i: number) => (
-              <div key={`b-${i}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
+            (brand: any) => (
+              <div key={`${brand.brand_name || brand.name}-${brand.franchise_fee || brand.initial_cost || 0}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{brand.brand_name || brand.name}</p>
                   <p className="text-[10px] text-slate-500">
@@ -891,7 +1119,6 @@ function InlineSimulatorSection({
         <h3 className="text-sm font-bold text-slate-900">C. {districtName} 수익 시뮬레이터</h3>
       </div>
 
-      {/* Description */}
       <div className="mb-4 rounded-lg bg-indigo-50/50 p-3">
         <p className="text-xs leading-relaxed text-indigo-800">
           임대료, 인건비, 매출을 조정하면 예상 월 수익이 실시간으로 바뀝니다. 슬라이더를 움직여 다양한 시나리오를 확인해보세요.
@@ -899,74 +1126,32 @@ function InlineSimulatorSection({
       </div>
 
       <div className="space-y-4">
-        {/* Sales slider */}
         <div>
-          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+          <label htmlFor="sim-sales" className="mb-1 flex items-center justify-between text-xs text-slate-500">
             <span>매출 조정</span>
             <span className="font-bold text-slate-700">{(salesMultiplier * 100).toFixed(0)}% ({formatWon(adjustedSales)})</span>
           </label>
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={salesMultiplier}
-            onChange={(e) => setSalesMultiplier(parseFloat(e.target.value))}
-            className="w-full accent-indigo-600"
-          />
-          <div className="flex justify-between text-[10px] text-slate-400">
-            <span>-50%</span>
-            <span>기본</span>
-            <span>+50%</span>
-          </div>
+          <input id="sim-sales" type="range" min={0.5} max={1.5} step={0.05} value={salesMultiplier} onChange={(e) => setSalesMultiplier(parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+          <div className="flex justify-between text-[10px] text-slate-400"><span>-50%</span><span>기본</span><span>+50%</span></div>
         </div>
-
-        {/* Rent slider */}
         <div>
-          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+          <label htmlFor="sim-rent" className="mb-1 flex items-center justify-between text-xs text-slate-500">
             <span>월 임대료 <span className="text-[10px] text-slate-400">(예상 월세, 보증금 별도)</span></span>
             <span className="font-bold text-slate-700">{formatWon(adjustedRent)}</span>
           </label>
-          <input
-            type="range"
-            min={0.5}
-            max={2.0}
-            step={0.1}
-            value={rentMultiplier}
-            onChange={(e) => setRentMultiplier(parseFloat(e.target.value))}
-            className="w-full accent-rose-500"
-          />
-          <div className="flex justify-between text-[10px] text-slate-400">
-            <span>-50%</span>
-            <span>기본</span>
-            <span>+100%</span>
-          </div>
+          <input id="sim-rent" type="range" min={0.5} max={2.0} step={0.1} value={rentMultiplier} onChange={(e) => setRentMultiplier(parseFloat(e.target.value))} className="w-full accent-rose-500" />
+          <div className="flex justify-between text-[10px] text-slate-400"><span>-50%</span><span>기본</span><span>+100%</span></div>
         </div>
-
-        {/* Labor slider */}
         <div>
-          <label className="mb-1 flex items-center justify-between text-xs text-slate-500">
+          <label htmlFor="sim-labor" className="mb-1 flex items-center justify-between text-xs text-slate-500">
             <span>인건비 <span className="text-[10px] text-slate-400">(직원 급여 + 4대보험)</span></span>
             <span className="font-bold text-slate-700">{formatWon(adjustedLabor)}</span>
           </label>
-          <input
-            type="range"
-            min={0.5}
-            max={2.0}
-            step={0.1}
-            value={laborMultiplier}
-            onChange={(e) => setLaborMultiplier(parseFloat(e.target.value))}
-            className="w-full accent-amber-500"
-          />
-          <div className="flex justify-between text-[10px] text-slate-400">
-            <span>-50%</span>
-            <span>기본</span>
-            <span>+100%</span>
-          </div>
+          <input id="sim-labor" type="range" min={0.5} max={2.0} step={0.1} value={laborMultiplier} onChange={(e) => setLaborMultiplier(parseFloat(e.target.value))} className="w-full accent-amber-500" />
+          <div className="flex justify-between text-[10px] text-slate-400"><span>-50%</span><span>기본</span><span>+100%</span></div>
         </div>
       </div>
 
-      {/* Results */}
       <div className="mt-4 grid grid-cols-3 gap-3">
         <div className="rounded-xl bg-blue-50 p-3 text-center">
           <p className="text-[10px] text-blue-500">조정 매출</p>
@@ -1001,8 +1186,6 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
   if (!data) return null;
 
   const sections = data.sections || data.analysis?.sections || [];
-
-  // Flat-field fallback: API may return verdict_summary, risk_comment etc instead of sections[]
   const riskContent = data.risk_comment || data.competition_comment || "";
   const oppContent = data.verdict_summary || data.profitability_comment || "";
   const customerNote = data.customer_comment || "";
@@ -1027,14 +1210,9 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
     const displayText = !needsCollapse || expanded ? text : text;
     return (
       <div>
-        <p className={cn("text-xs leading-relaxed", colorClass)}>
-          {displayText}
-        </p>
+        <p className={cn("text-xs leading-relaxed", colorClass)}>{displayText}</p>
         {needsCollapse && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="mt-1 flex items-center gap-0.5 text-[10px] font-semibold text-slate-500 hover:text-slate-700"
-          >
+          <button type="button" onClick={() => setExpanded(!expanded)} className="mt-1 flex items-center gap-0.5 text-[10px] font-semibold text-slate-500 hover:text-slate-700">
             {expanded ? "접기" : "더 보기"}
             <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
           </button>
@@ -1050,7 +1228,6 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
         <h3 className="text-sm font-bold text-slate-900">D. {districtName} 리스크 & 기회 분석</h3>
       </div>
 
-      {/* Preamble */}
       <div className="mb-4 rounded-lg bg-amber-50/50 p-3">
         <p className="text-xs leading-relaxed text-amber-800">
           AI가 {districtName} 상권의 잠재적 위험 요소와 기회 요인을 분석했습니다.
@@ -1058,7 +1235,6 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {/* Risk */}
         <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-4">
           <p className="mb-2 text-xs font-bold text-rose-700">{riskSection?.title || "주요 리스크"}</p>
           {displayRiskText ? (
@@ -1067,8 +1243,6 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
             <p className="text-xs text-rose-500">해당 상권의 특이 리스크 분석 중입니다</p>
           )}
         </div>
-
-        {/* Opportunity */}
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4">
           <p className="mb-2 text-xs font-bold text-emerald-700">{oppSection?.title || "주요 기회"}</p>
           {displayOppText ? (
@@ -1079,7 +1253,6 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
         </div>
       </div>
 
-      {/* Customer note */}
       {customerNote && (
         <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
           <p className="mb-1 text-xs font-bold text-blue-700">고객 분석 인사이트</p>
@@ -1094,7 +1267,7 @@ function RiskSection({ data, loading, districtName }: { data: any; loading: bool
 
 // ─── Section E: Support Programs ───────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SupportSection({ data, loading, industryCode, industryName }: { data: any; loading: boolean; industryCode: string; industryName: string }) {
+function SupportSection({ data, loading, industryName }: { data: any; loading: boolean; industryName: string }) {
   if (loading) return <SectionSkeleton title="지원금 매칭" />;
   if (!data) return null;
 
@@ -1112,7 +1285,6 @@ function SupportSection({ data, loading, industryCode, industryName }: { data: a
         )}
       </div>
 
-      {/* Interpretation */}
       <div className="mb-4 rounded-lg bg-green-50/50 p-3">
         <p className="text-xs leading-relaxed text-green-800">
           현재 신청 가능한 정부·지자체 창업 지원 프로그램입니다. 대부분의 지원금은 사업계획서 제출이 필수입니다.
@@ -1123,8 +1295,8 @@ function SupportSection({ data, loading, industryCode, industryName }: { data: a
         <div className="space-y-2">
           {programs.slice(0, 3).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (prog: any, i: number) => (
-              <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+            (prog: any) => (
+              <div key={`${prog.program_id || prog.program_name || prog.name}-${prog.application_end_date || prog.deadline || ""}`} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
                 <p className="text-xs font-semibold text-slate-900">{prog.program_name || prog.name}</p>
                 <p className="mt-0.5 text-[10px] text-slate-500">{prog.managing_org || prog.organization || ""}</p>
                 {prog.max_amount_man > 0 && (
@@ -1133,9 +1305,7 @@ function SupportSection({ data, loading, industryCode, industryName }: { data: a
                   </p>
                 )}
                 {prog.support_amount && !prog.max_amount_man && (
-                  <p className="mt-1 text-xs font-bold text-green-700">
-                    {prog.support_amount}
-                  </p>
+                  <p className="mt-1 text-xs font-bold text-green-700">{prog.support_amount}</p>
                 )}
                 {(prog.deadline || prog.application_end_date) && (
                   <p className="mt-1 text-[10px] font-semibold text-rose-600">
@@ -1150,14 +1320,55 @@ function SupportSection({ data, loading, industryCode, industryName }: { data: a
         <p className="text-sm text-slate-500">매칭 가능한 지원 프로그램이 없습니다</p>
       )}
 
-      <Link
-        href={`/support?industry_code=${industryCode}`}
-        className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-      >
+      <Link href="/analyze" className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
         전체 지원금 보기 <ChevronRight className="h-3 w-3" />
       </Link>
 
       <DataSource text="중소벤처기업부 비즈인포" />
+    </div>
+  );
+}
+
+// ─── Accordion Item ─────────────────────────────────────────────────────
+function AccordionItem({
+  id,
+  icon,
+  title,
+  isOpen,
+  onToggle,
+  loading,
+  children,
+}: {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  loading: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow hover:shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50/50"
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="flex-1 text-sm font-bold text-slate-900">{title}</span>
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300",
+            isOpen && "rotate-180",
+          )}
+        />
+      </button>
+      {isOpen && (
+        <div id={`section-${id}`} className="animate-slide-up border-t border-slate-100 px-1 py-1">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -1171,9 +1382,30 @@ function ReportContent() {
   const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
   const industryName = store.industryName || "카페";
 
+  // New params from conversation flow
+  const experienceLevel = searchParams?.get("experience_level") || store.experienceLevel;
+  const employeeCount = searchParams?.get("employee_count") || store.employeeCount;
+
+  useEffect(() => {
+    const s = useAnalyzeStore.getState();
+    if (experienceLevel && experienceLevel !== s.experienceLevel) {
+      s.setExperienceLevel(experienceLevel);
+    }
+    if (employeeCount && employeeCount !== s.employeeCount) {
+      s.setEmployeeCount(employeeCount);
+    }
+  }, [experienceLevel, employeeCount]);
+
+  const preferredDistricts = searchParams?.get("preferred_districts") || "";
+
   const [top3Loading, setTop3Loading] = useState(true);
   const [topDistricts, setTopDistricts] = useState<TopDistrict[]>([]);
   const [selectedCode, setSelectedCode] = useState("");
+
+  // Verdict state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [verdictData, setVerdictData] = useState<any>(null);
+  const [verdictLoading, setVerdictLoading] = useState(false);
 
   // Section data states
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1213,6 +1445,17 @@ function ReportContent() {
   const [localdataLoading, setLocaldataLoading] = useState(false);
   const [salesTrendLoading, setSalesTrendLoading] = useState(false);
 
+  // Accordion state: first 3 sections expanded by default
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["revenue", "scorecard", "competition"]));
+  const toggleSection = (id: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // Phase 1: Fetch TOP 3
   useEffect(() => {
     const fetchTop3 = async () => {
@@ -1223,6 +1466,12 @@ function ReportContent() {
           budget_max: String(budget),
           limit: "3",
         });
+        if (preferredDistricts && preferredDistricts !== "상관없어요") {
+          const areaFilter = preferredDistricts.split("/")[0];
+          params.set("district_filter", areaFilter);
+        }
+        if (experienceLevel) params.set("experience_level", experienceLevel);
+        if (employeeCount) params.set("employee_count", employeeCount);
         const res = await fetch(`${API_BASE}/recommendations/dashboard?${params}`);
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         const data = await res.json();
@@ -1245,10 +1494,10 @@ function ReportContent() {
           }),
         );
         setTopDistricts(results);
-        store.setTopDistricts(results);
+        useAnalyzeStore.getState().setTopDistricts(results);
         if (results.length > 0) {
           setSelectedCode(results[0].district_code);
-          store.setSelectedDistrict(results[0].district_code);
+          useAnalyzeStore.getState().setSelectedDistrict(results[0].district_code);
         }
       } catch (err) {
         console.error("Failed to fetch TOP 3:", err);
@@ -1257,17 +1506,41 @@ function ReportContent() {
       }
     };
     fetchTop3();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [industryCode, budget]);
+  }, [industryCode, budget, preferredDistricts, experienceLevel, employeeCount]);
+
+  // Phase 1.5: Fetch REAL verdict from backend
+  useEffect(() => {
+    if (!selectedCode) return;
+    const fetchVerdict = async () => {
+      setVerdictLoading(true);
+      try {
+        const selectedDist = topDistricts.find(d => d.district_code === selectedCode);
+        const params = new URLSearchParams();
+        if (budget > 0) params.set("budget_max", String(budget));
+        if (experienceLevel) params.set("experience_level", experienceLevel);
+        if (selectedDist?.estimated_rent) params.set("estimated_rent", String(selectedDist.estimated_rent));
+        const res = await fetch(`${API_BASE}/verdict/${industryCode}/${selectedCode}?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVerdictData(data);
+        }
+      } catch (err) {
+        console.error("Verdict fetch failed:", err);
+      } finally {
+        setVerdictLoading(false);
+      }
+    };
+    fetchVerdict();
+  }, [selectedCode, industryCode, budget, experienceLevel, topDistricts]);
 
   // Phase 2: Fetch section data when district changes
   const fetchSectionData = useCallback(
     async (districtCode: string) => {
       if (!districtCode) return;
 
-      // Check cache
-      const cached = store.sectionData[districtCode];
-      const selectedDist = store.topDistricts.find((d) => d.district_code === districtCode);
+      const state = useAnalyzeStore.getState();
+      const cached = state.sectionData[districtCode];
+      const selectedDist = state.topDistricts.find((d) => d.district_code === districtCode);
       const distName = selectedDist?.district_name || "";
 
       // B1: Scorecard
@@ -1277,7 +1550,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setScorecardData({ ...data, district_code: districtCode, industry_code: industryCode });
-            store.setSectionData(districtCode, "scorecard", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "scorecard", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setScorecardLoading(false));
@@ -1301,7 +1574,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setSimulationData({ ...data, district_code: districtCode, industry_code: industryCode });
-            store.setSectionData(districtCode, "simulation", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "simulation", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setSimulationLoading(false));
@@ -1309,7 +1582,7 @@ function ReportContent() {
         setSimulationData({ ...cached.simulation, district_code: districtCode, industry_code: industryCode });
       }
 
-      // B3: Competition (stores data + competitive analysis with query param)
+      // B3: Competition
       if (!cached?.competition) {
         setCompetitionLoading(true);
         fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
@@ -1322,18 +1595,17 @@ function ReportContent() {
               closed_stores: 0,
               franchise_stores: 0,
             };
-            // Get from competitive analysis — include query param
             const query = encodeURIComponent(`${distName} ${industryName}`);
             return fetch(`${API_BASE}/competitive/analyze?district_code=${districtCode}&industry_code=${industryCode}&query=${query}`)
               .then((r2) => r2.json())
               .then((comp) => {
                 const merged = { stores: { ...storesInfo, ...comp } };
                 setCompetitionData(merged);
-                store.setSectionData(districtCode, "competition", merged);
+                useAnalyzeStore.getState().setSectionData(districtCode, "competition", merged);
               })
               .catch(() => {
                 setCompetitionData({ stores: storesInfo });
-                store.setSectionData(districtCode, "competition", { stores: storesInfo });
+                useAnalyzeStore.getState().setSectionData(districtCode, "competition", { stores: storesInfo });
               });
           })
           .catch((err) => { console.error("API error:", err); })
@@ -1342,14 +1614,14 @@ function ReportContent() {
         setCompetitionData(cached.competition);
       }
 
-      // B5: Customer (sales breakdown)
+      // B5: Customer
       if (!cached?.customer) {
         setCustomerLoading(true);
         fetch(`${API_BASE}/explore/sales-breakdown?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setCustomerData(data);
-            store.setSectionData(districtCode, "customer", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "customer", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setCustomerLoading(false));
@@ -1364,7 +1636,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setFranchiseData(data);
-            store.setSectionData(districtCode, "franchise", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "franchise", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setFranchiseLoading(false));
@@ -1372,14 +1644,14 @@ function ReportContent() {
         setFranchiseData(cached.franchise);
       }
 
-      // D: Risk (AI analysis)
+      // D: Risk
       if (!cached?.risk) {
         setRiskLoading(true);
         fetch(`${API_BASE}/districts/${districtCode}/analysis?industry_code=${industryCode}`)
           .then((r) => r.json())
           .then((data) => {
             setRiskData(data);
-            store.setSectionData(districtCode, "risk", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "risk", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setRiskLoading(false));
@@ -1387,7 +1659,7 @@ function ReportContent() {
         setRiskData(cached.risk);
       }
 
-      // E: Support — include district name + budget for filtering
+      // E: Support
       if (!cached?.support) {
         setSupportLoading(true);
         const districtParam = distName ? `&district=${encodeURIComponent(distName)}` : "";
@@ -1396,7 +1668,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setSupportData(data);
-            store.setSectionData(districtCode, "support", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "support", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setSupportLoading(false));
@@ -1411,7 +1683,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setLocationData(data);
-            store.setSectionData(districtCode, "location", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "location", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setLocationLoading(false));
@@ -1426,7 +1698,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setRentData(data);
-            store.setSectionData(districtCode, "rent", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "rent", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setRentLoading(false));
@@ -1441,7 +1713,7 @@ function ReportContent() {
           .then((r) => r.json())
           .then((data) => {
             setSalesTrendData(data);
-            store.setSectionData(districtCode, "salesTrend", data);
+            useAnalyzeStore.getState().setSectionData(districtCode, "salesTrend", data);
           })
           .catch((err) => { console.error("API error:", err); })
           .finally(() => setSalesTrendLoading(false));
@@ -1449,19 +1721,16 @@ function ReportContent() {
         setSalesTrendData(cached.salesTrend);
       }
 
-      // B3 enhanced: LOCALDATA competition
+      // LOCALDATA competition
       if (!cached?.localdata) {
         setLocaldataLoading(true);
-        // Get coordinates from top districts
-        const district = store.topDistricts.find((d) => d.district_code === districtCode);
+        const district = useAnalyzeStore.getState().topDistricts.find((d) => d.district_code === districtCode);
         if (district?.coordinates) {
-          fetch(
-            `${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`,
-          )
+          fetch(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
             .then((r) => r.json())
             .then((data) => {
               setLocaldataData(data);
-              store.setSectionData(districtCode, "localdata", data);
+              useAnalyzeStore.getState().setSectionData(districtCode, "localdata", data);
             })
             .catch((err) => { console.error("API error:", err); })
             .finally(() => setLocaldataLoading(false));
@@ -1472,8 +1741,7 @@ function ReportContent() {
         setLocaldataData(cached.localdata);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [industryCode, industryName],
+    [industryCode, industryName, budget],
   );
 
   useEffect(() => {
@@ -1484,11 +1752,144 @@ function ReportContent() {
 
   const handleDistrictSelect = (code: string) => {
     setSelectedCode(code);
-    store.setSelectedDistrict(code);
+    useAnalyzeStore.getState().setSelectedDistrict(code);
   };
 
   const selectedDistrict = topDistricts.find((d) => d.district_code === selectedCode);
   const districtName = selectedDistrict?.district_name || "";
+
+  const isNoGo = verdictData?.verdict === "NO_GO";
+  const [showDetailAnyway, setShowDetailAnyway] = useState(false);
+
+  // Build CTA query params
+  const ctaParams = new URLSearchParams({
+    industry_code: industryCode,
+    district_code: selectedCode,
+    budget: String(budget),
+  });
+  if (experienceLevel) ctaParams.set("experience_level", experienceLevel);
+  if (employeeCount) ctaParams.set("employee_count", employeeCount);
+
+  // Accordion section definitions
+  const accordionSections = [
+    {
+      id: "revenue",
+      icon: <TrendingUp className="h-4 w-4 text-emerald-500" />,
+      title: "수익 구조",
+      loading: simulationLoading,
+      content: (
+        <ProGateSection feature="revenue_waterfall">
+          <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "scorecard",
+      icon: <Target className="h-4 w-4 text-blue-500" />,
+      title: "성공 점수",
+      loading: scorecardLoading,
+      content: (
+        <ProGateSection feature="detailed_scorecard">
+          <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "competition",
+      icon: <Store className="h-4 w-4 text-purple-500" />,
+      title: "경쟁 환경",
+      loading: competitionLoading,
+      content: (
+        <ProGateSection feature="competition_map">
+          <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "customer",
+      icon: <Users className="h-4 w-4 text-cyan-500" />,
+      title: "고객 분석",
+      loading: customerLoading,
+      content: (
+        <ProGateSection feature="full_customer_charts">
+          <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "location",
+      icon: <MapPin className="h-4 w-4 text-indigo-500" />,
+      title: "입지 분석",
+      loading: locationLoading,
+      content: (
+        <ProGateSection feature="location_profile">
+          <LocationProfile data={locationData} loading={locationLoading} districtName={districtName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "rent",
+      icon: <Building2 className="h-4 w-4 text-rose-500" />,
+      title: "임대료 트렌드",
+      loading: rentLoading,
+      content: (
+        <ProGateSection feature="rent_trend">
+          <RentTrendChart data={rentData} loading={rentLoading} districtName={districtName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "salesTrend",
+      icon: <TrendingUp className="h-4 w-4 text-violet-500" />,
+      title: "매출 트렌드",
+      loading: salesTrendLoading,
+      content: (
+        <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} districtName={districtName} industryName={industryName} />
+      ),
+    },
+    {
+      id: "franchise",
+      icon: <Building2 className="h-4 w-4 text-orange-500" />,
+      title: "프랜차이즈",
+      loading: franchiseLoading,
+      content: (
+        <ProGateSection feature="franchise_comparison">
+          <FranchiseSection data={franchiseData} loading={franchiseLoading} industryName={industryName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "risk",
+      icon: <AlertTriangle className="h-4 w-4 text-amber-500" />,
+      title: "리스크 & 기회",
+      loading: riskLoading,
+      content: (
+        <ProGateSection feature="risk_full">
+          <RiskSection data={riskData} loading={riskLoading} districtName={districtName} />
+        </ProGateSection>
+      ),
+    },
+    {
+      id: "support",
+      icon: <Gift className="h-4 w-4 text-green-500" />,
+      title: "지원금",
+      loading: supportLoading,
+      content: (
+        <SupportSection data={supportData} loading={supportLoading} industryName={industryName} />
+      ),
+    },
+    {
+      id: "simulator",
+      icon: <SlidersHorizontal className="h-4 w-4 text-indigo-500" />,
+      title: "수익 시뮬레이터",
+      loading: simulationLoading,
+      content: (
+        <ProGateSection feature="simulator_full">
+          <InlineSimulatorSection defaults={simulationData} loading={simulationLoading} districtName={districtName} />
+        </ProGateSection>
+      ),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -1503,9 +1904,9 @@ function ReportContent() {
           </Link>
           <Link
             href="/analyze"
-            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+            className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
           >
-            다시 분석하기
+            시작하기
           </Link>
         </div>
       </header>
@@ -1524,152 +1925,96 @@ function ReportContent() {
           </p>
         </div>
 
-        {/* Section A: TOP 3 */}
-        <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <Top3Section
-            districts={topDistricts}
-            selectedCode={selectedCode}
-            onSelect={handleDistrictSelect}
-            loading={top3Loading}
-            industryName={industryName}
-          />
-        </div>
+        {/* ── LOADING STATE ── */}
+        {top3Loading && <VerdictLoadingSkeleton />}
 
-        {/* Context Bar: district + industry + budget */}
-        {selectedDistrict && (
-          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-500" />
-                <p className="text-sm font-extrabold text-blue-900">{districtName}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 text-xs text-blue-700">
-                <span>상권: {districtName} ({selectedDistrict.district_type})</span>
-                <span className="text-blue-300">|</span>
-                <span>업종: {industryName}</span>
-                <span className="text-blue-300">|</span>
-                <span>예산: {budget.toLocaleString()}만원</span>
-              </div>
-            </div>
+        {!top3Loading && topDistricts.length > 0 && selectedDistrict && (
+          <div className="mb-6">
+            <VerdictHeroCard
+              district={selectedDistrict}
+              verdictData={verdictData}
+              verdictLoading={verdictLoading}
+              onViewAlternative={(code) => {
+                handleDistrictSelect(code);
+              }}
+            />
           </div>
         )}
 
-        {/* AI Briefing + Risk Alert */}
+        {/* ── TOP 3 DISTRICT SELECTOR ── */}
+        {!top3Loading && (
+          <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+            <Top3Section
+              districts={topDistricts}
+              selectedCode={selectedCode}
+              onSelect={handleDistrictSelect}
+              loading={false}
+              industryName={industryName}
+            />
+          </div>
+        )}
+
+        {/* ── AI BRIEFING + RISK ALERT ── */}
         {selectedCode && (
-          <div className="mb-4 space-y-3">
+          <div className="mb-6 space-y-3">
             <BriefingCard districtCode={selectedCode} industryCode={industryCode} />
             <RiskAlertBanner districtCode={selectedCode} industryCode={industryCode} />
           </div>
         )}
 
-        {/* Report sections B~E — Corrected order: B1+B2, B3+B4, B5+B6, Trends, B7, C, D+E */}
         {selectedCode && (
-          <div className="space-y-4">
-            {/* Row 1: B1 + B2 */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div id="section-b1">
-                <ProGateSection feature="detailed_scorecard">
-                  <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
-                </ProGateSection>
+          <>
+            {isNoGo && !showDetailAnyway ? (
+              <div className="mt-6 text-center">
+                <p className="text-sm text-slate-500">
+                  AI 코치가 이 상권을 추천하지 않습니다. 위의 대안 상권을 확인해보세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowDetailAnyway(true)}
+                  className="mt-3 text-xs font-medium text-slate-400 underline decoration-slate-300 hover:text-slate-600"
+                >
+                  그래도 상세 분석 보기
+                </button>
               </div>
-              <div id="section-b2">
-                <ProGateSection feature="revenue_waterfall">
-                  <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
-                </ProGateSection>
+            ) : (
+              <div className="space-y-3">
+                {accordionSections.map((section) => (
+                  <AccordionItem
+                    key={section.id}
+                    id={section.id}
+                    icon={section.icon}
+                    title={section.title}
+                    isOpen={openSections.has(section.id)}
+                    onToggle={() => toggleSection(section.id)}
+                    loading={section.loading}
+                  >
+                    {section.content}
+                  </AccordionItem>
+                ))}
               </div>
-            </div>
-
-            {/* Row 2: B3 (경쟁 환경) + B4 (입지 분석) */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div id="section-b3">
-                <ProGateSection feature="competition_map">
-                  <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} districtName={districtName} industryName={industryName} />
-                </ProGateSection>
-              </div>
-              <div id="section-b4">
-                <ProGateSection feature="location_profile">
-                  <LocationProfile data={locationData} loading={locationLoading} districtName={districtName} />
-                </ProGateSection>
-              </div>
-            </div>
-
-            {/* Row 3: B5 (고객 분석) + B6 (임대료 트렌드) */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div id="section-b5">
-                <ProGateSection feature="full_customer_charts">
-                  <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
-                </ProGateSection>
-              </div>
-              <div id="section-b6">
-                <ProGateSection feature="rent_trend">
-                  <RentTrendChart data={rentData} loading={rentLoading} districtName={districtName} />
-                </ProGateSection>
-              </div>
-            </div>
-
-            {/* Row 3.5: Sales Trend (매출 트렌드) */}
-            <div id="section-trend">
-              <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} districtName={districtName} industryName={industryName} />
-            </div>
-
-            {/* Row 4: B7 Franchise */}
-            <div id="section-b7">
-              <ProGateSection feature="franchise_comparison">
-                <FranchiseSection data={franchiseData} loading={franchiseLoading} industryName={industryName} />
-              </ProGateSection>
-            </div>
-
-            {/* Row 5: C Simulator */}
-            <div id="section-c">
-              <ProGateSection feature="simulator_full">
-                <InlineSimulatorSection
-                  defaults={simulationData}
-                  loading={simulationLoading}
-                  districtName={districtName}
-                />
-              </ProGateSection>
-            </div>
-
-            {/* Row 6: D Risk + E Support */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div id="section-d">
-                <ProGateSection feature="risk_full">
-                  <RiskSection data={riskData} loading={riskLoading} districtName={districtName} />
-                </ProGateSection>
-              </div>
-              <div id="section-e">
-                <SupportSection data={supportData} loading={supportLoading} industryCode={industryCode} industryName={industryName} />
-              </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
-        {/* Action: Go to Step 3 (Action Plan) */}
+        {/* ── CTA AT BOTTOM ── */}
         {selectedCode && (
-          <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="mt-10 flex flex-col items-center gap-4">
             <Link
-              href={`/analyze/action?industry_code=${industryCode}&district_code=${selectedCode}&budget=${budget}`}
+              href={`/analyze/action?${ctaParams.toString()}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/25 transition hover:shadow-xl"
             >
               <Sparkles className="h-5 w-5" />
-              사업계획서 생성하기
+              다음 단계: 실행 체크리스트
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link
-                href={`/property?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budget}`}
-                className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
-              >
-                매물 탐색
-              </Link>
-              <span className="text-xs text-slate-300">·</span>
-              <Link
-                href={`/cost-compare?industry_code=${industryCode}&district_code=${selectedCode}`}
-                className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
-              >
-                비용 비교
-              </Link>
-            </div>
+            <Link
+              href="/analyze"
+              className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              조건 변경
+            </Link>
           </div>
         )}
       </main>

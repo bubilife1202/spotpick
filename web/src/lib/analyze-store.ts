@@ -1,12 +1,37 @@
 import { create } from "zustand";
-import { INDUSTRY_NAMES, INDUSTRY_ICONS } from "./journey-store";
+
+const INDUSTRY_NAMES: Record<string, string> = {
+  CS100001: "한식",
+  CS100002: "중식",
+  CS100003: "일식",
+  CS100004: "양식",
+  CS100005: "베이커리",
+  CS100006: "패스트푸드",
+  CS100007: "치킨",
+  CS100008: "분식",
+  CS100009: "호프/주점",
+  CS100010: "카페",
+};
+
+const INDUSTRY_ICONS: Record<string, string> = {
+  CS100001: "🍚",
+  CS100002: "🥟",
+  CS100003: "🍣",
+  CS100004: "🍝",
+  CS100005: "🍞",
+  CS100006: "🍔",
+  CS100007: "🍗",
+  CS100008: "🍜",
+  CS100009: "🍺",
+  CS100010: "☕",
+};
 
 export type AnalyzeStep = 1 | 2 | 3;
 
 export const ANALYZE_STEPS = [
-  { num: 1 as const, label: "입력", short: "업종/예산" },
-  { num: 2 as const, label: "AI 리포트", short: "종합 분석" },
-  { num: 3 as const, label: "액션 플랜", short: "사업계획서" },
+  { num: 1 as const, label: "상담", short: "AI 코칭" },
+  { num: 2 as const, label: "진단", short: "Go/No-Go" },
+  { num: 3 as const, label: "실행", short: "체크리스트" },
 ] as const;
 
 export interface TopDistrict {
@@ -46,6 +71,8 @@ interface AnalyzeState {
   industryName: string;
   industryIcon: string;
   budget: number;
+  experienceLevel: string;
+  employeeCount: string;
   preferredDistricts: string[];
 
   topDistricts: TopDistrict[];
@@ -57,6 +84,8 @@ interface AnalyzeState {
   setStep: (step: AnalyzeStep) => void;
   setIndustry: (code: string) => void;
   setBudget: (budget: number) => void;
+  setExperienceLevel: (level: string) => void;
+  setEmployeeCount: (count: string) => void;
   setPreferredDistricts: (districts: string[]) => void;
   setTopDistricts: (districts: TopDistrict[]) => void;
   setSelectedDistrict: (code: string) => void;
@@ -88,6 +117,8 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   industryName: "카페",
   industryIcon: "☕",
   budget: 5000,
+  experienceLevel: "",
+  employeeCount: "",
   preferredDistricts: [],
 
   topDistricts: [],
@@ -105,6 +136,10 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   },
 
   setBudget: (budget) => set({ budget }),
+
+  setExperienceLevel: (level) => set({ experienceLevel: level }),
+
+  setEmployeeCount: (count) => set({ employeeCount: count }),
 
   setPreferredDistricts: (districts) => set({ preferredDistricts: districts }),
 
@@ -140,6 +175,8 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       industryName: "카페",
       industryIcon: "☕",
       budget: 5000,
+      experienceLevel: "",
+      employeeCount: "",
       preferredDistricts: [],
       topDistricts: [],
       selectedDistrictCode: "",
@@ -148,11 +185,13 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
     }),
 
   getReportUrl: () => {
-    const { industryCode, budget } = get();
+    const { industryCode, budget, experienceLevel, employeeCount } = get();
     const p = new URLSearchParams({
       industry_code: industryCode,
       budget: String(budget),
     });
+    if (experienceLevel) p.set("experience_level", experienceLevel);
+    if (employeeCount) p.set("employee_count", employeeCount);
     return `/analyze/report?${p.toString()}`;
   },
 
