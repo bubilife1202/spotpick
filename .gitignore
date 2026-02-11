@@ -113,4 +113,5 @@ tmp/
 console-errors.txt
 network-requests.txt
 *-network-*.json
+*-network.json
 network-*.json
