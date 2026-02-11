@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { BenchmarkStore } from "@/lib/analyze-store";
+import { useAnalyzeStore } from "@/lib/analyze-store";
 import {
   Star,
   MessageSquare,
@@ -40,6 +41,15 @@ interface AnalyzeData {
   nearby_competitors: Competitor[];
   competitor_count: number;
   location_summary: string;
+  demand: {
+    search_trend_keyword: string;
+    search_trend_data: Array<{ period: string; ratio: number }>;
+    trend_direction: string;
+    trend_avg_ratio: number;
+    same_category_count_nearby: number;
+    demand_verdict: string;
+    demand_summary: string;
+  };
 }
 
 function Skeleton({ className }: { className?: string }) {
@@ -53,6 +63,8 @@ export function BenchmarkAnalysisCard({
 }: {
   benchmark: BenchmarkStore;
 }) {
+  const store = useAnalyzeStore();
+  const targetArea = store.preferredDistricts?.[0] || "";
   const [data, setData] = useState<AnalyzeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -75,6 +87,7 @@ export function BenchmarkAnalysisCard({
         y: benchmark.y,
         category: benchmark.category,
         industry_code: benchmark.industryCode,
+        target_district_name: targetArea,
       }),
     })
       .then((r) => {
@@ -84,7 +97,7 @@ export function BenchmarkAnalysisCard({
       .then((d: AnalyzeData) => setData(d))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [benchmark.name, benchmark.x, benchmark.y, benchmark.category, benchmark.industryCode]);
+  }, [benchmark.name, benchmark.x, benchmark.y, benchmark.category, benchmark.industryCode, targetArea]);
 
   if (!benchmark.x || !benchmark.y) return null;
 
@@ -113,7 +126,20 @@ export function BenchmarkAnalysisCard({
   if (error || !data) return null;
 
   const np = data.naver_profile;
+  const demand = data.demand;
   const hasNaverData = np.review_count > 0 || np.review_score > 0;
+  const verdictTone =
+    demand.demand_verdict === "충분"
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      : demand.demand_verdict === "부족"
+        ? "bg-rose-100 text-rose-700 border-rose-200"
+        : "bg-amber-100 text-amber-700 border-amber-200";
+  const trendText =
+    demand.trend_direction === "rising"
+      ? "↗ 상승"
+      : demand.trend_direction === "declining"
+        ? "↘ 하락"
+        : "→ 유지";
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/50 p-5">
@@ -218,6 +244,42 @@ export function BenchmarkAnalysisCard({
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-xl border border-amber-100 bg-white/60 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+            수요 검증
+          </p>
+          {demand.demand_verdict && (
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                verdictTone,
+              )}
+            >
+              {demand.demand_verdict}
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs font-semibold text-slate-700">
+          {demand.demand_summary || "수요 검증 데이터를 확인할 수 없습니다."}
+        </p>
+
+        {demand.search_trend_data.length > 0 && (
+          <p className="mt-1 text-[11px] font-medium text-amber-700">
+            검색 트렌드: {trendText}
+            {demand.search_trend_keyword ? ` (${demand.search_trend_keyword})` : ""}
+          </p>
+        )}
+
+        {(targetArea || demand.search_trend_keyword) && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            {targetArea || "대상 지역"} 지역 {demand.search_trend_keyword || "동종 업종"}{" "}
+            {demand.same_category_count_nearby}곳
+          </p>
         )}
       </div>
     </div>

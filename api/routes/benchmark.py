@@ -13,6 +13,7 @@ from api.services.kakao_local_service import (
     KAKAO_REST_API_KEY,
     get_kakao_local_service,
 )
+from api.services.trend_service import get_trend_service
 
 NAVER_SEARCH_URL = "https://map.naver.com/v5/api/search"
 NAVER_PLACE_URL = "https://map.naver.com/v5/api/sites/summary"
@@ -163,6 +164,7 @@ class BenchmarkAnalyzeRequest(BaseModel):
     y: float  # latitude
     category: str = ""
     industry_code: str = "CS100010"
+    target_district_name: str = ""
 
 
 class NaverPlaceProfile(BaseModel):
@@ -184,6 +186,16 @@ class NearbyCompetitor(BaseModel):
     address: str
 
 
+class DemandValidation(BaseModel):
+    search_trend_keyword: str = ""
+    search_trend_data: list[dict[str, object]] = []
+    trend_direction: str = ""
+    trend_avg_ratio: float = 0.0
+    same_category_count_nearby: int = 0
+    demand_verdict: str = ""
+    demand_summary: str = ""
+
+
 class BenchmarkAnalyzeResponse(BaseModel):
     store_name: str
     store_category: str
@@ -191,6 +203,7 @@ class BenchmarkAnalyzeResponse(BaseModel):
     nearby_competitors: list[NearbyCompetitor]
     competitor_count: int
     location_summary: str
+    demand: DemandValidation = DemandValidation()
 
 
 async def _search_naver_place(name: str) -> NaverPlaceProfile:
@@ -324,6 +337,100 @@ async def _search_kakao_competitors(
         return []
 
 
+async def _validate_demand(
+    sub_category: str,
+    target_area: str,
+    industry_code: str,
+) -> DemandValidation:
+    keyword = sub_category.strip()
+    if " > " in keyword:
+        keyword = keyword.split(" > ")[-1].strip()
+    if not keyword:
+        keyword = INDUSTRY_NAMES.get(industry_code, "카페")
+
+    try:
+        service = get_trend_service()
+        trend_result = await service.get_search_trend(keywords=[keyword])
+        results = trend_result.get("results", [])
+        first_result = results[0] if isinstance(results, list) and results else {}
+        trend_data_raw = first_result.get("data", []) if isinstance(first_result, dict) else []
+        trend_data: list[dict[str, object]] = (
+            trend_data_raw if isinstance(trend_data_raw, list) else []
+        )
+    except Exception as exc:
+        logger.warning("Demand trend lookup failed for %s: %s", keyword, exc)
+        return DemandValidation(
+            search_trend_keyword=keyword,
+            demand_summary="검색 트렌드 데이터를 불러오지 못해 수요 검증 결과를 제공할 수 없습니다.",
+        )
+
+    ratios = [_to_float(point.get("ratio", 0.0)) for point in trend_data]
+    trend_avg_ratio = round(sum(ratios) / len(ratios), 1) if ratios else 0.0
+
+    window = min(3, len(ratios))
+    first_avg = (sum(ratios[:window]) / window) if window else 0.0
+    last_avg = (sum(ratios[-window:]) / window) if window else 0.0
+    if window == 0:
+        trend_direction = "stable"
+    elif last_avg > first_avg + 3:
+        trend_direction = "rising"
+    elif last_avg < first_avg - 3:
+        trend_direction = "declining"
+    else:
+        trend_direction = "stable"
+
+    same_category_count = 0
+    if target_area.strip() and KAKAO_REST_API_KEY:
+        try:
+            headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    KAKAO_KEYWORD_URL,
+                    params={"query": f"{target_area} {keyword}", "size": 15},
+                    headers=headers,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    documents = data.get("documents", [])
+                    same_category_count = len(documents) if isinstance(documents, list) else 0
+        except Exception as exc:
+            logger.warning("Demand supply lookup failed for %s %s: %s", target_area, keyword, exc)
+
+    if trend_avg_ratio >= 60 and same_category_count <= 3:
+        demand_verdict = "충분"
+    elif trend_avg_ratio >= 40 or same_category_count <= 5:
+        demand_verdict = "보통"
+    else:
+        demand_verdict = "부족"
+
+    if target_area.strip():
+        base_summary = (
+            f'"{keyword}" 검색량이 최근 1년간 평균 {trend_avg_ratio:.1f}이며, '
+            f"{target_area} 지역에 {keyword}는 {same_category_count}곳으로 파악됩니다."
+        )
+    else:
+        base_summary = f'"{keyword}" 검색량이 최근 1년간 평균 {trend_avg_ratio:.1f}입니다.'
+
+    if trend_direction == "declining":
+        demand_summary = f"{base_summary} 검색량이 하락 추세이므로 신중한 검토가 필요합니다."
+    elif demand_verdict == "충분":
+        demand_summary = f"{base_summary} 수요 대비 공급이 부족해 진입 여건이 좋습니다."
+    elif demand_verdict == "보통":
+        demand_summary = f"{base_summary} 수요와 공급이 균형에 가까워 차별화 전략이 중요합니다."
+    else:
+        demand_summary = f"{base_summary} 공급이 상대적으로 많아 입지·콘셉트 차별화가 필요합니다."
+
+    return DemandValidation(
+        search_trend_keyword=keyword,
+        search_trend_data=trend_data,
+        trend_direction=trend_direction,
+        trend_avg_ratio=trend_avg_ratio,
+        same_category_count_nearby=same_category_count,
+        demand_verdict=demand_verdict,
+        demand_summary=demand_summary,
+    )
+
+
 @router.post("/analyze", response_model=BenchmarkAnalyzeResponse)
 async def analyze_benchmark_store(
     req: BenchmarkAnalyzeRequest,
@@ -336,8 +443,12 @@ async def analyze_benchmark_store(
 
     naver_task = _search_naver_place(req.name)
     competitor_task = _search_kakao_competitors(req.x, req.y, req.industry_code)
+    sub_cat = req.category.split(" > ")[-1] if " > " in req.category else ""
+    demand_task = _validate_demand(sub_cat or "카페", req.target_district_name, req.industry_code)
 
-    naver_profile, competitors = await asyncio.gather(naver_task, competitor_task)
+    naver_profile, competitors, demand = await asyncio.gather(
+        naver_task, competitor_task, demand_task
+    )
 
     comp_count = len(competitors)
     if comp_count == 0:
@@ -356,6 +467,7 @@ async def analyze_benchmark_store(
         nearby_competitors=competitors[:10],
         competitor_count=comp_count,
         location_summary=location_summary,
+        demand=demand,
     )
 
 
