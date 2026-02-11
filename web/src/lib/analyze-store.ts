@@ -51,6 +51,7 @@ export interface TopDistrict {
 export interface BenchmarkStore {
   name: string;
   category: string;
+  subCategory?: string;
   address: string;
   placeUrl: string;
   industryCode: string;

@@ -228,7 +228,12 @@ export default function AnalyzePage() {
     const a: Record<number, string> = {};
     const restored = computeRestoredStep();
     if (store.benchmarkStore) {
-      a[1] = `벤치마킹: ${store.benchmarkStore.name} (${store.benchmarkStore.category})`;
+      const restoredSubCategory = store.benchmarkStore.subCategory || (
+        store.benchmarkStore.category.includes(" > ")
+          ? store.benchmarkStore.category.split(" > ").pop()?.trim() || ""
+          : store.benchmarkStore.category
+      );
+      a[1] = `벤치마킹: ${store.benchmarkStore.name} (${restoredSubCategory})`;
       const ind = INDUSTRY_OPTIONS.find((i) => i.code === store.benchmarkStore?.industryCode);
       const fallbackName = store.benchmarkStore.industryCode === "CS100009" ? "호프/주점" : "카페";
       a[2] = ind
@@ -342,9 +347,13 @@ export default function AnalyzePage() {
 
   const handleBenchmarkSelect = (result: BenchmarkSearchResult) => {
     const displayAddress = result.road_address || result.address;
+    const subCat = result.category.includes(" > ")
+      ? result.category.split(" > ").pop()?.trim() || ""
+      : result.category;
     store.setBenchmarkStore({
       name: result.name,
       category: result.category,
+      subCategory: subCat,
       address: displayAddress,
       placeUrl: result.place_url,
       industryCode: result.industry_code,
@@ -360,7 +369,7 @@ export default function AnalyzePage() {
 
     setAnswers((prev) => ({
       ...prev,
-      1: `벤치마킹: ${result.name} (${result.category})`,
+      1: `벤치마킹: ${result.name} (${subCat})`,
       2: industryAnswer,
     }));
 

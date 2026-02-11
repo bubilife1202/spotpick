@@ -581,6 +581,7 @@ class BenchmarkTipsRequest(BaseModel):
     benchmark_name: str
     benchmark_category: str = ""
     industry_code: str = "CS100010"
+    sub_category: str = ""
     district_name: str = ""
 
 
@@ -694,22 +695,95 @@ _DEFAULT_TIPS: list[PhaseTip] = [
     ),
 ]
 
+_SUB_CATEGORY_TIPS: dict[str, list[PhaseTip]] = {
+    "만화카페": [
+        PhaseTip(
+            phase_key="design",
+            title="만화 장서 구매 계획 필수",
+            description="만화카페의 핵심 자산은 장서입니다. 인기 만화 500~1000권 이상 초기 구비가 필요하며, 월 10~20만원의 신간 구매 예산을 별도로 책정하세요.",
+        ),
+        PhaseTip(
+            phase_key="design",
+            title="좌석 배치: 1인석 + 소파석 혼합",
+            description="만화카페 고객은 혼자 오는 비율이 높습니다. 1인 독서석 60% + 소파/커플석 40% 비율을 권장합니다.",
+        ),
+        PhaseTip(
+            phase_key="funding",
+            title="시간제 과금 모델 검토",
+            description="음료만 판매 vs 시간제 이용료 + 음료 포함 모델을 비교하세요. 캣툰 같은 만화카페는 시간제 모델이 일반적입니다.",
+        ),
+        PhaseTip(
+            phase_key="compliance",
+            title="청소년 이용 가능 여부 확인",
+            description="만화카페는 청소년보호법 대상이 될 수 있습니다. 영업시간 제한과 성인 만화 구역 분리가 필요한지 확인하세요.",
+        ),
+        PhaseTip(
+            phase_key="launch",
+            title="만화 카테고리 큐레이션",
+            description="장르별(액션/로맨스/일상/추리) 코너를 만들고 '이달의 추천' 코너를 운영하면 재방문율이 높아집니다.",
+        ),
+    ],
+    "보드게임카페": [
+        PhaseTip(
+            phase_key="design",
+            title="보드게임 100종 이상 구비",
+            description="인기 보드게임 100~200종을 초기 구비하세요. 월 5~10만원의 신규 게임 구매 예산을 책정하세요.",
+        ),
+        PhaseTip(
+            phase_key="funding",
+            title="테이블당 수익 모델 설계",
+            description="시간제 이용료 + 음료 주문이 일반적입니다. 테이블당 4인 기준 시간당 수익을 계산하세요.",
+        ),
+        PhaseTip(
+            phase_key="launch",
+            title="게임 마스터 채용 고려",
+            description="게임 룰 설명이 가능한 직원이 있으면 고객 만족도가 크게 올라갑니다.",
+        ),
+    ],
+    "디저트카페": [
+        PhaseTip(
+            phase_key="design",
+            title="쇼케이스 배치가 핵심",
+            description="디저트 쇼케이스는 입구에서 바로 보이는 위치에 배치하세요. 시각적 임팩트가 매출에 직결됩니다.",
+        ),
+        PhaseTip(
+            phase_key="compliance",
+            title="식품제조가공업 필수 신고",
+            description="디저트를 직접 만들어 판매하면 식품제조가공업 신고가 반드시 필요합니다.",
+        ),
+        PhaseTip(
+            phase_key="launch",
+            title="인스타그래머블 메뉴 3종 필수",
+            description="SNS 공유되는 비주얼 디저트 메뉴를 최소 3종 개발하세요.",
+        ),
+    ],
+}
+
 
 @router.post("/tips", response_model=BenchmarkTipsResponse)
 async def get_benchmark_tips(
     req: BenchmarkTipsRequest,
 ) -> BenchmarkTipsResponse:
     """Return rule-based benchmark tips per execution phase."""
+    sub_category = req.sub_category.strip()
+    if not sub_category:
+        sub_category = (
+            req.benchmark_category.split(" > ")[-1].strip() if req.benchmark_category else ""
+        )
+
     industry_name = INDUSTRY_NAMES.get(req.industry_code, "")
-    tips = _CATEGORY_TIPS.get(industry_name, _DEFAULT_TIPS)
+    industry_tips = _CATEGORY_TIPS.get(industry_name, _DEFAULT_TIPS)
+    sub_category_tips = _SUB_CATEGORY_TIPS.get(sub_category, [])
+    tips = [*sub_category_tips, *industry_tips]
 
     personalized: list[PhaseTip] = []
     for tip in tips:
+        title = tip.title.replace("벤치마크 매장", f"'{req.benchmark_name}'")
         desc = tip.description.replace("벤치마크 매장", f"'{req.benchmark_name}'")
         personalized.append(
             PhaseTip(
                 phase_key=tip.phase_key,
-                title=tip.title,
+                title=title,
                 description=desc,
             )
         )

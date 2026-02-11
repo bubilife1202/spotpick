@@ -128,6 +128,11 @@ export function BenchmarkAnalysisCard({
   const np = data.naver_profile;
   const demand = data.demand;
   const hasNaverData = np.review_count > 0 || np.review_score > 0;
+  const subCategory = benchmark.subCategory || (
+    benchmark.category.includes(" > ")
+      ? benchmark.category.split(" > ").pop()?.trim() || ""
+      : benchmark.category
+  );
   const verdictTone =
     demand.demand_verdict === "충분"
       ? "bg-emerald-100 text-emerald-700 border-emerald-200"
@@ -171,6 +176,14 @@ export function BenchmarkAnalysisCard({
           <p className="text-[11px] text-slate-500">{data.store_category}</p>
         </div>
       </div>
+
+      {subCategory && subCategory !== "카페" && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-violet-500">세부 업종</span>
+          <span className="text-xs font-bold text-violet-800">{subCategory}</span>
+          <span className="text-[10px] text-violet-400">≠ 일반 카페</span>
+        </div>
+      )}
 
       {hasNaverData && (
         <div className="mb-4 grid grid-cols-3 gap-2">
