@@ -11,6 +11,7 @@ import {
   MapPin,
   ExternalLink,
   Store,
+  Building2,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -245,20 +246,33 @@ export function BenchmarkAnalysisCard({
         <p className="text-xs font-semibold text-slate-700">
           {data.location_summary}
         </p>
-        {data.nearby_competitors.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {data.nearby_competitors.slice(0, 5).map((comp, i) => (
-              <div
-                key={`${comp.name}-${i}`}
-                className="flex items-center justify-between text-[11px]"
-              >
-                <span className="font-medium text-slate-600">{comp.name}</span>
-                <span className="text-slate-400">{comp.distance}m</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+         {data.nearby_competitors.length > 0 && (
+           <div className="mt-2 space-y-1">
+             {data.nearby_competitors.slice(0, 5).map((comp, i) => (
+               <div
+                 key={`${comp.name}-${i}`}
+                 className="flex items-center justify-between text-[11px]"
+               >
+                 <span className="font-medium text-slate-600">{comp.name}</span>
+                 <span className="text-slate-400">{comp.distance}m</span>
+               </div>
+             ))}
+           </div>
+         )}
+
+         {benchmark.address && (
+           <a
+             href={`https://land.naver.com/offices/complexSearch.naver?keyword=${encodeURIComponent(benchmark.address.split(" ").slice(0, 3).join(" "))}`}
+             target="_blank"
+             rel="noopener noreferrer"
+             className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-50"
+           >
+             <Building2 className="h-3.5 w-3.5" />
+             벤치마크 주변 매물 검색
+             <ExternalLink className="h-3 w-3" />
+           </a>
+         )}
+       </div>
 
       <div className="mt-3 rounded-xl border border-amber-100 bg-white/60 p-3">
         <div className="mb-2 flex items-center justify-between gap-2">

@@ -40,6 +40,7 @@ import {
   XCircle,
   ShieldAlert,
   ArrowLeft,
+  ExternalLink,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -588,20 +589,32 @@ function Top3Section({
                 </div>
               </div>
 
-              {similarityScores && similarityScores[d.district_code] != null && (
-                <div className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1">
-                  <Store className="h-3 w-3 text-amber-500" />
-                  <span className="text-[10px] font-bold text-amber-700">
-                    벤치마크 유사도 {similarityScores[d.district_code]}%
-                  </span>
-                </div>
-              )}
+               {similarityScores && similarityScores[d.district_code] != null && (
+                 <div className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1">
+                   <Store className="h-3 w-3 text-amber-500" />
+                   <span className="text-[10px] font-bold text-amber-700">
+                     벤치마크 유사도 {similarityScores[d.district_code]}%
+                   </span>
+                 </div>
+               )}
 
-              {isSelected && (
-                <div className="mt-2 text-center text-[10px] font-semibold text-blue-600">
-                  선택됨 - 아래에서 상세 분석 확인
-                </div>
-              )}
+               <a
+                 href={`https://land.naver.com/offices/complexSearch.naver?keyword=${encodeURIComponent(d.district_name)}`}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 onClick={(e) => e.stopPropagation()}
+                 className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-[10px] font-semibold text-blue-600 transition hover:bg-blue-100"
+               >
+                 <Building2 className="h-3 w-3" />
+                 매물 보기
+                 <ExternalLink className="h-2.5 w-2.5" />
+               </a>
+
+               {isSelected && (
+                 <div className="mt-2 text-center text-[10px] font-semibold text-blue-600">
+                   선택됨 - 아래에서 상세 분석 확인
+                 </div>
+               )}
             </button>
           );
         })}
