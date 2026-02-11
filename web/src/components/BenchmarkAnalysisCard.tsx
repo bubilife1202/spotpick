@@ -1,0 +1,225 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import type { BenchmarkStore } from "@/lib/analyze-store";
+import {
+  Star,
+  MessageSquare,
+  BookOpen,
+  MapPin,
+  ExternalLink,
+  Store,
+} from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+
+interface NaverProfile {
+  naver_id: string;
+  name: string;
+  category: string;
+  review_count: number;
+  review_score: number;
+  blog_review_count: number;
+  visitor_review_count: number;
+  keywords: string[];
+  business_hours: Record<string, string>;
+}
+
+interface Competitor {
+  name: string;
+  category: string;
+  distance: number;
+  address: string;
+}
+
+interface AnalyzeData {
+  store_name: string;
+  store_category: string;
+  naver_profile: NaverProfile;
+  nearby_competitors: Competitor[];
+  competitor_count: number;
+  location_summary: string;
+}
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-lg bg-amber-100/60", className)} />
+  );
+}
+
+export function BenchmarkAnalysisCard({
+  benchmark,
+}: {
+  benchmark: BenchmarkStore;
+}) {
+  const [data, setData] = useState<AnalyzeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!benchmark.name || !benchmark.x || !benchmark.y) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(false);
+
+    fetch(`${API_BASE}/benchmark/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: benchmark.name,
+        x: benchmark.x,
+        y: benchmark.y,
+        category: benchmark.category,
+        industry_code: benchmark.industryCode,
+      }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("API error");
+        return r.json();
+      })
+      .then((d: AnalyzeData) => setData(d))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [benchmark.name, benchmark.x, benchmark.y, benchmark.category, benchmark.industryCode]);
+
+  if (!benchmark.x || !benchmark.y) return null;
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/50 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Store className="h-4 w-4 text-amber-600" />
+          <h3 className="text-sm font-bold text-amber-900">
+            벤치마크 매장 분석
+          </h3>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-3/4" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+          </div>
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) return null;
+
+  const np = data.naver_profile;
+  const hasNaverData = np.review_count > 0 || np.review_score > 0;
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/50 p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Store className="h-4 w-4 text-amber-600" />
+          <h3 className="text-sm font-bold text-amber-900">
+            벤치마크 매장 분석
+          </h3>
+        </div>
+        {benchmark.placeUrl && (
+          <a
+            href={benchmark.placeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-200"
+          >
+            카카오맵 <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <Store className="h-5 w-5 text-amber-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-900">{data.store_name}</p>
+          <p className="text-[11px] text-slate-500">{data.store_category}</p>
+        </div>
+      </div>
+
+      {hasNaverData && (
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-amber-100 bg-white/80 p-3 text-center">
+            <Star className="mx-auto mb-1 h-4 w-4 text-amber-500" />
+            <p className="text-lg font-extrabold text-amber-700">
+              {np.review_score > 0 ? np.review_score.toFixed(1) : "-"}
+            </p>
+            <p className="text-[9px] font-medium text-slate-400">네이버 평점</p>
+          </div>
+          <div className="rounded-xl border border-amber-100 bg-white/80 p-3 text-center">
+            <MessageSquare className="mx-auto mb-1 h-4 w-4 text-blue-500" />
+            <p className="text-lg font-extrabold text-blue-700">
+              {np.visitor_review_count > 0
+                ? np.visitor_review_count.toLocaleString()
+                : np.review_count > 0
+                  ? np.review_count.toLocaleString()
+                  : "-"}
+            </p>
+            <p className="text-[9px] font-medium text-slate-400">방문자 리뷰</p>
+          </div>
+          <div className="rounded-xl border border-amber-100 bg-white/80 p-3 text-center">
+            <BookOpen className="mx-auto mb-1 h-4 w-4 text-emerald-500" />
+            <p className="text-lg font-extrabold text-emerald-700">
+              {np.blog_review_count > 0
+                ? np.blog_review_count.toLocaleString()
+                : "-"}
+            </p>
+            <p className="text-[9px] font-medium text-slate-400">블로그 리뷰</p>
+          </div>
+        </div>
+      )}
+
+      {np.keywords.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-500">
+            키워드
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {np.keywords.slice(0, 6).map((kw) => (
+              <span
+                key={kw}
+                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700"
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-amber-100 bg-white/60 p-3">
+        <div className="mb-2 flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 text-amber-500" />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+            주변 경쟁 환경
+          </p>
+        </div>
+        <p className="text-xs font-semibold text-slate-700">
+          {data.location_summary}
+        </p>
+        {data.nearby_competitors.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {data.nearby_competitors.slice(0, 5).map((comp, i) => (
+              <div
+                key={`${comp.name}-${i}`}
+                className="flex items-center justify-between text-[11px]"
+              >
+                <span className="font-medium text-slate-600">{comp.name}</span>
+                <span className="text-slate-400">{comp.distance}m</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

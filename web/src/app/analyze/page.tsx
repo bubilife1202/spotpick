@@ -348,6 +348,8 @@ export default function AnalyzePage() {
       address: displayAddress,
       placeUrl: result.place_url,
       industryCode: result.industry_code,
+      x: result.x,
+      y: result.y,
     });
     store.setIndustry(result.industry_code);
 

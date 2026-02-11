@@ -54,6 +54,8 @@ export interface BenchmarkStore {
   address: string;
   placeUrl: string;
   industryCode: string;
+  x?: number;
+  y?: number;
 }
 
 // Section-level loading states

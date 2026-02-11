@@ -14,6 +14,7 @@ import { ProGateSection } from "@/components/ProGateSection";
 import { SalesTrendChart } from "@/components/SalesTrendChart";
 import { FloatingTOC } from "@/components/FloatingTOC";
 import { CafeTypeCard } from "@/components/CafeTypeCard";
+import { BenchmarkAnalysisCard } from "@/components/BenchmarkAnalysisCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   MapPin,
@@ -490,12 +491,16 @@ function Top3Section({
   onSelect,
   loading,
   industryName,
+  benchmarkMarker,
+  similarityScores,
 }: {
   districts: TopDistrict[];
   selectedCode: string;
   onSelect: (code: string) => void;
   loading: boolean;
   industryName: string;
+  benchmarkMarker?: { lat: number; lng: number; label: string } | null;
+  similarityScores?: Record<string, number>;
 }) {
   if (loading) {
     return (
@@ -583,6 +588,15 @@ function Top3Section({
                 </div>
               </div>
 
+              {similarityScores && similarityScores[d.district_code] != null && (
+                <div className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1">
+                  <Store className="h-3 w-3 text-amber-500" />
+                  <span className="text-[10px] font-bold text-amber-700">
+                    벤치마크 유사도 {similarityScores[d.district_code]}%
+                  </span>
+                </div>
+              )}
+
               {isSelected && (
                 <div className="mt-2 text-center text-[10px] font-semibold text-blue-600">
                   선택됨 - 아래에서 상세 분석 확인
@@ -595,14 +609,26 @@ function Top3Section({
 
       {/* Map visualization */}
       <MiniMap
-        markers={districts.map((d, i) => ({
-          lat: d.coordinates?.lat || 37.5665,
-          lng: d.coordinates?.lng || 126.9780,
-          label: d.district_name,
-          type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
-          rank: i + 1,
-          successProbability: d.success_probability,
-        }))}
+        markers={[
+          ...districts.map((d, i) => ({
+            lat: d.coordinates?.lat || 37.5665,
+            lng: d.coordinates?.lng || 126.9780,
+            label: d.district_name,
+            type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
+            rank: i + 1,
+            successProbability: d.success_probability,
+          })),
+          ...(benchmarkMarker
+            ? [{
+                lat: benchmarkMarker.lat,
+                lng: benchmarkMarker.lng,
+                label: benchmarkMarker.label,
+                type: "benchmark" as const,
+                rank: 0,
+                successProbability: 0,
+              }]
+            : []),
+        ]}
         height={280}
         zoom={12}
       />
@@ -1538,7 +1564,40 @@ function ReportContent() {
   const [localdataLoading, setLocaldataLoading] = useState(false);
   const [salesTrendLoading, setSalesTrendLoading] = useState(false);
 
-  // Group-level accordion state (verdict-driven)
+  const [similarityScores, setSimilarityScores] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const bm = store.benchmarkStore;
+    if (!bm?.x || !bm?.y || topDistricts.length === 0) return;
+
+    topDistricts.forEach((dist) => {
+      fetchWithTimeout(`${API_BASE}/benchmark/similarity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          benchmark_name: bm.name,
+          benchmark_x: bm.x,
+          benchmark_y: bm.y,
+          benchmark_category: bm.category,
+          district_code: dist.district_code,
+          district_name: dist.district_name,
+          industry_code: industryCode,
+        }),
+      })
+        .then((r) => r.json())
+        .then((data: { similarity_score: number }) => {
+          setSimilarityScores((prev) => ({
+            ...prev,
+            [dist.district_code]: data.similarity_score,
+          }));
+        })
+        .catch(() => {});
+    });
+  }, [topDistricts, store.benchmarkStore, industryCode]);
+
+  const benchmarkMapMarker = store.benchmarkStore?.x && store.benchmarkStore?.y
+    ? { lat: store.benchmarkStore.y, lng: store.benchmarkStore.x, label: store.benchmarkStore.name }
+    : null;
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(["core"]));
   const toggleGroup = (id: string) => {
     setOpenGroups((prev) => {
@@ -2104,6 +2163,13 @@ function ReportContent() {
           </div>
         )}
 
+        {/* ── BENCHMARK ANALYSIS ── */}
+        {!top3Loading && store.benchmarkStore && store.benchmarkStore.x && store.benchmarkStore.y && (
+          <div className="mb-6">
+            <BenchmarkAnalysisCard benchmark={store.benchmarkStore} />
+          </div>
+        )}
+
         {/* ── TOP 3 DISTRICT SELECTOR ── */}
         {!top3Loading && (
           <div id="section-top3" className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
@@ -2113,6 +2179,8 @@ function ReportContent() {
               onSelect={handleDistrictSelect}
               loading={false}
               industryName={industryName}
+              benchmarkMarker={benchmarkMapMarker}
+              similarityScores={Object.keys(similarityScores).length > 0 ? similarityScores : undefined}
             />
           </div>
         )}
