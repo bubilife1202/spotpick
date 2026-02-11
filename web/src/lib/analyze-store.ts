@@ -48,6 +48,14 @@ export interface TopDistrict {
   coordinates?: { lat: number; lng: number };
 }
 
+export interface BenchmarkStore {
+  name: string;
+  category: string;
+  address: string;
+  placeUrl: string;
+  industryCode: string;
+}
+
 // Section-level loading states
 export interface SectionLoadingState {
   top3: boolean;
@@ -74,6 +82,7 @@ interface AnalyzeState {
   experienceLevel: string;
   employeeCount: string;
   preferredDistricts: string[];
+  benchmarkStore: BenchmarkStore | null;
 
   topDistricts: TopDistrict[];
   selectedDistrictCode: string;
@@ -87,6 +96,7 @@ interface AnalyzeState {
   setExperienceLevel: (level: string) => void;
   setEmployeeCount: (count: string) => void;
   setPreferredDistricts: (districts: string[]) => void;
+  setBenchmarkStore: (store: BenchmarkStore | null) => void;
   setTopDistricts: (districts: TopDistrict[]) => void;
   setSelectedDistrict: (code: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,6 +130,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   experienceLevel: "",
   employeeCount: "",
   preferredDistricts: [],
+  benchmarkStore: null,
 
   topDistricts: [],
   selectedDistrictCode: "",
@@ -142,6 +153,8 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
   setEmployeeCount: (count) => set({ employeeCount: count }),
 
   setPreferredDistricts: (districts) => set({ preferredDistricts: districts }),
+
+  setBenchmarkStore: (benchmarkStore) => set({ benchmarkStore }),
 
   setTopDistricts: (districts) => set({ topDistricts: districts }),
 
@@ -178,6 +191,7 @@ export const useAnalyzeStore = create<AnalyzeState>((set, get) => ({
       experienceLevel: "",
       employeeCount: "",
       preferredDistricts: [],
+      benchmarkStore: null,
       topDistricts: [],
       selectedDistrictCode: "",
       sectionData: {},

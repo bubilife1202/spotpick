@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAnalyzeStore } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
-import { MapPin, ArrowRight, Sparkles } from "lucide-react";
+import { MapPin, ArrowRight, Sparkles, Search } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
@@ -50,12 +50,27 @@ const EMPLOYEE_OPTIONS = [
 const AREA_PRESETS = ["강남", "홍대/합정", "종로/을지로", "성수", "여의도", "잠실"];
 
 const AI_QUESTIONS = [
+  "벤치마킹하고 싶은 매장이 있나요?",
   "어떤 업종으로 창업을 생각하고 계신가요?",
   "투자 가능한 총 예산은 얼마 정도인가요?",
   "외식업 경험이 있으신가요?",
   "혼자 운영하실 건가요?",
   "선호하는 지역이 있나요?",
 ];
+
+interface BenchmarkSearchResult {
+  id: string;
+  name: string;
+  category: string;
+  address: string;
+  road_address: string;
+  phone: string;
+  place_url: string;
+  x: number;
+  y: number;
+  industry_code: string;
+  industry_name: string;
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
    HELPER COMPONENTS
@@ -179,18 +194,29 @@ export default function AnalyzePage() {
     return Number.isFinite(b) && b > 0 ? b : 5000;
   });
 
+  const [benchmarkQuery, setBenchmarkQuery] = useState("");
+  const [benchmarkResults, setBenchmarkResults] = useState<BenchmarkSearchResult[]>([]);
+  const [isBenchmarkSearching, setIsBenchmarkSearching] = useState(false);
+  const [benchmarkError, setBenchmarkError] = useState("");
+  const benchmarkSearchSeq = useRef(0);
+
   // Compute initial restored step from store
   const computeRestoredStep = useCallback(() => {
-    if (store.preferredDistricts.length > 0 || (store.employeeCount && store.experienceLevel && store.budget)) {
-      // If we have preferredDistricts OR all prior steps filled, check how far we got
-      if (store.preferredDistricts.length > 0) return 6; // completed
-      if (store.employeeCount) return 5;
-    }
-    if (store.employeeCount) return 5;
-    if (store.experienceLevel) return 4;
-    // budget defaults to 5000 and industry to CS100010, so only count if non-default
+    if (store.preferredDistricts.length > 0) return 7;
+    if (store.employeeCount) return 6;
+    if (store.experienceLevel) return 5;
+    if (store.budget !== 5000) return 4;
+    if (store.benchmarkStore) return 3;
+    if (store.industryCode !== "CS100010") return 3;
     return 0;
-  }, [store.preferredDistricts, store.employeeCount, store.experienceLevel, store.budget]);
+  }, [
+    store.preferredDistricts,
+    store.employeeCount,
+    store.experienceLevel,
+    store.budget,
+    store.benchmarkStore,
+    store.industryCode,
+  ]);
 
   const [chatStep, setChatStep] = useState(() => {
     const restored = computeRestoredStep();
@@ -201,24 +227,31 @@ export default function AnalyzePage() {
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     const a: Record<number, string> = {};
     const restored = computeRestoredStep();
-    if (restored >= 1) {
+    if (store.benchmarkStore) {
+      a[1] = `벤치마킹: ${store.benchmarkStore.name} (${store.benchmarkStore.category})`;
+      const ind = INDUSTRY_OPTIONS.find((i) => i.code === store.benchmarkStore?.industryCode);
+      const fallbackName = store.benchmarkStore.industryCode === "CS100009" ? "호프/주점" : "카페";
+      a[2] = ind
+        ? `업종: ${ind.icon} ${ind.name} (벤치마킹 기반 자동 선택)`
+        : `업종: ☕ ${fallbackName} (벤치마킹 기반 자동 선택)`;
+    } else if (restored >= 3) {
       const ind = INDUSTRY_OPTIONS.find((i) => i.code === store.industryCode);
-      if (ind) a[1] = `${ind.icon} ${ind.name}`;
-    }
-    if (restored >= 2) {
-      const b = BUDGET_OPTIONS.find((opt) => opt.value === store.budget);
-      if (b) a[2] = b.label;
-    }
-    if (restored >= 3) {
-      const e = EXPERIENCE_OPTIONS.find((opt) => opt.key === store.experienceLevel);
-      if (e) a[3] = `${e.emoji} ${e.label}`;
+      if (ind) a[2] = `${ind.icon} ${ind.name}`;
     }
     if (restored >= 4) {
-      const emp = EMPLOYEE_OPTIONS.find((opt) => opt.key === store.employeeCount);
-      if (emp) a[4] = `${emp.emoji} ${emp.label}`;
+      const b = BUDGET_OPTIONS.find((opt) => opt.value === store.budget);
+      if (b) a[3] = b.label;
     }
     if (restored >= 5) {
-      a[5] = store.preferredDistricts.length > 0
+      const e = EXPERIENCE_OPTIONS.find((opt) => opt.key === store.experienceLevel);
+      if (e) a[4] = `${e.emoji} ${e.label}`;
+    }
+    if (restored >= 6) {
+      const emp = EMPLOYEE_OPTIONS.find((opt) => opt.key === store.employeeCount);
+      if (emp) a[5] = `${emp.emoji} ${emp.label}`;
+    }
+    if (restored >= 7) {
+      a[6] = store.preferredDistricts.length > 0
         ? store.preferredDistricts.join(", ")
         : "AI가 추천";
     }
@@ -240,6 +273,47 @@ export default function AnalyzePage() {
     }
   }, [chatStep]);
 
+  useEffect(() => {
+    const trimmed = benchmarkQuery.trim();
+    if (trimmed.length < 1) {
+      setBenchmarkResults([]);
+      setBenchmarkError("");
+      setIsBenchmarkSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const seq = benchmarkSearchSeq.current + 1;
+      benchmarkSearchSeq.current = seq;
+      (async () => {
+        setIsBenchmarkSearching(true);
+        setBenchmarkError("");
+        try {
+          const res = await fetch(`${API_BASE}/benchmark/search?query=${encodeURIComponent(trimmed)}`);
+          if (!res.ok) {
+            throw new Error("search-failed");
+          }
+          const data = await res.json();
+          if (benchmarkSearchSeq.current === seq) {
+            const results = Array.isArray(data?.results) ? data.results : [];
+            setBenchmarkResults(results);
+          }
+        } catch {
+          if (benchmarkSearchSeq.current === seq) {
+            setBenchmarkResults([]);
+            setBenchmarkError("매장 검색에 실패했어요. 잠시 후 다시 시도해주세요.");
+          }
+        } finally {
+          if (benchmarkSearchSeq.current === seq) {
+            setIsBenchmarkSearching(false);
+          }
+        }
+      })();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [benchmarkQuery]);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -253,12 +327,12 @@ export default function AnalyzePage() {
     const next = step + 1;
     setTimeout(() => {
       setShowTyping(false);
-      if (next <= 5) {
+      if (next <= 6) {
         setChatStep(next);
         setReadyStep(next);
       } else {
-        setChatStep(6);
-        setReadyStep(6);
+        setChatStep(7);
+        setReadyStep(7);
       }
       scrollToBottom();
     }, 600);
@@ -266,17 +340,58 @@ export default function AnalyzePage() {
 
   /* ── Handlers ─────────────────────────────────────────────────────────── */
 
+  const handleBenchmarkSelect = (result: BenchmarkSearchResult) => {
+    const displayAddress = result.road_address || result.address;
+    store.setBenchmarkStore({
+      name: result.name,
+      category: result.category,
+      address: displayAddress,
+      placeUrl: result.place_url,
+      industryCode: result.industry_code,
+    });
+    store.setIndustry(result.industry_code);
+
+    const ind = INDUSTRY_OPTIONS.find((item) => item.code === result.industry_code);
+    const industryAnswer = ind
+      ? `업종: ${ind.icon} ${ind.name} (벤치마킹 기반 자동 선택)`
+      : `업종: ☕ ${result.industry_name} (벤치마킹 기반 자동 선택)`;
+
+    setAnswers((prev) => ({
+      ...prev,
+      1: `벤치마킹: ${result.name} (${result.category})`,
+      2: industryAnswer,
+    }));
+
+    setBenchmarkQuery(result.name);
+    setBenchmarkResults([]);
+    setShowTyping(true);
+    scrollToBottom();
+
+    setTimeout(() => {
+      setShowTyping(false);
+      setChatStep(3);
+      setReadyStep(3);
+      scrollToBottom();
+    }, 600);
+  };
+
+  const handleSkipBenchmark = () => {
+    store.setBenchmarkStore(null);
+    advance(1, "아직 없어요");
+  };
+
   const handleIndustry = (code: string) => {
     if (industryAvailability[code] === false) return;
+    store.setBenchmarkStore(null);
     store.setIndustry(code);
     const ind = INDUSTRY_OPTIONS.find((i) => i.code === code);
-    advance(1, ind ? `${ind.icon} ${ind.name}` : code);
+    advance(2, ind ? `${ind.icon} ${ind.name}` : code);
   };
 
   const handleBudget = (value: number) => {
     store.setBudget(value);
     const b = BUDGET_OPTIONS.find((opt) => opt.value === value);
-    advance(2, b ? b.label : `${value}만원`);
+    advance(3, b ? b.label : `${value}만원`);
   };
 
   const clampBudget = (v: number) => {
@@ -289,22 +404,22 @@ export default function AnalyzePage() {
   const handleExperience = (key: string) => {
     store.setExperienceLevel(key);
     const e = EXPERIENCE_OPTIONS.find((opt) => opt.key === key);
-    advance(3, e ? `${e.emoji} ${e.label}` : key);
+    advance(4, e ? `${e.emoji} ${e.label}` : key);
   };
 
   const handleEmployee = (key: string) => {
     store.setEmployeeCount(key);
     const emp = EMPLOYEE_OPTIONS.find((opt) => opt.key === key);
-    advance(4, emp ? `${emp.emoji} ${emp.label}` : key);
+    advance(5, emp ? `${emp.emoji} ${emp.label}` : key);
   };
 
   const handleArea = (area: string | null) => {
     if (area) {
       store.setPreferredDistricts([area]);
-      advance(5, area);
+      advance(6, area);
     } else {
       store.setPreferredDistricts([]);
-      advance(5, "상관없어요 (AI가 추천)");
+      advance(6, "상관없어요 (AI가 추천)");
     }
   };
 
@@ -376,19 +491,80 @@ export default function AnalyzePage() {
           </AiMessage>
 
           {/* Answered questions (chat history) */}
-          {[1, 2, 3, 4, 5].map(
+          {[1, 2, 3, 4, 5, 6].map(
             (step) => step < chatStep && renderAnswered(step),
           )}
 
           {/* Typing indicator */}
           {showTyping && <TypingIndicator />}
 
-          {/* ── Q1: Industry ──────────────────────────────────────────── */}
           {readyStep >= 1 && chatStep === 1 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-medium text-slate-700">
                   {AI_QUESTIONS[0]}
+                </p>
+              </AiMessage>
+              <div className="ml-0 space-y-3 sm:ml-11">
+                <div className="relative rounded-xl border-2 border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-blue-400">
+                  <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={benchmarkQuery}
+                    onChange={(e) => setBenchmarkQuery(e.target.value)}
+                    placeholder="매장 이름을 입력하세요 (예: 캣툰, 벌툰)"
+                    className="w-full bg-transparent py-1 pl-7 pr-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                    aria-label="벤치마킹 매장 검색"
+                  />
+                </div>
+
+                {(benchmarkQuery.trim().length > 0 || isBenchmarkSearching || benchmarkError) && (
+                  <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-sm">
+                    {isBenchmarkSearching && (
+                      <p className="px-4 py-3 text-sm text-slate-500">매장을 검색하고 있어요...</p>
+                    )}
+                    {!isBenchmarkSearching && benchmarkError && (
+                      <p className="px-4 py-3 text-sm text-rose-600">{benchmarkError}</p>
+                    )}
+                    {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length === 0 && (
+                      <p className="px-4 py-3 text-sm text-slate-500">검색 결과가 없어요.</p>
+                    )}
+                    {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length > 0 && (
+                      <div className="divide-y divide-slate-100">
+                        {benchmarkResults.map((result) => (
+                          <button
+                            key={result.id}
+                            type="button"
+                            onClick={() => handleBenchmarkSelect(result)}
+                            className="w-full px-4 py-3 text-left transition hover:bg-slate-50"
+                          >
+                            <p className="text-sm font-semibold text-slate-800">{result.name}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">{result.category}</p>
+                            <p className="mt-1 text-xs text-slate-400">{result.road_address || result.address}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSkipBenchmark}
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-all duration-200 hover:border-blue-300 hover:text-blue-700 hover:shadow-md active:scale-[0.98]"
+                >
+                  아직 없어요
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Q1: Industry ──────────────────────────────────────────── */}
+          {readyStep >= 2 && chatStep === 2 && !showTyping && (
+            <div className="space-y-4 animate-slide-up">
+              <AiMessage>
+                <p className="text-sm font-medium text-slate-700">
+                  {AI_QUESTIONS[1]}
                 </p>
               </AiMessage>
                <div className="ml-0 grid grid-cols-2 gap-2 sm:ml-11 sm:grid-cols-5">
@@ -424,11 +600,11 @@ export default function AnalyzePage() {
           )}
 
           {/* ── Q2: Budget ────────────────────────────────────────────── */}
-          {readyStep >= 2 && chatStep === 2 && !showTyping && (
+          {readyStep >= 3 && chatStep === 3 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-medium text-slate-700">
-                  {AI_QUESTIONS[1]}
+                  {AI_QUESTIONS[2]}
                 </p>
               </AiMessage>
               <div className="ml-0 grid grid-cols-2 gap-3 sm:ml-11 sm:grid-cols-5">
@@ -506,11 +682,11 @@ export default function AnalyzePage() {
           )}
 
           {/* ── Q3: Experience ────────────────────────────────────────── */}
-          {readyStep >= 3 && chatStep === 3 && !showTyping && (
+          {readyStep >= 4 && chatStep === 4 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-medium text-slate-700">
-                  {AI_QUESTIONS[2]}
+                  {AI_QUESTIONS[3]}
                 </p>
               </AiMessage>
               <div className="ml-0 grid gap-2.5 sm:ml-11 sm:grid-cols-3">
@@ -533,11 +709,11 @@ export default function AnalyzePage() {
           )}
 
           {/* ── Q4: Employees ─────────────────────────────────────────── */}
-          {readyStep >= 4 && chatStep === 4 && !showTyping && (
+          {readyStep >= 5 && chatStep === 5 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-medium text-slate-700">
-                  {AI_QUESTIONS[3]}
+                  {AI_QUESTIONS[4]}
                 </p>
               </AiMessage>
               <div className="ml-0 grid gap-2.5 sm:ml-11 sm:grid-cols-3">
@@ -560,11 +736,11 @@ export default function AnalyzePage() {
           )}
 
           {/* ── Q5: Area ──────────────────────────────────────────────── */}
-          {readyStep >= 5 && chatStep === 5 && !showTyping && (
+          {readyStep >= 6 && chatStep === 6 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-medium text-slate-700">
-                  {AI_QUESTIONS[4]}
+                  {AI_QUESTIONS[5]}
                 </p>
               </AiMessage>
               <div className="ml-0 space-y-3 sm:ml-11">
@@ -592,7 +768,7 @@ export default function AnalyzePage() {
           )}
 
           {/* ── Completion: Summary + CTA ──────────────────────────────── */}
-          {chatStep === 6 && !showTyping && (
+          {chatStep === 7 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
                 <p className="text-sm font-semibold text-slate-800">
@@ -612,11 +788,12 @@ export default function AnalyzePage() {
                 </div>
                 <div className="divide-y divide-slate-100 px-5">
                   {[
-                    { label: "업종", value: answers[1] },
-                    { label: "예산", value: answers[2] },
-                    { label: "경험", value: answers[3] },
-                    { label: "인원", value: answers[4] },
-                    { label: "지역", value: answers[5] },
+                    { label: "벤치마킹", value: answers[1] || "아직 없어요" },
+                    { label: "업종", value: answers[2] },
+                    { label: "예산", value: answers[3] },
+                    { label: "경험", value: answers[4] },
+                    { label: "인원", value: answers[5] },
+                    { label: "지역", value: answers[6] },
                   ].map((row) => (
                     <div
                       key={row.label}

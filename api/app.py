@@ -172,6 +172,9 @@ def create_app() -> FastAPI:
     funding_router = cast(APIRouter, import_module("api.routes.funding").router)
     app.include_router(funding_router, prefix="/api/v1", tags=["Funding"])
 
+    benchmark_router = cast(APIRouter, import_module("api.routes.benchmark").router)
+    app.include_router(benchmark_router, prefix="/api/v1", tags=["Benchmark"])
+
     return app
 
 
