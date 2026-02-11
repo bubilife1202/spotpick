@@ -10,7 +10,7 @@ interface MapMarker {
   lat: number;
   lng: number;
   label: string;
-  type?: "recommended" | "competitor" | "selected";
+  type?: "recommended" | "competitor" | "selected" | "benchmark";
   rank?: number;
   successProbability?: number;
 }
@@ -67,6 +67,13 @@ const MARKER_CONFIG = {
     pulse: "bg-success-400",
     label: "선택",
     dot: "bg-success-500",
+  },
+  benchmark: {
+    bg: "from-amber-500 to-orange-600",
+    ring: "ring-amber-500/30",
+    pulse: "bg-amber-400",
+    label: "벤치마크",
+    dot: "bg-amber-500",
   },
 };
 
