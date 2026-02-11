@@ -36,6 +36,7 @@ import {
   CircleDollarSign,
   HardHat,
   Lightbulb,
+  Store,
 } from "lucide-react";
 
 // ── Constants ───────────────────────────────────────────────────
@@ -1647,7 +1648,43 @@ function ActionContent() {
     compliance.error,
   ]);
 
-  // Derived data
+  interface BenchmarkTip {
+    phase_key: string;
+    title: string;
+    description: string;
+  }
+  const [benchmarkTips, setBenchmarkTips] = useState<BenchmarkTip[]>([]);
+
+  useEffect(() => {
+    const bm = store.benchmarkStore;
+    if (!bm?.name) return;
+
+    fetchWithTimeout(`${API_BASE}/benchmark/tips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        benchmark_name: bm.name,
+        benchmark_category: bm.category,
+        industry_code: industryCode,
+        district_name: "",
+      }),
+    })
+      .then((r) => r.json())
+      .then((data: { tips: BenchmarkTip[] }) => setBenchmarkTips(data.tips || []))
+      .catch(() => {});
+  }, [store.benchmarkStore, industryCode]);
+
+  const currentPhaseTips = benchmarkTips.filter((t) => {
+    const phaseKeyMap: Record<number, string> = {
+      1: "design",
+      2: "funding",
+      3: "taxlabor",
+      4: "compliance",
+      5: "launch",
+    };
+    return t.phase_key === phaseKeyMap[activePhase];
+  });
+
   const selectedDistrict = store.topDistricts.find(
     (d) => d.district_code === districtCode,
   );
@@ -1837,6 +1874,37 @@ function ActionContent() {
           </div>
         </div>
 
+        {store.benchmarkStore && (
+          <div className="mb-6 animate-slide-up rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+                <Store className="h-4.5 w-4.5 text-amber-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                  벤치마크 매장
+                </p>
+                <p className="truncate text-sm font-bold text-slate-900">
+                  {store.benchmarkStore.name}
+                </p>
+                <p className="truncate text-[11px] text-slate-500">
+                  {store.benchmarkStore.category}
+                </p>
+              </div>
+              {store.benchmarkStore.placeUrl && (
+                <a
+                  href={store.benchmarkStore.placeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-200"
+                >
+                  보기 <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Phase Navigator */}
         <div className="mb-6 animate-slide-up">
           <PhaseNav
@@ -1888,7 +1956,31 @@ function ActionContent() {
           )}
 
           {/* Phase body */}
-          <div className="min-h-[300px]">{renderPhaseContent()}</div>
+          <div className="min-h-[300px]">
+            {renderPhaseContent()}
+
+            {currentPhaseTips.length > 0 && (
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Store className="h-4 w-4 text-amber-500" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-500">
+                    벤치마크 기반 팁
+                  </p>
+                </div>
+                {currentPhaseTips.map((tip) => (
+                  <div
+                    key={`${tip.phase_key}-${tip.title}`}
+                    className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/80 to-orange-50/50 p-3.5"
+                  >
+                    <p className="text-sm font-bold text-amber-900">{tip.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-amber-700">
+                      {tip.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom CTAs */}
