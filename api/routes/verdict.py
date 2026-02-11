@@ -45,36 +45,59 @@ async def get_verdict(
 
     # Convert total startup budget (만원) to an affordable monthly rent ceiling (원).
     # This aligns the verdict engine's `budget_max` with estimated_rent (원/month).
+    #
+    # Budget feasibility: Instead of hard NO-GO against KREI industry average,
+    # we check against cafe-type-specific minimums. A 5,000만원 budget is NO-GO
+    # for a standard cafe but perfectly fine for a takeout cafe.
     rent_budget_max_won: Optional[int] = None
+    budget_warning_reason = None
     if budget_max is not None and budget_max > 0:
         try:
-            from api.services.krei_data_service import get_startup_investment
+            if industry_code == "CS100010":
+                from api.services.cafe_type_service import MIN_BUDGET_MAN as CAFE_MIN_BUDGETS
 
-            inv = get_startup_investment(industry_code)
-            if inv and inv.get("total"):
-                startup_total_man = int(inv.get("total") or 0)
-                if budget_max < startup_total_man:
-                    return {
-                        "verdict": "NO_GO",
-                        "confidence": 90,
-                        "summary": f"NO_GO — 예산이 업종 평균 창업비용에 미달합니다.",
-                        "reasons": [
-                            {
+                cheapest_min = min(CAFE_MIN_BUDGETS.values())
+                if budget_max < cheapest_min:
+                    budget_warning_reason = {
+                        "factor": "예산",
+                        "level": "danger",
+                        "detail": f"모든 카페 유형의 최소 예산에 미달합니다 (최소 {cheapest_min:,}만원)",
+                        "data_value": f"{budget_max:,}만원",
+                        "threshold": f"최소 {cheapest_min:,}만원 (테이크아웃 기준)",
+                    }
+                else:
+                    from api.services.krei_data_service import get_startup_investment
+
+                    inv = get_startup_investment(industry_code)
+                    if inv and inv.get("total"):
+                        startup_total_man = int(inv.get("total") or 0)
+                        if budget_max < startup_total_man:
+                            affordable = [t for t, m in CAFE_MIN_BUDGETS.items() if budget_max >= m]
+                            budget_warning_reason = {
                                 "factor": "예산",
-                                "level": "danger",
-                                "detail": "예산이 업종 평균 창업비용보다 낮습니다",
+                                "level": "warning",
+                                "detail": (
+                                    f"업종 평균({startup_total_man:,}만원) 대비 낮지만, "
+                                    f"{len(affordable)}개 카페 유형은 가능합니다"
+                                ),
                                 "data_value": f"{budget_max:,}만원",
                                 "threshold": f"평균 {startup_total_man:,}만원 ({str(inv.get('source') or 'KREI 2023')})",
                             }
-                        ],
-                        "danger_count": 1,
-                        "warning_count": 0,
-                        "positive_count": 0,
-                        "alternatives": [],
-                        "data_source": str(inv.get("source") or "KREI 2023"),
-                    }
+            else:
+                from api.services.krei_data_service import get_startup_investment
+
+                inv = get_startup_investment(industry_code)
+                if inv and inv.get("total"):
+                    startup_total_man = int(inv.get("total") or 0)
+                    if budget_max < startup_total_man:
+                        budget_warning_reason = {
+                            "factor": "예산",
+                            "level": "warning",
+                            "detail": "예산이 업종 평균 창업비용보다 낮습니다",
+                            "data_value": f"{budget_max:,}만원",
+                            "threshold": f"평균 {startup_total_man:,}만원 ({str(inv.get('source') or 'KREI 2023')})",
+                        }
         except Exception:
-            # If KREI data is unavailable, proceed without the budget feasibility gate.
             pass
 
         try:
@@ -121,7 +144,6 @@ async def get_verdict(
             industry_code=industry_code,
         )
 
-    # Compute verdict
     result = compute_verdict(
         district=district,
         industry_code=industry_code,
@@ -129,5 +151,22 @@ async def get_verdict(
         experience_level=experience_level,
         estimated_rent=estimated_rent,
     )
+
+    if budget_warning_reason:
+        budget_level = budget_warning_reason["level"]
+        result["reasons"].insert(
+            0,
+            {
+                "factor": str(budget_warning_reason["factor"]),
+                "level": "danger" if budget_level == "danger" else "warning",
+                "detail": str(budget_warning_reason["detail"]),
+                "data_value": str(budget_warning_reason["data_value"]),
+                "threshold": str(budget_warning_reason["threshold"]),
+            },
+        )
+        if budget_level == "danger":
+            result["danger_count"] += 1
+        else:
+            result["warning_count"] += 1
 
     return result
