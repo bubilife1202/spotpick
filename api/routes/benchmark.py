@@ -196,6 +196,18 @@ class DemandValidation(BaseModel):
     demand_summary: str = ""
 
 
+class SuccessFactor(BaseModel):
+    factor: str
+    category: str
+    importance: str
+    actionable_tip: str
+
+
+class SuccessAnalysis(BaseModel):
+    factors: list[SuccessFactor] = []
+    summary: str = ""
+
+
 class BenchmarkAnalyzeResponse(BaseModel):
     store_name: str
     store_category: str
@@ -204,6 +216,120 @@ class BenchmarkAnalyzeResponse(BaseModel):
     competitor_count: int
     location_summary: str
     demand: DemandValidation = DemandValidation()
+    success_analysis: SuccessAnalysis = SuccessAnalysis()
+
+
+_KEYWORD_FACTOR_MAP: dict[str, tuple[str, str]] = {
+    "깨끗": ("atmosphere", "청결한 매장 관리"),
+    "친절": ("service", "친절한 고객 응대"),
+    "가격": ("price", "합리적 가격 정책"),
+    "저렴": ("price", "가성비 좋은 가격"),
+    "분위기": ("atmosphere", "좋은 매장 분위기"),
+    "인테리어": ("atmosphere", "감각적 인테리어"),
+    "메뉴": ("product", "다양한 메뉴 구성"),
+    "맛": ("product", "맛있는 음료/음식"),
+    "디저트": ("product", "매력적인 디저트"),
+    "뷰": ("atmosphere", "좋은 전망/뷰"),
+    "넓": ("atmosphere", "넓은 좌석 공간"),
+    "조용": ("atmosphere", "조용한 분위기"),
+    "만화": ("product", "풍부한 만화 장서"),
+    "게임": ("product", "다양한 게임 구비"),
+    "콘센트": ("service", "충전/작업 편의시설"),
+    "주차": ("service", "주차 편의"),
+    "위치": ("location", "좋은 접근성"),
+    "역": ("location", "역세권 입지"),
+}
+
+_FACTOR_TIP_MAP: dict[str, str] = {
+    "청결한 매장 관리": "매일 영업 전후 체크리스트 기반 청소를 실시하세요",
+    "친절한 고객 응대": "직원 응대 스크립트와 컴플레인 대응 매뉴얼을 만들어 교육하세요",
+    "합리적 가격 정책": "경쟁 매장 대비 5-10% 낮은 가격으로 시작하여 고객을 확보하세요",
+    "가성비 좋은 가격": "세트 메뉴나 시간대 할인으로 체감 가성비를 높이세요",
+    "좋은 매장 분위기": "조명·음악·좌석 배치를 통일해 매장 콘셉트를 명확히 하세요",
+    "감각적 인테리어": "포토존 1곳을 만들고 SNS 업로드 유도 문구를 배치하세요",
+    "다양한 메뉴 구성": "핵심 메뉴 3종과 계절 한정 메뉴를 함께 운영해 선택 폭을 넓히세요",
+    "맛있는 음료/음식": "대표 메뉴 레시피를 표준화하고 주 1회 품질 점검을 진행하세요",
+    "매력적인 디저트": "비주얼 중심 디저트 2-3종을 시그니처로 고정 운영하세요",
+    "좋은 전망/뷰": "창가 좌석 예약/안내를 강화해 체류 만족도를 높이세요",
+    "넓은 좌석 공간": "테이블 간 최소 간격을 확보해 쾌적한 동선을 유지하세요",
+    "조용한 분위기": "시간대별 볼륨 기준을 정하고 소음 유발 구역을 분리하세요",
+    "풍부한 만화 장서": "오픈 시 최소 500~1000권 구비하고, 월 신간 업데이트 예산을 책정하세요",
+    "다양한 게임 구비": "입문/전략/파티 게임을 균형 있게 100종 이상 구성하세요",
+    "충전/작업 편의시설": "좌석별 콘센트와 와이파이 안내를 명확히 제공하세요",
+    "주차 편의": "가까운 제휴 주차장을 확보하고 무료 주차 조건을 안내하세요",
+    "좋은 접근성": "유동인구 많은 동선과 출입구 가시성을 우선 확보하세요",
+    "역세권 입지": "도보 5분 이내 역 출구 기준으로 점포를 우선 검토하세요",
+    "만화/콘텐츠 큐레이션이 핵심 경쟁력": "장르별 인기작과 신간을 월 단위로 큐레이션해 재방문을 유도하세요",
+    "게임 다양성과 진행 도우미가 핵심": "난이도별 추천표와 룰 설명 가능 직원을 운영해 첫 방문 장벽을 낮추세요",
+    "비주얼 디저트와 SNS 노출이 핵심": "사진 촬영 동선을 고려한 플레이팅과 업로드 이벤트를 운영하세요",
+    "경쟁 치열 — 차별화 포인트 1가지 이상 필수": "가격·상품·공간 중 한 영역에서 명확한 1등 포인트를 설계하세요",
+    "높은 고객 만족도 — 같은 수준 유지 필수": "리뷰 모니터링과 즉시 피드백 대응으로 평점 4.5+를 유지하세요",
+    "양호한 평점 — 서비스 품질 관리 중요": "주간 CS 점검으로 평점 하락 요소를 선제적으로 개선하세요",
+    "평점 개선 여지 있음 — 차별화 기회": "저평점 리뷰 원인을 분류해 2주 단위 개선 과제를 실행하세요",
+}
+
+
+def _extract_success_factors(
+    naver_profile: NaverPlaceProfile,
+    category: str,
+    competitor_count: int,
+) -> SuccessAnalysis:
+    factors: list[SuccessFactor] = []
+    seen_factors: set[str] = set()
+
+    def add_factor(factor: str, factor_category: str, importance: str) -> None:
+        if factor in seen_factors:
+            return
+        seen_factors.add(factor)
+        factors.append(
+            SuccessFactor(
+                factor=factor,
+                category=factor_category,
+                importance=importance,
+                actionable_tip=_FACTOR_TIP_MAP.get(
+                    factor,
+                    "벤치마크 매장의 강점을 기준으로 실행 가능한 운영 체크리스트를 만들어 적용하세요",
+                ),
+            )
+        )
+
+    for keyword in naver_profile.keywords:
+        for token, (factor_category, factor) in _KEYWORD_FACTOR_MAP.items():
+            if token in keyword:
+                add_factor(factor, factor_category, "high")
+                break
+
+    if "만화" in category:
+        add_factor("만화/콘텐츠 큐레이션이 핵심 경쟁력", "product", "high")
+    if "보드게임" in category:
+        add_factor("게임 다양성과 진행 도우미가 핵심", "service", "high")
+    if "디저트" in category:
+        add_factor("비주얼 디저트와 SNS 노출이 핵심", "product", "high")
+
+    if competitor_count > 8:
+        add_factor("경쟁 치열 — 차별화 포인트 1가지 이상 필수", "location", "high")
+
+    if naver_profile.review_score > 0:
+        if naver_profile.review_score >= 4.5:
+            add_factor("높은 고객 만족도 — 같은 수준 유지 필수", "service", "high")
+        elif naver_profile.review_score >= 4.0:
+            add_factor("양호한 평점 — 서비스 품질 관리 중요", "service", "medium")
+        else:
+            add_factor("평점 개선 여지 있음 — 차별화 기회", "service", "medium")
+
+    importance_order = {"high": 0, "medium": 1}
+    factors = sorted(factors, key=lambda item: importance_order.get(item.importance, 2))[:5]
+
+    top_factors = [item.factor for item in factors[:3]]
+    factor_text = ", ".join(top_factors) if top_factors else "핵심 운영 요소"
+    advice_text = (
+        factors[0].actionable_tip
+        if factors
+        else "고객 리뷰와 경쟁 환경을 함께 반영해 운영 전략을 구체화하세요"
+    )
+    summary = f"캣툰 성수점의 핵심 성공 요인은 {factor_text} 입니다. {advice_text}"
+
+    return SuccessAnalysis(factors=factors, summary=summary)
 
 
 async def _search_naver_place(name: str) -> NaverPlaceProfile:
@@ -451,6 +577,7 @@ async def analyze_benchmark_store(
     )
 
     comp_count = len(competitors)
+    success_analysis = _extract_success_factors(naver_profile, req.category, comp_count)
     if comp_count == 0:
         location_summary = "반경 500m 내 동종 업종 경쟁 매장이 없습니다."
     elif comp_count <= 3:
@@ -468,6 +595,7 @@ async def analyze_benchmark_store(
         competitor_count=comp_count,
         location_summary=location_summary,
         demand=demand,
+        success_analysis=success_analysis,
     )
 
 

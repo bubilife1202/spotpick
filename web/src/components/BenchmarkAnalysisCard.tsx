@@ -12,6 +12,11 @@ import {
   ExternalLink,
   Store,
   Building2,
+  Lightbulb,
+  Coffee,
+  Heart,
+  DollarSign,
+  Sparkles,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -50,6 +55,15 @@ interface AnalyzeData {
     same_category_count_nearby: number;
     demand_verdict: string;
     demand_summary: string;
+  };
+  success_analysis: {
+    factors: Array<{
+      factor: string;
+      category: string;
+      importance: string;
+      actionable_tip: string;
+    }>;
+    summary: string;
   };
 }
 
@@ -128,6 +142,8 @@ export function BenchmarkAnalysisCard({
 
   const np = data.naver_profile;
   const demand = data.demand;
+  const successAnalysis = data.success_analysis;
+  const hasSuccessFactors = successAnalysis?.factors?.length > 0;
   const hasNaverData = np.review_count > 0 || np.review_score > 0;
   const subCategory = benchmark.subCategory || (
     benchmark.category.includes(" > ")
@@ -146,6 +162,18 @@ export function BenchmarkAnalysisCard({
       : demand.trend_direction === "declining"
         ? "↘ 하락"
         : "→ 유지";
+
+  const getSuccessCategoryIcon = (category: string) => {
+    if (category === "product") return Coffee;
+    if (category === "service") return Heart;
+    if (category === "location") return MapPin;
+    if (category === "price") return DollarSign;
+    return Sparkles;
+  };
+
+  const getImportanceTone = (importance: string) => {
+    return importance === "high" ? "bg-emerald-500" : "bg-amber-500";
+  };
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/50 p-5">
@@ -309,6 +337,52 @@ export function BenchmarkAnalysisCard({
           </p>
         )}
       </div>
+
+      {hasSuccessFactors && (
+        <div className="mt-3 rounded-xl border border-amber-100 bg-white/60 p-3">
+          <div className="mb-2 flex items-center gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+              성공 요인 분석
+            </p>
+          </div>
+
+          {successAnalysis.summary && (
+            <p className="mb-2 text-xs font-semibold text-slate-700">{successAnalysis.summary}</p>
+          )}
+
+          <div className="space-y-2">
+            {successAnalysis.factors.map((factor, index) => {
+              const CategoryIcon = getSuccessCategoryIcon(factor.category);
+              return (
+                <div
+                  key={`${factor.factor}-${index}`}
+                  className="rounded-lg border border-amber-100 bg-amber-50/50 p-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <div className="rounded-md bg-white/80 p-1.5 text-amber-600">
+                        <CategoryIcon className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{factor.factor}</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          {factor.actionable_tip}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="mt-0.5 inline-flex items-center">
+                      <span
+                        className={cn("h-2 w-2 rounded-full", getImportanceTone(factor.importance))}
+                      />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
