@@ -37,6 +37,7 @@ except ImportError:
 
 try:
     from dotenv import load_dotenv  # type: ignore[import-not-found]
+
     load_dotenv(Path(__file__).parent.parent.parent / ".env")
 except Exception:
     pass
@@ -50,11 +51,11 @@ except Exception:
     genai = None  # type: ignore[assignment]
 
 # ─── Monochromatic Blue Scale ────────────────────────────────────────────────
-B1 = "#1B2A4A"   # darkest navy
-B2 = "#2D4A7A"   # dark blue
-B3 = "#3B6FB5"   # medium blue
-B4 = "#6B9FDB"   # light blue
-B5 = "#A3C4ED"   # lightest blue
+B1 = "#1B2A4A"  # darkest navy
+B2 = "#2D4A7A"  # dark blue
+B3 = "#3B6FB5"  # medium blue
+B4 = "#6B9FDB"  # light blue
+B5 = "#A3C4ED"  # lightest blue
 
 NAVY = B1
 BLUE = B3
@@ -83,7 +84,9 @@ class PDFService:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    async def _generate_ai_analysis(self, data: dict[str, Any], industry_name: str) -> dict[str, str]:
+    async def _generate_ai_analysis(
+        self, data: dict[str, Any], industry_name: str
+    ) -> dict[str, str]:
         """Gemini를 호출하여 각 섹션별 컨설팅 분석 코멘터리 생성"""
         if not GEMINI_API_KEY or genai is None:
             logger.warning("Gemini API 미설정 — AI 분석 생략")
@@ -100,13 +103,24 @@ class PDFService:
         # 섹션별 데이터 요약
         summary_parts = []
         if recs:
-            top3 = [{"name": r.get("district_name"), "success_prob": r.get("success_probability"),
-                      "monthly_sales": r.get("monthly_sales"), "store_count": r.get("store_count"),
-                      "survival_rate": r.get("survival_rate"), "foot_traffic": r.get("foot_traffic_total"),
-                      "worker": r.get("worker_total"), "rent": r.get("estimated_rent")} for r in recs[:3]]
+            top3 = [
+                {
+                    "name": r.get("district_name"),
+                    "success_prob": r.get("success_probability"),
+                    "monthly_sales": r.get("monthly_sales"),
+                    "store_count": r.get("store_count"),
+                    "survival_rate": r.get("survival_rate"),
+                    "foot_traffic": r.get("foot_traffic_total"),
+                    "worker": r.get("worker_total"),
+                    "rent": r.get("estimated_rent"),
+                }
+                for r in recs[:3]
+            ]
             summary_parts.append(f"[추천상권] {json.dumps(top3, ensure_ascii=False)}")
         if charts:
-            chart_summary = [{"type": c.get("type"), "data": c.get("data", [])[:6]} for c in charts[:3]]
+            chart_summary = [
+                {"type": c.get("type"), "data": c.get("data", [])[:6]} for c in charts[:3]
+            ]
             summary_parts.append(f"[시장데이터] {json.dumps(chart_summary, ensure_ascii=False)}")
         if sim:
             sim_brief = {
@@ -124,12 +138,18 @@ class PDFService:
         if comp:
             comp_brief = {
                 "total": comp.get("total_nearby_cafes"),
-                "types": [{"type": t.get("type"), "ratio": t.get("ratio")} for t in comp.get("cafe_types", [])[:5]],
+                "types": [
+                    {"type": t.get("type"), "ratio": t.get("ratio")}
+                    for t in comp.get("cafe_types", [])[:5]
+                ],
                 "gaps": [g.get("gap_type") for g in comp.get("market_gaps", [])[:3]],
             }
             summary_parts.append(f"[경쟁분석] {json.dumps(comp_brief, ensure_ascii=False)}")
         if trend and trend.get("trends"):
-            trend_brief = [{"keyword": t.get("keyword"), "avg": t.get("average_ratio")} for t in trend.get("trends", [])[:3]]
+            trend_brief = [
+                {"keyword": t.get("keyword"), "avg": t.get("average_ratio")}
+                for t in trend.get("trends", [])[:3]
+            ]
             summary_parts.append(f"[트렌드] {json.dumps(trend_brief, ensure_ascii=False)}")
 
         data_text = "\n".join(summary_parts)
@@ -186,7 +206,9 @@ class PDFService:
         # 지도 이미지 생성 (추천 상권 마커)
         map_image_b64 = await self._generate_map_image(conversation_data.get("recommendations", []))
 
-        html = self._build_html(conversation_data, industry_name, ai_analysis, map_image_b64=map_image_b64)
+        html = self._build_html(
+            conversation_data, industry_name, ai_analysis, map_image_b64=map_image_b64
+        )
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -230,16 +252,31 @@ class PDFService:
 
     def _lat_lng_to_tile(self, lat: float, lng: float, zoom: int) -> tuple[int, int]:
         """위경도를 OSM 타일 좌표(x, y)로 변환"""
-        n = 2 ** zoom
+        n = 2**zoom
         x = int((lng + 180.0) / 360.0 * n)
-        y = int((1.0 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2.0 * n)
+        y = int(
+            (
+                1.0
+                - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi
+            )
+            / 2.0
+            * n
+        )
         return x, y
 
     def _lat_lng_to_pixel(self, lat: float, lng: float, zoom: int) -> tuple[float, float]:
         """위경도를 OSM 전체 픽셀 좌표로 변환 (zoom 레벨 기준)"""
-        n = 2 ** zoom
+        n = 2**zoom
         px = (lng + 180.0) / 360.0 * n * 256
-        py = (1.0 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2.0 * n * 256
+        py = (
+            (
+                1.0
+                - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi
+            )
+            / 2.0
+            * n
+            * 256
+        )
         return px, py
 
     def _calculate_zoom(self, coords: list[dict[str, float]], img_w: int, img_h: int) -> int:
@@ -315,12 +352,14 @@ class PDFService:
 
             if lat is not None and lng is not None:
                 try:
-                    coords.append({
-                        "lat": float(lat),
-                        "lng": float(lng),
-                        "rank": rec.get("rank", len(coords) + 1),
-                        "name": rec.get("district_name", ""),
-                    })
+                    coords.append(
+                        {
+                            "lat": float(lat),
+                            "lng": float(lng),
+                            "rank": rec.get("rank", len(coords) + 1),
+                            "name": rec.get("district_name", ""),
+                        }
+                    )
                 except (ValueError, TypeError):
                     continue
 
@@ -411,7 +450,9 @@ class PDFService:
             # 마커 핀 그리기 (드롭 핀 모양)
             # 핀 헤드 (원)
             r = 14
-            draw.ellipse([x - r, y - r * 2 - 6, x + r, y - 6], fill=color, outline=(255, 255, 255), width=2)
+            draw.ellipse(
+                [x - r, y - r * 2 - 6, x + r, y - 6], fill=color, outline=(255, 255, 255), width=2
+            )
             # 핀 포인트 (삼각형)
             draw.polygon([(x - 6, y - 10), (x + 6, y - 10), (x, y)], fill=color)
 
@@ -420,7 +461,9 @@ class PDFService:
             bbox = draw.textbbox((0, 0), text, font=font_marker)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
-            draw.text((x - tw // 2, y - r - 6 - th // 2 - 2), text, fill=(255, 255, 255), font=font_marker)
+            draw.text(
+                (x - tw // 2, y - r - 6 - th // 2 - 2), text, fill=(255, 255, 255), font=font_marker
+            )
 
             # 상권명 라벨 (마커 위)
             name = c.get("name", "")
@@ -437,7 +480,10 @@ class PDFService:
                 pad = 3
                 draw.rounded_rectangle(
                     [label_x - pad, label_y - pad, label_x + nw + pad, label_y + nh + pad],
-                    radius=3, fill=(255, 255, 255, 220), outline=color, width=1,
+                    radius=3,
+                    fill=(255, 255, 255, 220),
+                    outline=color,
+                    width=1,
                 )
                 draw.text((label_x, label_y), name, fill=color, font=font_label)
 
@@ -447,7 +493,9 @@ class PDFService:
         aw = abbox[2] - abbox[0]
         ah = abbox[3] - abbox[1]
         draw.rectangle([IMG_W - aw - 8, IMG_H - ah - 6, IMG_W, IMG_H], fill=(255, 255, 255, 200))
-        draw.text((IMG_W - aw - 4, IMG_H - ah - 3), attr_text, fill=(100, 100, 100), font=font_label)
+        draw.text(
+            (IMG_W - aw - 4, IMG_H - ah - 3), attr_text, fill=(100, 100, 100), font=font_label
+        )
 
         # PNG → base64
         buf = io.BytesIO()
@@ -525,7 +573,9 @@ class PDFService:
             max_s = cat.get("max_score", 100)
             ratio = min(score / max_s, 1.0) if max_s > 0 else 0
             a = math.radians(-90 + i * angle_step)
-            data_pts.append(f"{cx + r * ratio * math.cos(a):.1f},{cy + r * ratio * math.sin(a):.1f}")
+            data_pts.append(
+                f"{cx + r * ratio * math.cos(a):.1f},{cy + r * ratio * math.sin(a):.1f}"
+            )
 
         data_poly = f'<polygon points="{" ".join(data_pts)}" fill="{B3}30" stroke="{B3}" stroke-width="1.5" />'
 
@@ -552,7 +602,9 @@ class PDFService:
 
         return f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">{grid_lines}{axes}{data_poly}{dots_labels}</svg>'
 
-    def _svg_horizontal_bars(self, items: list[dict], width: int = 460, bar_h: int = 22, gap: int = 6) -> str:
+    def _svg_horizontal_bars(
+        self, items: list[dict], width: int = 460, bar_h: int = 22, gap: int = 6
+    ) -> str:
         if not items:
             return ""
         max_val = max((it["value"] for it in items), default=1) or 1
@@ -627,7 +679,9 @@ class PDFService:
 
         return f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">{svg}</svg>'
 
-    def _svg_gauge(self, value: float, max_val: float = 100, size: int = 110, label: str = "") -> str:
+    def _svg_gauge(
+        self, value: float, max_val: float = 100, size: int = 110, label: str = ""
+    ) -> str:
         pct = min(value / max_val, 1.0) if max_val > 0 else 0
         r = size / 2 - 10
         cx = cy = size / 2
@@ -708,7 +762,7 @@ class PDFService:
             dur = stage.get("duration_weeks", 0)
 
             bar_x = label_w + (sw / total_weeks * chart_area_w)
-            bar_w = (dur / total_weeks * chart_area_w)
+            bar_w = dur / total_weeks * chart_area_w
             c = CHART_COLORS[i % len(CHART_COLORS)]
 
             svg += f'<text x="{label_w - 5}" y="{y + row_h / 2 - 2}" font-size="9" font-family="sans-serif" fill="{GRAY_700}" text-anchor="end" dominant-baseline="central">{name}</text>'
@@ -757,45 +811,49 @@ class PDFService:
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _footer(self, date_str: str, page_num: int) -> str:
-        return f'''<div style="position:absolute; bottom:14mm; left:24mm; right:24mm; display:flex; justify-content:space-between; align-items:center; border-top:1px solid {GRAY_200}; padding-top:5px;">
+        return f"""<div style="position:absolute; bottom:14mm; left:24mm; right:24mm; display:flex; justify-content:space-between; align-items:center; border-top:1px solid {GRAY_200}; padding-top:5px;">
             <span style="font-size:7px; color:{GRAY_400}; font-family:sans-serif;">SpotPick AI 창업 분석 리포트</span>
             <span style="font-size:7px; color:{GRAY_400}; font-family:sans-serif;">Confidential  |  {date_str}</span>
             <span style="font-size:7px; color:{GRAY_400}; font-family:sans-serif;">Page {page_num}</span>
-        </div>'''
+        </div>"""
 
     def _source_footnote(self, text: str) -> str:
         return f'<div style="margin-top:auto; padding-top:6px; border-top:1px solid {GRAY_200};"><span style="font-size:7px; color:{GRAY_400}; font-family:sans-serif;">Source: {text}</span></div>'
 
     def _section_number(self, num: int, title: str, subtitle: str = "") -> str:
-        sub_html = f'<div style="font-size:9px; color:{GRAY_500}; font-family:sans-serif; margin-top:2px;">{subtitle}</div>' if subtitle else ""
-        return f'''<div style="margin-bottom:16px;">
+        sub_html = (
+            f'<div style="font-size:9px; color:{GRAY_500}; font-family:sans-serif; margin-top:2px;">{subtitle}</div>'
+            if subtitle
+            else ""
+        )
+        return f"""<div style="margin-bottom:16px;">
             <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:4px;">
                 <span style="font-size:11px; font-weight:700; color:{B3}; font-family:sans-serif; letter-spacing:1px;">SECTION {num:02d}</span>
             </div>
             <h2 style="font-size:16px; font-weight:700; color:{NAVY}; margin:0; font-family:Georgia,'Noto Serif KR',serif; line-height:1.35;">{title}</h2>
             {sub_html}
             <div style="height:2px; width:40px; background:{B3}; margin-top:6px; border-radius:1px;"></div>
-        </div>'''
+        </div>"""
 
     def _kpi_card(self, label: str, value: str, sub: str = "", accent: str = B3) -> str:
-        return f'''<div style="flex:1; background:{WHITE}; border-radius:6px; padding:12px 10px; text-align:center; border-top:2.5px solid {accent}; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        return f"""<div style="flex:1; background:{WHITE}; border-radius:6px; padding:12px 10px; text-align:center; border-top:2.5px solid {accent}; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
             <div style="font-size:8px; color:{GRAY_500}; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.4px; font-family:sans-serif;">{label}</div>
             <div style="font-size:20px; font-weight:800; color:{NAVY}; line-height:1.2; font-family:sans-serif;">{value}</div>
             <div style="font-size:7.5px; color:{GRAY_500}; margin-top:3px; font-family:sans-serif;">{sub}</div>
-        </div>'''
+        </div>"""
 
     def _insight_box(self, title: str, text: str) -> str:
-        return f'''<div style="margin:12px 0; padding:10px 14px; background:#EEF2F7; border-left:3px solid {B2}; border-radius:0 4px 4px 0;">
+        return f"""<div style="margin:12px 0; padding:10px 14px; background:#EEF2F7; border-left:3px solid {B2}; border-radius:0 4px 4px 0;">
             <div style="font-size:8px; font-weight:700; color:{B2}; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px; font-family:sans-serif;">{title}</div>
             <div style="font-size:9.5px; color:{NAVY}; line-height:1.55; font-family:sans-serif;">{text}</div>
-        </div>'''
+        </div>"""
 
     def _ai_analysis_box(self, text: str) -> str:
         """AI 컨설턴트 분석 코멘터리 박스 — So What? + Implication"""
         if not text:
             return ""
         escaped = html_escape(text)
-        return f'''<div style="margin:14px 0; padding:12px 16px; background:linear-gradient(135deg, #F0F4FA 0%, #E8EEF6 100%); border-left:4px solid {NAVY}; border-radius:0 6px 6px 0; box-shadow:0 1px 3px rgba(27,42,74,0.08);">
+        return f"""<div style="margin:14px 0; padding:12px 16px; background:linear-gradient(135deg, #F0F4FA 0%, #E8EEF6 100%); border-left:4px solid {NAVY}; border-radius:0 6px 6px 0; box-shadow:0 1px 3px rgba(27,42,74,0.08);">
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:5px;">
                 <div style="width:18px; height:18px; background:{NAVY}; border-radius:4px; display:flex; align-items:center; justify-content:center;">
                     <span style="font-size:9px; font-weight:800; color:{WHITE}; font-family:sans-serif;">AI</span>
@@ -803,7 +861,7 @@ class PDFService:
                 <span style="font-size:8px; font-weight:700; color:{NAVY}; text-transform:uppercase; letter-spacing:1px; font-family:sans-serif;">Consultant Analysis</span>
             </div>
             <div style="font-size:9.5px; color:{GRAY_900}; line-height:1.65; font-family:sans-serif;">{escaped}</div>
-        </div>'''
+        </div>"""
 
     def _severity_badge(self, level: str) -> str:
         level_lower = level.lower() if level else "medium"
@@ -817,7 +875,13 @@ class PDFService:
     # Main HTML Builder
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _build_html(self, data: dict[str, Any], industry_name: str, ai_analysis: dict[str, str] | None = None, map_image_b64: Optional[str] = None) -> str:
+    def _build_html(
+        self,
+        data: dict[str, Any],
+        industry_name: str,
+        ai_analysis: dict[str, str] | None = None,
+        map_image_b64: Optional[str] = None,
+    ) -> str:
         now = datetime.now()
         date_full = now.strftime("%Y년 %m월 %d일")
         date_short = now.strftime("%Y.%m.%d")
@@ -830,6 +894,7 @@ class PDFService:
         timeline = data.get("timeline")
         trend = data.get("trend")
         programs = data.get("support_programs", [])
+        benchmark = data.get("benchmark")
 
         ai = ai_analysis or {}
 
@@ -841,31 +906,66 @@ class PDFService:
 
         # Page 2: Table of Contents
         page_num = 2
-        toc_sections = self._build_toc_list(recs, charts, comp, sim, timeline, trend, programs)
+        toc_sections = self._build_toc_list(
+            recs, charts, comp, sim, timeline, trend, programs, benchmark
+        )
         pages.append(self._page_toc(toc_sections, date_short, page_num))
 
         # Page 3: Executive Summary
         page_num = 3
-        pages.append(self._page_exec_summary(recs, sim, comp, ctx, industry_name, date_short, page_num, ai_text=ai.get("executive_summary", "")))
+        pages.append(
+            self._page_exec_summary(
+                recs,
+                sim,
+                comp,
+                ctx,
+                industry_name,
+                date_short,
+                page_num,
+                ai_text=ai.get("executive_summary", ""),
+            )
+        )
 
         sec_num = 1
         page_num = 4
 
         # Page 4: Market Analysis
         if charts:
-            pages.append(self._page_market(charts, recs, sec_num, date_short, page_num, ai_text=ai.get("market", "")))
+            pages.append(
+                self._page_market(
+                    charts, recs, sec_num, date_short, page_num, ai_text=ai.get("market", "")
+                )
+            )
             sec_num += 1
             page_num += 1
 
         # Page 5: Location Analysis
         if recs:
-            pages.append(self._page_location(recs, sec_num, date_short, page_num, ai_text=ai.get("location", ""), map_image_b64=map_image_b64))
+            pages.append(
+                self._page_location(
+                    recs,
+                    sec_num,
+                    date_short,
+                    page_num,
+                    ai_text=ai.get("location", ""),
+                    map_image_b64=map_image_b64,
+                )
+            )
+            sec_num += 1
+            page_num += 1
+
+        if benchmark:
+            pages.append(self._page_benchmark(benchmark, recs, sec_num, date_short, page_num))
             sec_num += 1
             page_num += 1
 
         # Page 6: Financial Simulation — Revenue & P&L
         if sim:
-            pages.append(self._page_sim_revenue(sim, sec_num, date_short, page_num, ai_text=ai.get("simulation", "")))
+            pages.append(
+                self._page_sim_revenue(
+                    sim, sec_num, date_short, page_num, ai_text=ai.get("simulation", "")
+                )
+            )
             page_num += 1
             # Page 7: Financial Simulation — Investment & Costs
             pages.append(self._page_sim_costs(sim, sec_num, date_short, page_num))
@@ -874,13 +974,21 @@ class PDFService:
 
         # Page 8: Competitive Analysis
         if comp:
-            pages.append(self._page_competitive(comp, sec_num, date_short, page_num, ai_text=ai.get("competitive", "")))
+            pages.append(
+                self._page_competitive(
+                    comp, sec_num, date_short, page_num, ai_text=ai.get("competitive", "")
+                )
+            )
             sec_num += 1
             page_num += 1
 
         # Page 9: Risk Assessment
         if sim or recs:
-            pages.append(self._page_risk(sim, recs, sec_num, date_short, page_num, ai_text=ai.get("risk", "")))
+            pages.append(
+                self._page_risk(
+                    sim, recs, sec_num, date_short, page_num, ai_text=ai.get("risk", "")
+                )
+            )
             sec_num += 1
             page_num += 1
 
@@ -892,7 +1000,9 @@ class PDFService:
 
         # Page 11: Trend Analysis
         if trend and trend.get("trends"):
-            pages.append(self._page_trend(trend, sec_num, date_short, page_num, ai_text=ai.get("trend", "")))
+            pages.append(
+                self._page_trend(trend, sec_num, date_short, page_num, ai_text=ai.get("trend", ""))
+            )
             sec_num += 1
             page_num += 1
 
@@ -963,7 +1073,9 @@ svg {{ display:block; }}
 </body>
 </html>"""
 
-    def _build_toc_list(self, recs, charts, comp, sim, timeline, trend, programs) -> list[dict]:
+    def _build_toc_list(
+        self, recs, charts, comp, sim, timeline, trend, programs, benchmark
+    ) -> list[dict]:
         items = []
         p = 3
         items.append({"title": "Executive Summary", "page": p})
@@ -971,30 +1083,42 @@ svg {{ display:block; }}
         sec = 1
         if charts:
             items.append({"title": f"{sec}. 시장 분석 (Market Analysis)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if recs:
             items.append({"title": f"{sec}. 입지 분석 (Location Analysis)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
+        if benchmark:
+            items.append({"title": f"{sec}. 벤치마크 매장 분석", "page": p})
+            sec += 1
+            p += 1
         if sim:
             items.append({"title": f"{sec}. 재무 시뮬레이션 - 매출/손익", "page": p})
             p += 1
             items.append({"title": f"   재무 시뮬레이션 - 투자/비용", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if comp:
             items.append({"title": f"{sec}. 경쟁 분석 (Competitive Analysis)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if sim or recs:
             items.append({"title": f"{sec}. 리스크 평가 (Risk Assessment)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if timeline:
             items.append({"title": f"{sec}. 창업 타임라인 (Timeline)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if trend and trend.get("trends"):
             items.append({"title": f"{sec}. 트렌드 분석 (Trend Analysis)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         if programs:
             items.append({"title": f"{sec}. 정부지원사업 (Support Programs)", "page": p})
-            sec += 1; p += 1
+            sec += 1
+            p += 1
         items.append({"title": "분석 방법론 및 데이터 출처", "page": p})
         p += 1
         items.append({"title": "Disclaimer", "page": p})
@@ -1010,12 +1134,12 @@ svg {{ display:block; }}
             dtype = html_escape(rec.get("district_type", ""))
             prob = rec.get("success_probability", 0)
             color = [B1, B2, B3][i]
-            cards += f'''<div style="flex:1; padding:10px; background:{WHITE}; border-radius:6px; border:1px solid {GRAY_200}; text-align:center;">
-            <div style="width:32px; height:32px; background:{color}; color:{WHITE}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; font-family:sans-serif; margin:0 auto 6px;">{i+1}</div>
+            cards += f"""<div style="flex:1; padding:10px; background:{WHITE}; border-radius:6px; border:1px solid {GRAY_200}; text-align:center;">
+            <div style="width:32px; height:32px; background:{color}; color:{WHITE}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; font-family:sans-serif; margin:0 auto 6px;">{i + 1}</div>
             <div style="font-size:11px; font-weight:700; color:{NAVY}; font-family:sans-serif;">{name}</div>
             <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif; margin-top:2px;">{dtype}</div>
             <div style="font-size:13px; font-weight:800; color:{color}; font-family:sans-serif; margin-top:4px;">{prob:.1f}%</div>
-        </div>'''
+        </div>"""
         return f'<div style="display:flex; gap:10px; margin-bottom:14px;">{cards}</div>'
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1027,14 +1151,20 @@ svg {{ display:block; }}
         budget = ctx.get("budget", "")
         target = ctx.get("target", "")
 
-        meta_lines = [f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">{date} 작성</div>']
+        meta_lines = [
+            f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">{date} 작성</div>'
+        ]
         if budget:
-            meta_lines.append(f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">투자 예산: {budget}</div>')
+            meta_lines.append(
+                f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">투자 예산: {budget}</div>'
+            )
         if target:
-            meta_lines.append(f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">타겟 고객: {target}</div>')
+            meta_lines.append(
+                f'<div style="font-size:11px; color:#94A3B8; font-family:sans-serif; margin-bottom:4px;">타겟 고객: {target}</div>'
+            )
         meta_html = "".join(meta_lines)
 
-        return f'''<div style="width:210mm; height:297mm; background:linear-gradient(160deg, {NAVY} 0%, #0F172A 50%, #1E293B 100%); page-break-after:always; position:relative; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden;">
+        return f"""<div style="width:210mm; height:297mm; background:linear-gradient(160deg, {NAVY} 0%, #0F172A 50%, #1E293B 100%); page-break-after:always; position:relative; -webkit-print-color-adjust:exact; print-color-adjust:exact; overflow:hidden;">
         <div style="position:absolute; top:0; right:0; width:45%; height:100%; background:linear-gradient(135deg, {B3}12, {B3}04); clip-path:polygon(35% 0, 100% 0, 100% 100%, 0% 100%);"></div>
         <div style="position:absolute; bottom:0; left:0; width:100%; height:180px; background:linear-gradient(0deg, {B1}40, transparent);"></div>
         <div style="position:relative; z-index:1; padding:55mm 32mm 30mm 32mm;">
@@ -1056,7 +1186,7 @@ svg {{ display:block; }}
                 <span style="font-size:8px; color:#64748B; font-family:sans-serif;">Confidential</span>
             </div>
         </div>
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Table of Contents
@@ -1067,12 +1197,12 @@ svg {{ display:block; }}
         for item in items:
             indent = "padding-left:12px;" if item["title"].startswith("   ") else ""
             title = item["title"].strip()
-            rows += f'''<div style="display:flex; justify-content:space-between; align-items:baseline; padding:7px 0; border-bottom:1px dotted {GRAY_300}; {indent}">
+            rows += f"""<div style="display:flex; justify-content:space-between; align-items:baseline; padding:7px 0; border-bottom:1px dotted {GRAY_300}; {indent}">
                 <span style="font-size:10px; color:{NAVY}; font-family:sans-serif;">{title}</span>
                 <span style="font-size:10px; color:{GRAY_500}; font-family:sans-serif; flex-shrink:0; margin-left:12px;">{item["page"]}</span>
-            </div>'''
+            </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             <div style="margin-bottom:24px;">
                 <div style="font-size:10px; color:{B3}; font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; font-family:sans-serif;">CONTENTS</div>
@@ -1084,13 +1214,23 @@ svg {{ display:block; }}
             </div>
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Executive Summary
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_exec_summary(self, recs: list, sim: dict, comp: dict, ctx: dict, industry_name: str, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_exec_summary(
+        self,
+        recs: list,
+        sim: dict,
+        comp: dict,
+        ctx: dict,
+        industry_name: str,
+        date_short: str,
+        page_num: int,
+        ai_text: str = "",
+    ) -> str:
         top = recs[0] if recs else {}
         top_district = top.get("district_name", "-")
         success_prob = top.get("success_probability", 0)
@@ -1123,34 +1263,58 @@ svg {{ display:block; }}
 
         total_comp = comp.get("total_nearby_cafes", store_count) if comp else store_count
         rent_ratio = f"{rent / monthly_sales * 100:.1f}" if monthly_sales and rent else "0"
-        survival_vs_avg = f"+{survival - SEOUL_AVG_SURVIVAL_3Y:.0f}%p" if survival > SEOUL_AVG_SURVIVAL_3Y else f"{survival - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+        survival_vs_avg = (
+            f"+{survival - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+            if survival > SEOUL_AVG_SURVIVAL_3Y
+            else f"{survival - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+        )
 
         # KPI cards with benchmarks
-        kpi1 = self._kpi_card("추천 1위", top_district, f"성공확률 {success_prob:.0f}% | 상위 {percentile:.0f}%", B2)
-        kpi2 = self._kpi_card("월 예상 매출", self._fmt_won(monthly_sales), f"순이익 {self._fmt_won(monthly_profit)} (마진 {margin:.1f}%)", GREEN)
-        kpi3 = self._kpi_card("투자 회수", f"{be_min:.0f}개월", f"투자금 {self._fmt_won(total_invest)}", B3)
-        kpi4 = self._kpi_card("생존율", f"{survival:.0f}%", f"서울 평균 {SEOUL_AVG_SURVIVAL_3Y:.0f}% 대비 {survival_vs_avg}", GREEN if survival > SEOUL_AVG_SURVIVAL_3Y else RED)
+        kpi1 = self._kpi_card(
+            "추천 1위", top_district, f"성공확률 {success_prob:.0f}% | 상위 {percentile:.0f}%", B2
+        )
+        kpi2 = self._kpi_card(
+            "월 예상 매출",
+            self._fmt_won(monthly_sales),
+            f"순이익 {self._fmt_won(monthly_profit)} (마진 {margin:.1f}%)",
+            GREEN,
+        )
+        kpi3 = self._kpi_card(
+            "투자 회수", f"{be_min:.0f}개월", f"투자금 {self._fmt_won(total_invest)}", B3
+        )
+        kpi4 = self._kpi_card(
+            "생존율",
+            f"{survival:.0f}%",
+            f"서울 평균 {SEOUL_AVG_SURVIVAL_3Y:.0f}% 대비 {survival_vs_avg}",
+            GREEN if survival > SEOUL_AVG_SURVIVAL_3Y else RED,
+        )
 
         # Narrative
         findings = []
         if recs:
             names = ", ".join(r.get("district_name", "") for r in recs[:3])
-            findings.append(f'분석 대상 {len(recs)}개 상권 중 <strong>{top_district}</strong>이 종합 {scorecard.get("total_score", 0):.1f}점(상위 {percentile:.0f}%)으로 최적 입지로 선정되었습니다. 후보 상권: {names}.')
+            findings.append(
+                f"분석 대상 {len(recs)}개 상권 중 <strong>{top_district}</strong>이 종합 {scorecard.get('total_score', 0):.1f}점(상위 {percentile:.0f}%)으로 최적 입지로 선정되었습니다. 후보 상권: {names}."
+            )
         if monthly_sales:
-            findings.append(f'월 예상 매출 <strong>{self._fmt_won(monthly_sales)}</strong>에서 운영비를 차감한 순이익은 <strong>{self._fmt_won(monthly_profit)}</strong>(마진율 {margin:.1f}%)이며, 초기 투자금 {self._fmt_won(total_invest)} 기준 <strong>{be_min:.0f}개월</strong> 내 회수가 가능합니다.')
+            findings.append(
+                f"월 예상 매출 <strong>{self._fmt_won(monthly_sales)}</strong>에서 운영비를 차감한 순이익은 <strong>{self._fmt_won(monthly_profit)}</strong>(마진율 {margin:.1f}%)이며, 초기 투자금 {self._fmt_won(total_invest)} 기준 <strong>{be_min:.0f}개월</strong> 내 회수가 가능합니다."
+            )
         if total_comp:
-            findings.append(f'반경 내 경쟁 매장 <strong>{total_comp}개</strong>가 분포하며, 임대료는 매출 대비 {rent_ratio}%입니다. 생존율 {survival:.0f}%는 서울 {industry_name} 평균({SEOUL_AVG_SURVIVAL_3Y:.0f}%) 대비 {survival_vs_avg} 수준입니다.')
+            findings.append(
+                f"반경 내 경쟁 매장 <strong>{total_comp}개</strong>가 분포하며, 임대료는 매출 대비 {rent_ratio}%입니다. 생존율 {survival:.0f}%는 서울 {industry_name} 평균({SEOUL_AVG_SURVIVAL_3Y:.0f}%) 대비 {survival_vs_avg} 수준입니다."
+            )
 
         findings_html = ""
         for i, f in enumerate(findings):
-            findings_html += f'<div style="padding:6px 0; font-size:9.5px; color:{GRAY_700}; line-height:1.55; font-family:sans-serif;"><span style="color:{B2}; font-weight:700;">{i+1}.</span> {f}</div>'
+            findings_html += f'<div style="padding:6px 0; font-size:9.5px; color:{GRAY_700}; line-height:1.55; font-family:sans-serif;"><span style="color:{B2}; font-weight:700;">{i + 1}.</span> {f}</div>'
 
         # Scope box
         district_label = ctx.get("district", "서울 전역")
         budget_label = ctx.get("budget", "미지정")
         target_label = ctx.get("target", "전 연령")
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             <div style="margin-bottom:14px;">
                 <div style="font-size:10px; color:{B3}; font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; font-family:sans-serif;">EXECUTIVE SUMMARY</div>
@@ -1182,13 +1346,21 @@ svg {{ display:block; }}
             </div>
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Market Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_market(self, charts: list, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_market(
+        self,
+        charts: list,
+        recs: list,
+        sec_num: int,
+        date_short: str,
+        page_num: int,
+        ai_text: str = "",
+    ) -> str:
         # Derive action title
         age_chart = next((c for c in charts if c.get("type") == "age"), None)
         time_chart = next((c for c in charts if c.get("type") == "time"), None)
@@ -1212,7 +1384,14 @@ svg {{ display:block; }}
 
         # Age donut
         if age_chart and age_chart.get("data"):
-            segments = [{"value": d.get("value", 0), "label": d.get("name", ""), "color": CHART_6[i % len(CHART_6)]} for i, d in enumerate(age_chart["data"])]
+            segments = [
+                {
+                    "value": d.get("value", 0),
+                    "label": d.get("name", ""),
+                    "color": CHART_6[i % len(CHART_6)],
+                }
+                for i, d in enumerate(age_chart["data"])
+            ]
             donut = self._svg_donut(segments, 140)
             legend = "".join(
                 f'<div style="display:flex; align-items:center; gap:4px; margin-bottom:3px;">'
@@ -1220,34 +1399,44 @@ svg {{ display:block; }}
                 f'<span style="font-size:8.5px; color:{GRAY_700}; font-family:sans-serif;">{d.get("name", "")} <strong>{d.get("value", 0)}%</strong></span></div>'
                 for i, d in enumerate(age_chart["data"])
             )
-            charts_html += f'''<div style="margin-bottom:14px;">
+            charts_html += f"""<div style="margin-bottom:14px;">
                 <div style="font-size:11px; font-weight:700; color:{NAVY}; margin-bottom:8px; font-family:sans-serif;">연령대별 고객 분포</div>
                 <div style="display:flex; align-items:center; gap:20px;">
                     <div>{donut}</div>
                     <div>{legend}</div>
                 </div>
-            </div>'''
+            </div>"""
 
         # Time bars
         if time_chart and time_chart.get("data"):
-            items = [{"name": d.get("name", ""), "value": d.get("value", 0), "extra": f" ({self._fmt_won(d['sales'])})" if d.get("sales") else "%"} for d in time_chart["data"]]
+            items = [
+                {
+                    "name": d.get("name", ""),
+                    "value": d.get("value", 0),
+                    "extra": f" ({self._fmt_won(d['sales'])})" if d.get("sales") else "%",
+                }
+                for d in time_chart["data"]
+            ]
             bar_svg = self._svg_horizontal_bars(items, width=440, bar_h=20, gap=5)
-            charts_html += f'''<div style="margin-bottom:14px;">
+            charts_html += f"""<div style="margin-bottom:14px;">
                 <div style="font-size:11px; font-weight:700; color:{NAVY}; margin-bottom:8px; font-family:sans-serif;">시간대별 매출 비중</div>
                 {bar_svg}
-            </div>'''
+            </div>"""
 
         # Day bars
         day_chart = next((c for c in charts if c.get("type") == "day"), None)
         if day_chart and day_chart.get("data"):
-            items = [{"name": d.get("name", ""), "value": d.get("value", 0), "extra": "%"} for d in day_chart["data"]]
+            items = [
+                {"name": d.get("name", ""), "value": d.get("value", 0), "extra": "%"}
+                for d in day_chart["data"]
+            ]
             bar_svg = self._svg_horizontal_bars(items, width=440, bar_h=18, gap=4)
-            charts_html += f'''<div style="margin-bottom:10px;">
+            charts_html += f"""<div style="margin-bottom:10px;">
                 <div style="font-size:11px; font-weight:700; color:{NAVY}; margin-bottom:8px; font-family:sans-serif;">요일별 매출 비중</div>
                 {bar_svg}
-            </div>'''
+            </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Market Analysis")}
             {charts_html}
@@ -1255,13 +1444,21 @@ svg {{ display:block; }}
             {self._source_footnote("서울 상권분석 서비스 / 소상공인시장진흥공단 (2025년 데이터)")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Location Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_location(self, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "", map_image_b64: Optional[str] = None) -> str:
+    def _page_location(
+        self,
+        recs: list,
+        sec_num: int,
+        date_short: str,
+        page_num: int,
+        ai_text: str = "",
+        map_image_b64: Optional[str] = None,
+    ) -> str:
         top = recs[0] if recs else {}
         sc = top.get("scorecard", {})
         action_title = f"{top.get('district_name', '')}이 종합 {sc.get('total_score', 0):.1f}점으로 최적 입지, 상위 {sc.get('percentile', 0):.0f}%"
@@ -1276,12 +1473,12 @@ svg {{ display:block; }}
                 c = marker_colors_hex[i % len(marker_colors_hex)]
                 name = html_escape(rec.get("district_name", ""))
                 rank = rec.get("rank", i + 1)
-                legend_items += f'''<span style="display:inline-flex; align-items:center; gap:3px; margin-right:10px;">
+                legend_items += f"""<span style="display:inline-flex; align-items:center; gap:3px; margin-right:10px;">
                     <span style="width:10px; height:10px; background:{c}; border-radius:50%; display:inline-block;"></span>
                     <span style="font-size:8px; color:{GRAY_700}; font-family:sans-serif;">#{rank} {name}</span>
-                </span>'''
+                </span>"""
 
-            map_html = f'''<div style="margin-bottom:12px;">
+            map_html = f"""<div style="margin-bottom:12px;">
                 <div style="font-size:10px; font-weight:700; color:{NAVY}; margin-bottom:6px; font-family:sans-serif;">추천 상권 위치 지도</div>
                 <div style="border:1px solid {GRAY_200}; border-radius:6px; overflow:hidden;">
                     <img src="data:image/png;base64,{map_image_b64}" style="width:100%; height:auto; display:block;" />
@@ -1289,7 +1486,7 @@ svg {{ display:block; }}
                         {legend_items}
                     </div>
                 </div>
-            </div>'''
+            </div>"""
 
         cards_html = ""
         for rec in recs[:3]:
@@ -1315,12 +1512,19 @@ svg {{ display:block; }}
             if scorecard:
                 cats = scorecard.get("categories", [])
                 if isinstance(cats, list) and len(cats) >= 3:
-                    radar_data = [{"name": c.get("name", ""), "score": c.get("score", 0), "max_score": 100} for c in cats]
+                    radar_data = [
+                        {"name": c.get("name", ""), "score": c.get("score", 0), "max_score": 100}
+                        for c in cats
+                    ]
                     radar_html = self._svg_radar(radar_data, 170)
 
-            survival_vs = f"서울 평균 대비 +{survival_pct - SEOUL_AVG_SURVIVAL_3Y:.0f}%p" if survival_pct > SEOUL_AVG_SURVIVAL_3Y else f"서울 평균 대비 {survival_pct - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+            survival_vs = (
+                f"서울 평균 대비 +{survival_pct - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+                if survival_pct > SEOUL_AVG_SURVIVAL_3Y
+                else f"서울 평균 대비 {survival_pct - SEOUL_AVG_SURVIVAL_3Y:.0f}%p"
+            )
 
-            metrics_html = f'''<div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            metrics_html = f"""<div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
                 <div style="flex:1; min-width:65px; background:{GRAY_50}; padding:5px 6px; border-radius:3px; text-align:center; border:1px solid {GRAY_200};">
                     <div style="font-size:7px; color:{GRAY_500}; font-family:sans-serif;">월매출</div>
                     <div style="font-size:11px; font-weight:700; color:{NAVY}; font-family:sans-serif;">{self._fmt(sales)}</div>
@@ -1342,9 +1546,9 @@ svg {{ display:block; }}
                     <div style="font-size:11px; font-weight:700; color:{GREEN if survival_pct > 60 else RED}; font-family:sans-serif;">{survival_pct:.0f}%</div>
                 </div>
             </div>
-            <div style="font-size:7px; color:{GRAY_400}; margin-top:3px; font-family:sans-serif;">예상 임대료 {self._fmt_won(rent_est)}/월 | {survival_vs}</div>'''
+            <div style="font-size:7px; color:{GRAY_400}; margin-top:3px; font-family:sans-serif;">예상 임대료 {self._fmt_won(rent_est)}/월 | {survival_vs}</div>"""
 
-            card_left = f'''<div style="flex:1;">
+            card_left = f"""<div style="flex:1;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                     <div style="width:22px; height:22px; background:{NAVY}; color:{WHITE}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:sans-serif;">#{rank}</div>
                     <span style="font-size:13px; font-weight:700; color:{NAVY}; font-family:sans-serif;">{name}</span>
@@ -1352,25 +1556,25 @@ svg {{ display:block; }}
                     <span style="display:inline-block; padding:1px 8px; border-radius:8px; font-size:8px; font-weight:600; background:{"#D1FAE5" if prob >= 70 else "#FEF3C7" if prob >= 50 else "#FEE2E2"}; color:{badge_color};">{prob:.1f}%</span>
                 </div>
                 {metrics_html}
-            </div>'''
+            </div>"""
 
             radar_section = ""
             if radar_html:
                 sc_total = scorecard.get("total_score", 0)
                 sc_pctile = scorecard.get("percentile", 0)
-                radar_section = f'''<div style="width:180px; flex-shrink:0; text-align:center;">
+                radar_section = f"""<div style="width:180px; flex-shrink:0; text-align:center;">
                     {radar_html}
                     <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif;">종합 {sc_total:.1f}점 | 상위 {sc_pctile:.0f}%</div>
-                </div>'''
+                </div>"""
 
-            cards_html += f'''<div style="border:1px solid {GRAY_200}; border-radius:6px; padding:10px 12px; margin-bottom:8px;">
+            cards_html += f"""<div style="border:1px solid {GRAY_200}; border-radius:6px; padding:10px 12px; margin-bottom:8px;">
                 <div style="display:flex; gap:12px; align-items:flex-start;">
                     {card_left}
                     {radar_section}
                 </div>
-            </div>'''
+            </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Location Analysis")}
             {map_html}
@@ -1380,13 +1584,109 @@ svg {{ display:block; }}
             {self._source_footnote("서울 상권분석 서비스 / 소상공인시장진흥공단 (2025년 데이터)")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
+
+    def _page_benchmark(
+        self, benchmark: dict, recs: list, sec_num: int, date_short: str, page_num: int
+    ) -> str:
+        store_name = html_escape(str(benchmark.get("store_name", "-")))
+        address = html_escape(str(benchmark.get("address", "-")))
+        category = html_escape(str(benchmark.get("category", "-")))
+
+        rating = float(benchmark.get("rating", 0) or 0)
+        review_count = int(benchmark.get("review_count", 0) or 0)
+        distance_km = float(benchmark.get("distance_km", 0) or 0)
+        similarity_score = float(benchmark.get("similarity_score", 0) or 0)
+
+        strengths = benchmark.get("strengths")
+        if not isinstance(strengths, list):
+            strengths = []
+
+        comparison = benchmark.get("comparison")
+        if not isinstance(comparison, dict):
+            comparison = {}
+
+        top_rec = recs[0] if recs else {}
+        rec_name = html_escape(str(top_rec.get("district_name", "추천 상권")))
+        rec_prob = float(top_rec.get("success_probability", 0) or 0)
+
+        score_color = GREEN if similarity_score >= 75 else (GOLD if similarity_score >= 50 else RED)
+        score_bg = (
+            "#D1FAE5"
+            if similarity_score >= 75
+            else ("#FEF3C7" if similarity_score >= 50 else "#FEE2E2")
+        )
+
+        strengths_html = ""
+        for strength in strengths[:5]:
+            strengths_html += f'<li style="margin-bottom:4px; color:{GRAY_700};">{html_escape(str(strength))}</li>'
+        if not strengths_html:
+            strengths_html = f'<li style="margin-bottom:4px; color:{GRAY_500};">주요 강점 데이터가 제공되지 않았습니다.</li>'
+
+        rent_diff = html_escape(str(comparison.get("rent_diff", "-")))
+        traffic_diff = html_escape(str(comparison.get("traffic_diff", "-")))
+        competition_diff = html_escape(str(comparison.get("competition_diff", "-")))
+
+        action_title = f"벤치마크 매장 '{store_name}' 유사도 {similarity_score:.1f}점"
+
+        return f"""<div class="page">
+        <div class="page-content">
+            {self._section_number(sec_num, action_title, "Benchmark Store Analysis")}
+
+            <div style="border:1px solid {GRAY_200}; border-radius:8px; padding:12px; margin-bottom:10px; background:{WHITE};">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+                            <div style="font-size:14px; font-weight:700; color:{NAVY}; font-family:sans-serif;">{store_name}</div>
+                            <span style="display:inline-block; padding:2px 8px; border-radius:10px; background:{GRAY_100}; color:{GRAY_700}; font-size:8px; font-weight:600; font-family:sans-serif;">{category}</span>
+                        </div>
+                        <div style="font-size:8.5px; color:{GRAY_500}; font-family:sans-serif; margin-bottom:8px;">{address}</div>
+                        <div style="display:flex; gap:6px;">
+                            {self._kpi_card("평점", f"{rating:.1f}", "5.0 만점", accent=B2)}
+                            {self._kpi_card("리뷰 수", f"{review_count:,}", "누적 리뷰", accent=B3)}
+                            {self._kpi_card("거리", f"{distance_km:.1f}km", "추천 상권 중심 기준", accent=B4)}
+                        </div>
+                    </div>
+                    <div style="width:120px; text-align:center; padding:10px; background:{score_bg}; border-radius:8px; border:1px solid {GRAY_200};">
+                        <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif; text-transform:uppercase; letter-spacing:0.5px;">Similarity</div>
+                        <div style="font-size:28px; font-weight:800; color:{score_color}; line-height:1.1; font-family:sans-serif;">{similarity_score:.0f}</div>
+                        <div style="font-size:8px; color:{GRAY_700}; font-family:sans-serif;">/ 100</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <div style="flex:1; padding:10px; background:{GRAY_50}; border:1px solid {GRAY_200}; border-radius:6px;">
+                    <div style="font-size:9px; font-weight:700; color:{B2}; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; font-family:sans-serif;">Strengths (성공 요인)</div>
+                    <ul style="margin:0; padding-left:16px; font-size:9px; line-height:1.55; font-family:sans-serif;">{strengths_html}</ul>
+                </div>
+                <div style="width:150px; padding:10px; background:#EEF2F7; border:1px solid #D9E2EE; border-radius:6px; text-align:center;">
+                    <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif; text-transform:uppercase;">Recommended Area</div>
+                    <div style="font-size:14px; font-weight:700; color:{NAVY}; margin-top:6px; font-family:sans-serif;">{rec_name}</div>
+                    <div style="font-size:8px; color:{GRAY_500}; margin-top:4px; font-family:sans-serif;">성공확률 {rec_prob:.1f}%</div>
+                </div>
+            </div>
+
+            <div style="font-size:10px; font-weight:700; color:{NAVY}; margin:6px 0 4px; font-family:sans-serif;">추천 상권 대비 비교</div>
+            <table>
+                <tr><th style="width:24%;">비교 항목</th><th>벤치마크 매장</th><th style="width:28%;">{rec_name}</th></tr>
+                <tr><td>임대료 수준</td><td style="font-weight:600; color:{B2};">{rent_diff}</td><td style="color:{GRAY_500};">기준값</td></tr>
+                <tr><td>유동인구 규모</td><td style="font-weight:600; color:{B2};">{traffic_diff}</td><td style="color:{GRAY_500};">기준값</td></tr>
+                <tr><td>경쟁 밀도</td><td style="font-weight:600; color:{B2};">{competition_diff}</td><td style="color:{GRAY_500};">기준값</td></tr>
+            </table>
+
+            {self._source_footnote("사용자 선택 벤치마크 매장 데이터 / SpotPick 상권 추천 결과")}
+        </div>
+        {self._footer(date_short, page_num)}
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Simulation — Revenue & P&L
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_sim_revenue(self, sim: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_sim_revenue(
+        self, sim: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = ""
+    ) -> str:
         district = sim.get("district_name", "")
         rev = sim.get("revenue", {})
         monthly_sales = rev.get("monthly_sales_per_store", 0)
@@ -1408,7 +1708,9 @@ svg {{ display:block; }}
 
         be = sim.get("break_even", {})
         net_profit = be.get("monthly_net_profit", monthly_sales - total_op)
-        margin = be.get("net_profit_margin", (net_profit / monthly_sales * 100) if monthly_sales else 0)
+        margin = be.get(
+            "net_profit_margin", (net_profit / monthly_sales * 100) if monthly_sales else 0
+        )
         be_min = be.get("break_even_months_min", 0)
         be_max = be.get("break_even_months_max", 0)
 
@@ -1427,19 +1729,19 @@ svg {{ display:block; }}
 
         # Revenue metrics table
         rent_ratio = f"{rent / monthly_sales * 100:.1f}" if monthly_sales else "0"
-        rev_table = f'''<table style="margin-top:10px;">
+        rev_table = f"""<table style="margin-top:10px;">
             <tr><th style="width:40%;">지표</th><th style="text-align:right;">금액</th><th style="text-align:right;">비고</th></tr>
             <tr><td>월 매출</td><td style="text-align:right; font-weight:600;">{self._fmt_won(monthly_sales)}</td><td style="text-align:right; color:{GRAY_500};">일 {self._fmt_won(daily_sales)}</td></tr>
             <tr><td>월 거래 건수</td><td style="text-align:right; font-weight:600;">{txns:,}건</td><td style="text-align:right; color:{GRAY_500};">객단가 {int(avg_ticket):,}원</td></tr>
             <tr><td>피크타임 매출</td><td style="text-align:right; font-weight:600;">{self._fmt_won(peak_sales)}</td><td style="text-align:right; color:{GRAY_500};">{peak_time}</td></tr>
             <tr><td>임대료 비율</td><td style="text-align:right; font-weight:600;">{rent_ratio}%</td><td style="text-align:right; color:{GRAY_500};">매출 대비</td></tr>
             <tr><td>순이익률</td><td style="text-align:right; font-weight:700; color:{GREEN if margin > 20 else GOLD};">{margin:.1f}%</td><td style="text-align:right; color:{GRAY_500};">{self._fmt_won(net_profit)}/월</td></tr>
-        </table>'''
+        </table>"""
 
         # Scenario comparison
         pess_delta = ((pessimistic - monthly_sales) / monthly_sales * 100) if monthly_sales else 0
         opt_delta = ((optimistic - monthly_sales) / monthly_sales * 100) if monthly_sales else 0
-        scenario = f'''<div style="display:flex; gap:6px; margin:10px 0;">
+        scenario = f"""<div style="display:flex; gap:6px; margin:10px 0;">
             <div style="flex:1; padding:8px; background:#F5F0F0; border-radius:4px; text-align:center; border:1px solid #E8D8D8;">
                 <div style="font-size:7px; color:{RED}; font-weight:700; text-transform:uppercase; font-family:sans-serif;">Pessimistic</div>
                 <div style="font-size:14px; font-weight:800; color:{RED}; font-family:sans-serif;">{self._fmt_won(pessimistic)}</div>
@@ -1455,9 +1757,9 @@ svg {{ display:block; }}
                 <div style="font-size:14px; font-weight:800; color:{GREEN}; font-family:sans-serif;">{self._fmt_won(optimistic)}</div>
                 <div style="font-size:7px; color:{GRAY_500}; font-family:sans-serif;">기본 대비 +{opt_delta:.0f}%</div>
             </div>
-        </div>'''
+        </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, f"Financial Simulation -- Revenue & P&L | {district}")}
 
@@ -1474,7 +1776,7 @@ svg {{ display:block; }}
             {self._source_footnote("SpotPick AI 분석 모델 기반 추정치 / 서울 상권분석 서비스")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Simulation — Investment & Costs
@@ -1529,7 +1831,7 @@ svg {{ display:block; }}
         )
 
         # Startup cost table
-        startup_table = f'''<table style="margin-top:6px;">
+        startup_table = f"""<table style="margin-top:6px;">
             <tr><th>항목</th><th style="text-align:right;">최소</th><th style="text-align:right;">최대</th></tr>
             <tr><td>보증금</td><td style="text-align:right;">{self._fmt_won(deposit)}</td><td style="text-align:right;">{self._fmt_won(deposit)}</td></tr>
             <tr><td>인테리어 ({grade}, {area}평)</td><td style="text-align:right;">{self._fmt_won(interior)}</td><td style="text-align:right;">{self._fmt_won(interior)}</td></tr>
@@ -1537,14 +1839,14 @@ svg {{ display:block; }}
             <tr><td>초기 재고</td><td style="text-align:right;">{self._fmt_won(inv_min)}</td><td style="text-align:right;">{self._fmt_won(inv_max)}</td></tr>
             <tr><td>인허가/기타</td><td style="text-align:right;">{self._fmt_won(permits_min)}</td><td style="text-align:right;">{self._fmt_won(permits_max)}</td></tr>
             <tr style="background:{NAVY}08;"><td style="font-weight:700;">합계</td><td style="text-align:right; font-weight:800; color:{NAVY};">{self._fmt_won(total_min)}</td><td style="text-align:right; font-weight:800; color:{NAVY};">{self._fmt_won(total_max)}</td></tr>
-        </table>'''
+        </table>"""
 
         # Operating cost table with % of revenue
         def _op_row(name, val):
             pct = f"{val / monthly_sales * 100:.1f}%" if monthly_sales else "-"
             return f'<tr><td>{name}</td><td style="text-align:right; font-weight:600;">{self._fmt_won(val)}</td><td style="text-align:right; color:{GRAY_500};">{pct}</td></tr>'
 
-        op_table = f'''<table style="margin-top:6px;">
+        op_table = f"""<table style="margin-top:6px;">
             <tr><th>항목</th><th style="text-align:right;">월 비용</th><th style="text-align:right;">매출 대비</th></tr>
             {_op_row("임대료", rent)}
             {_op_row("인건비", labor)}
@@ -1552,7 +1854,7 @@ svg {{ display:block; }}
             {_op_row("공과금", utilities)}
             {_op_row("기타 비용", other_op)}
             <tr style="background:{NAVY}08;"><td style="font-weight:700;">합계</td><td style="text-align:right; font-weight:800; color:{NAVY};">{self._fmt_won(total_op)}</td><td style="text-align:right; font-weight:700; color:{NAVY};">{self._pct_of(total_op, monthly_sales)}</td></tr>
-        </table>'''
+        </table>"""
 
         # Menu cost table
         menu_html = ""
@@ -1569,16 +1871,16 @@ svg {{ display:block; }}
                 mr_color = GREEN if mr >= 70 else (GOLD if mr >= 50 else RED)
                 rows += f'<tr><td>{n}</td><td style="color:{GRAY_500};">{cat}</td><td style="text-align:right;">{int(sp):,}원</td><td style="text-align:right;">{int(cost):,}원</td><td style="text-align:right; font-weight:700; color:{mr_color};">{mr:.1f}%</td></tr>'
             avg_m = mc.get("avg_margin_rate", 0)
-            menu_html = f'''<div style="margin-top:10px;">
+            menu_html = f"""<div style="margin-top:10px;">
                 <div style="font-size:10px; font-weight:700; color:{NAVY}; margin-bottom:4px; font-family:sans-serif;">메뉴별 원가 분석</div>
                 <table><tr><th>메뉴</th><th>분류</th><th style="text-align:right;">판매가</th><th style="text-align:right;">원가</th><th style="text-align:right;">마진율</th></tr>{rows}
                 <tr style="background:{NAVY}08;"><td colspan="4" style="font-weight:700;">평균 마진율</td><td style="text-align:right; font-weight:800; color:{B2};">{avg_m:.1f}%</td></tr></table>
-            </div>'''
+            </div>"""
 
         # Break-even gauge
         gauge = self._svg_gauge(margin, 100, 100, "순이익률")
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             <div style="margin-bottom:14px;">
                 <div style="font-size:9px; color:{B3}; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:2px; font-family:sans-serif;">SECTION {sec_num:02d} (cont.)</div>
@@ -1612,13 +1914,15 @@ svg {{ display:block; }}
             {self._source_footnote("SpotPick AI 분석 모델 기반 추정치")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Competitive Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_competitive(self, comp: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_competitive(
+        self, comp: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = ""
+    ) -> str:
         total = comp.get("total_nearby_cafes", comp.get("total_competitors", 0))
         cafe_types = comp.get("cafe_types", [])
         gaps = comp.get("market_gaps", [])
@@ -1631,10 +1935,19 @@ svg {{ display:block; }}
                 franchise_ratio = ct.get("ratio", 0)
 
         gap_label = gaps[0].get("gap_type", "틈새") if gaps else "차별화"
-        action_title = f"경쟁 매장 {total}개 중 프랜차이즈 {franchise_ratio:.0f}%, {gap_label} 틈새 존재"
+        action_title = (
+            f"경쟁 매장 {total}개 중 프랜차이즈 {franchise_ratio:.0f}%, {gap_label} 틈새 존재"
+        )
 
         # Donut
-        segments = [{"value": ct.get("count", 0), "label": self._translate_cafe_type(ct.get("type", "")), "color": CHART_COLORS[i % len(CHART_COLORS)]} for i, ct in enumerate(cafe_types)]
+        segments = [
+            {
+                "value": ct.get("count", 0),
+                "label": self._translate_cafe_type(ct.get("type", "")),
+                "color": CHART_COLORS[i % len(CHART_COLORS)],
+            }
+            for i, ct in enumerate(cafe_types)
+        ]
         donut = self._svg_donut(segments, 130)
         legend = "".join(
             f'<div style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">'
@@ -1656,11 +1969,11 @@ svg {{ display:block; }}
             if isinstance(g, dict):
                 score = g.get("opportunity_score", 0)
                 color = GREEN if score >= 70 else GOLD
-                gap_cards += f'''<div style="padding:6px 8px; margin-bottom:4px; background:{WHITE}; border-radius:3px; border-left:3px solid {color};">
+                gap_cards += f"""<div style="padding:6px 8px; margin-bottom:4px; background:{WHITE}; border-radius:3px; border-left:3px solid {color};">
                     <div style="font-size:9px; font-weight:600; color:{NAVY}; font-family:sans-serif;">{g.get("gap_type", "")}</div>
                     <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif;">{g.get("description", "")}</div>
                     <div style="font-size:7px; color:{color}; font-weight:600; margin-top:1px; font-family:sans-serif;">기회점수 {score}/100</div>
-                </div>'''
+                </div>"""
 
         # Strategies
         strat_cards = ""
@@ -1668,12 +1981,12 @@ svg {{ display:block; }}
             if isinstance(s, dict):
                 p = s.get("priority", "medium")
                 p_kr = {"high": "높음", "medium": "중간", "low": "낮음"}.get(p, p)
-                strat_cards += f'''<div style="padding:6px 8px; margin-bottom:4px; background:{WHITE}; border-radius:3px; border-left:3px solid {B3};">
+                strat_cards += f"""<div style="padding:6px 8px; margin-bottom:4px; background:{WHITE}; border-radius:3px; border-left:3px solid {B3};">
                     <div style="font-size:9px; font-weight:600; color:{NAVY}; font-family:sans-serif;">{s.get("strategy", "")} <span style="font-size:7px; padding:1px 5px; background:{GRAY_100}; border-radius:6px; color:{GRAY_700};">우선순위: {p_kr}</span></div>
                     <div style="font-size:8px; color:{GRAY_500}; font-family:sans-serif;">{s.get("reason", "")}</div>
-                </div>'''
+                </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Competitive Analysis")}
 
@@ -1704,13 +2017,15 @@ svg {{ display:block; }}
             {self._source_footnote("서울 상권분석 서비스 / SpotPick AI 경쟁 분석 모델")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Risk Assessment
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_risk(self, sim: dict, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_risk(
+        self, sim: dict, recs: list, sec_num: int, date_short: str, page_num: int, ai_text: str = ""
+    ) -> str:
         risks = []
 
         # From simulation risk_summary
@@ -1725,16 +2040,34 @@ svg {{ display:block; }}
             # Competition risks
             comp_data = sim.get("competition", {})
             if comp_data.get("franchise_ratio", 0) > 30:
-                risks.append({"factor": "경쟁 강도", "description": f"프랜차이즈 비율 {comp_data.get('franchise_ratio', 0):.0f}%로 브랜드 경쟁이 치열합니다.", "severity": "HIGH"})
+                risks.append(
+                    {
+                        "factor": "경쟁 강도",
+                        "description": f"프랜차이즈 비율 {comp_data.get('franchise_ratio', 0):.0f}%로 브랜드 경쟁이 치열합니다.",
+                        "severity": "HIGH",
+                    }
+                )
             new_stores = comp_data.get("new_stores", 0)
             if new_stores > 5:
-                risks.append({"factor": "신규 진입", "description": f"최근 1년 신규 매장 {new_stores}개 개업으로 시장 포화 우려가 있습니다.", "severity": "MED"})
+                risks.append(
+                    {
+                        "factor": "신규 진입",
+                        "description": f"최근 1년 신규 매장 {new_stores}개 개업으로 시장 포화 우려가 있습니다.",
+                        "severity": "MED",
+                    }
+                )
 
         # From recommendation risk_factors
         for rec in recs[:3]:
             for rf in rec.get("risk_factors", []):
                 if rf not in [r.get("description", "") for r in risks]:
-                    risks.append({"factor": rec.get("district_name", ""), "description": rf, "severity": "MED"})
+                    risks.append(
+                        {
+                            "factor": rec.get("district_name", ""),
+                            "description": rf,
+                            "severity": "MED",
+                        }
+                    )
 
         # Build table
         risk_rows = ""
@@ -1749,11 +2082,20 @@ svg {{ display:block; }}
                 sev = "MED"
             risk_rows += f'<tr><td style="font-weight:600; color:{NAVY}; width:18%;">{factor}</td><td>{self._severity_badge(sev)}</td><td>{desc}</td></tr>'
 
-        high_count = sum(1 for r in risks if (r.get("severity", "") if isinstance(r, dict) else "").upper() in ("HIGH", "높음"))
-        med_count = sum(1 for r in risks if (r.get("severity", "") if isinstance(r, dict) else "").upper() in ("MED", "MEDIUM", "중간"))
+        high_count = sum(
+            1
+            for r in risks
+            if (r.get("severity", "") if isinstance(r, dict) else "").upper() in ("HIGH", "높음")
+        )
+        med_count = sum(
+            1
+            for r in risks
+            if (r.get("severity", "") if isinstance(r, dict) else "").upper()
+            in ("MED", "MEDIUM", "중간")
+        )
         low_count = len(risks) - high_count - med_count
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, f"총 {len(risks)}건의 리스크 식별, 주요 {high_count}건 고위험", "Risk Assessment")}
 
@@ -1783,7 +2125,7 @@ svg {{ display:block; }}
             {self._source_footnote("SpotPick AI 리스크 분석 모델 / 서울 상권분석 서비스")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Timeline
@@ -1807,17 +2149,21 @@ svg {{ display:block; }}
         detail_rows = ""
         for i, stage in enumerate(stages):
             overlap = "가능" if stage.get("can_overlap") else "-"
-            detail_rows += f'''<tr>
+            detail_rows += f"""<tr>
                 <td style="font-weight:600; color:{NAVY};">{stage.get("name", "")}</td>
                 <td style="text-align:center;">{stage.get("duration_weeks", 0)}주</td>
                 <td style="text-align:center;">{stage.get("start_week", 0)}~{stage.get("end_week", 0)}주차</td>
                 <td style="text-align:center;">{overlap}</td>
                 <td style="color:{GRAY_500};">{stage.get("description", "")}</td>
-            </tr>'''
+            </tr>"""
 
-        estimate = f"빠른 진행 시 {fast}개월, 일반적으로 {slow}개월" if fast and slow else f"약 {total_weeks}주"
+        estimate = (
+            f"빠른 진행 시 {fast}개월, 일반적으로 {slow}개월"
+            if fast and slow
+            else f"약 {total_weeks}주"
+        )
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Startup Timeline")}
 
@@ -1848,13 +2194,15 @@ svg {{ display:block; }}
             {self._source_footnote("SpotPick AI 타임라인 추정 모델")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Trend Analysis
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_trend(self, trend: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = "") -> str:
+    def _page_trend(
+        self, trend: dict, sec_num: int, date_short: str, page_num: int, ai_text: str = ""
+    ) -> str:
         trends = trend.get("trends", [])
         if not trends:
             return ""
@@ -1862,7 +2210,11 @@ svg {{ display:block; }}
         summary = trend.get("summary", {})
         top_kw = summary.get("top_keyword", "")
         top_avg = summary.get("top_average", 0)
-        action_title = f"'{top_kw}'이 평균 {top_avg:.0f}으로 최고 검색 관심도" if top_kw else "키워드 검색 트렌드 분석"
+        action_title = (
+            f"'{top_kw}'이 평균 {top_avg:.0f}으로 최고 검색 관심도"
+            if top_kw
+            else "키워드 검색 트렌드 분석"
+        )
 
         # Bar chart
         items = [{"name": t.get("keyword", ""), "value": t.get("average_ratio", 0)} for t in trends]
@@ -1882,7 +2234,9 @@ svg {{ display:block; }}
         # Data table
         first = trends[0]
         data_pts = first.get("data", [])
-        h_cols = "".join(f'<th style="text-align:right;">{t.get("keyword", "")}</th>' for t in trends)
+        h_cols = "".join(
+            f'<th style="text-align:right;">{t.get("keyword", "")}</th>' for t in trends
+        )
         rows = ""
         for idx, pt in enumerate(data_pts[:8]):
             period = pt.get("period", "")
@@ -1891,12 +2245,14 @@ svg {{ display:block; }}
                 dl = t.get("data", [])
                 val = dl[idx].get("ratio", 0) if idx < len(dl) else 0
                 cells += f'<td style="text-align:right;">{val:.0f}</td>'
-            rows += f'<tr><td>{period}</td>{cells}</tr>'
+            rows += f"<tr><td>{period}</td>{cells}</tr>"
 
         period_info = trend.get("period", {})
-        period_str = f'{period_info.get("start", "")} ~ {period_info.get("end", "")}' if period_info else ""
+        period_str = (
+            f"{period_info.get('start', '')} ~ {period_info.get('end', '')}" if period_info else ""
+        )
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, f"Trend Analysis | {period_str}")}
 
@@ -1914,7 +2270,7 @@ svg {{ display:block; }}
             {self._source_footnote("네이버 데이터랩 / Google Trends (검색 관심도 지수, 100 = 최고치)")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Support Programs
@@ -1922,7 +2278,11 @@ svg {{ display:block; }}
 
     def _page_support(self, programs: list, sec_num: int, date_short: str, page_num: int) -> str:
         urgent = sum(1 for p in programs if (p.get("days_until_deadline") or 999) <= 30)
-        action_title = f"신청 가능 {len(programs)}건, 마감 임박 {urgent}건 우선 대응 필요" if urgent else f"신청 가능한 정부지원사업 {len(programs)}건"
+        action_title = (
+            f"신청 가능 {len(programs)}건, 마감 임박 {urgent}건 우선 대응 필요"
+            if urgent
+            else f"신청 가능한 정부지원사업 {len(programs)}건"
+        )
 
         rows = ""
         for p in programs[:10]:
@@ -1942,20 +2302,20 @@ svg {{ display:block; }}
                 else:
                     badge = f'<span style="display:inline-block; padding:1px 6px; border-radius:6px; font-size:7px; font-weight:600; background:#DBEAFE; color:{B2};">D-{days}</span>'
 
-            rows += f'''<tr>
+            rows += f"""<tr>
                 <td><strong style="color:{NAVY};">{name}</strong><br/><span style="font-size:7px; color:{GRAY_500};">{cat}</span></td>
                 <td style="text-align:right; font-weight:600; color:{B2};">{amount}</td>
                 <td style="text-align:center;">{end_date} {badge}</td>
                 <td style="color:{GRAY_500};">{org}</td>
-            </tr>'''
+            </tr>"""
 
         urgent_note = ""
         if urgent:
-            urgent_note = f'''<div style="padding:8px 12px; background:#FEF2F2; border:1px solid #FECACA; border-radius:4px; margin-bottom:10px; font-size:9px; font-family:sans-serif;">
+            urgent_note = f"""<div style="padding:8px 12px; background:#FEF2F2; border:1px solid #FECACA; border-radius:4px; margin-bottom:10px; font-size:9px; font-family:sans-serif;">
                 <strong style="color:{RED};">마감 임박 {urgent}건</strong> -- 30일 이내 마감되는 지원사업이 있습니다. 조기 신청을 권고합니다.
-            </div>'''
+            </div>"""
 
-        return f'''<div class="page">
+        return f"""<div class="page">
         <div class="page-content">
             {self._section_number(sec_num, action_title, "Government Support Programs")}
             {urgent_note}
@@ -1976,14 +2336,16 @@ svg {{ display:block; }}
             {self._source_footnote("중소벤처기업부 / 소상공인시장진흥공단 / 서울시 (" + date_short + " 기준)")}
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Methodology & Sources
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _page_methodology(self, industry: str, date_full: str, date_short: str, page_num: int) -> str:
-        return f'''<div class="page">
+    def _page_methodology(
+        self, industry: str, date_full: str, date_short: str, page_num: int
+    ) -> str:
+        return f"""<div class="page">
         <div class="page-content">
             <div style="margin-bottom:16px;">
                 <div style="font-size:10px; color:{B3}; font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; font-family:sans-serif;">APPENDIX</div>
@@ -2034,14 +2396,14 @@ svg {{ display:block; }}
             </div>
         </div>
         {self._footer(date_short, page_num)}
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Page: Disclaimer
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _page_disclaimer(self, date: str) -> str:
-        return f'''<div class="page" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+        return f"""<div class="page" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
         <div style="max-width:380px;">
             <div style="width:40px; height:40px; background:{B3}; border-radius:8px; display:flex; align-items:center; justify-content:center; margin:0 auto 18px;">
                 <span style="font-size:16px; font-weight:800; color:{WHITE}; font-family:sans-serif;">SP</span>
@@ -2063,7 +2425,7 @@ svg {{ display:block; }}
                 <p style="font-size:7px; color:{GRAY_400}; margin-top:8px; font-family:sans-serif;">&copy; 2026 SpotPick. All rights reserved. Confidential.</p>
             </div>
         </div>
-    </div>'''
+    </div>"""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Utility

@@ -22,12 +22,10 @@ class PDFReportRequest(BaseModel):
 
     conversation_data: dict[str, Any] = Field(
         ...,
-        description="대화에서 수집한 데이터 (recommendations, charts, competitive, simulation, context)",
+        description="추천/차트/경쟁/시뮬/벤치마크/컨텍스트 데이터",
     )
     industry_name: str = Field(default="카페", description="업종명 (예: 카페, 한식)")
-    filename: Optional[str] = Field(
-        None, description="다운로드 파일명 (미지정 시 자동 생성)"
-    )
+    filename: Optional[str] = Field(None, description="다운로드 파일명 (미지정 시 자동 생성)")
 
 
 @router.post("/pdf/report")
@@ -37,7 +35,7 @@ async def generate_pdf_report(request: PDFReportRequest):
 
     Args:
         request: PDF 생성 요청 데이터
-            - conversation_data: 추천, 차트, 경쟁분석, 시뮬레이션 등
+            - conversation_data: 추천, 차트, 경쟁분석, 시뮬레이션, 벤치마크 등
             - industry_name: 업종명
             - filename: 다운로드 파일명 (선택)
 
@@ -55,7 +53,7 @@ async def generate_pdf_report(request: PDFReportRequest):
         # 파일명 산화 및 생성 (RFC 5987 인코딩으로 한글 지원)
         if request.filename:
             # Remove path separators and dangerous chars
-            safe_name = re.sub(r'[/\\<>:"|?*]', '', request.filename)[:50]
+            safe_name = re.sub(r'[/\\<>:"|?*]', "", request.filename)[:50]
             filename = safe_name if safe_name else f"{request.industry_name}_창업_리포트"
         else:
             filename = f"{request.industry_name}_창업_리포트"
@@ -63,6 +61,7 @@ async def generate_pdf_report(request: PDFReportRequest):
             filename += ".pdf"
 
         from urllib.parse import quote
+
         encoded_filename = quote(filename)
 
         return Response(
@@ -76,7 +75,9 @@ async def generate_pdf_report(request: PDFReportRequest):
 
     except Exception as e:
         logger.error(f"PDF 생성 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        raise HTTPException(
+            status_code=500, detail="처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
 
 
 @router.get("/pdf/health")

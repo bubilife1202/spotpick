@@ -10,6 +10,7 @@ import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import { MapPin, ArrowRight, Sparkles, Search } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const SUB_TYPE_STORAGE_KEY = "spotpick_analyze_sub_type";
 
 /* ────────────────────────────────────────────────────────────────────────────
    DATA
@@ -50,11 +51,24 @@ const EMPLOYEE_OPTIONS = [
 
 const AREA_PRESETS = ["강남", "홍대/합정", "종로/을지로", "성수", "여의도", "잠실"];
 
+const INDUSTRY_SUB_TYPE_OPTIONS: Record<string, string[]> = {
+  CS100001: ["백반/가정식", "고기전문", "찌개/국밥", "고급 한정식"],
+  CS100002: ["배달전문", "홀 매장", "포장특화", "고급 중식"],
+  CS100003: ["초밥/사시미 전문", "돈카츠/라멘 캐주얼", "이자카야", "프리미엄 오마카세", "배달/테이크아웃"],
+  CS100004: ["캐주얼 다이닝", "프리미엄 다이닝", "브런치 카페형", "배달/테이크아웃", "바/비스트로"],
+  CS100005: ["동네빵집", "프리미엄 베이커리", "카페형 베이커리", "케이크/주문제작", "테이크아웃 전문"],
+  CS100006: ["배달전문", "홀+배달", "테이크아웃특화", "프랜차이즈"],
+  CS100007: ["배달전문", "홀+배달", "포장특화", "프랜차이즈"],
+  CS100008: ["홀+포장", "배달전문", "포장특화", "프랜차이즈"],
+  CS100009: ["직장인 회식", "감성주점", "스포츠바", "야식/포차"],
+  CS100010: ["테이크아웃", "브런치 카페", "감성 카페", "스터디 카페"],
+};
+
 const AI_QUESTIONS = [
-  "벤치마킹하고 싶은 매장이 있나요?",
   "어떤 업종으로 창업을 생각하고 계신가요?",
+  "세부 업종을 선택해주세요",
   "투자 가능한 총 예산은 얼마 정도인가요?",
-  "외식업 경험이 있으신가요?",
+  "외식업/해당 업종 경험이 있으신가요?",
   "혼자 운영하실 건가요?",
   "선호하는 지역이 있나요?",
 ];
@@ -199,7 +213,20 @@ export default function AnalyzePage() {
   const [benchmarkResults, setBenchmarkResults] = useState<BenchmarkSearchResult[]>([]);
   const [isBenchmarkSearching, setIsBenchmarkSearching] = useState(false);
   const [benchmarkError, setBenchmarkError] = useState("");
+  const [showBenchmarkSearch, setShowBenchmarkSearch] = useState(false);
   const benchmarkSearchSeq = useRef(0);
+
+  const [selectedSubType, setSelectedSubType] = useState(() => {
+    if (store.benchmarkStore?.subCategory?.trim()) return store.benchmarkStore.subCategory.trim();
+    try {
+      return localStorage.getItem(SUB_TYPE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const selectedIndustrySubTypes = INDUSTRY_SUB_TYPE_OPTIONS[store.industryCode] || [];
+  const hasExplicitIndustrySelection =
+    store.industryCode !== "CS100010" || selectedSubType.length > 0;
 
   // Compute initial restored step from store
   const computeRestoredStep = useCallback(() => {
@@ -207,42 +234,30 @@ export default function AnalyzePage() {
     if (store.employeeCount) return 6;
     if (store.experienceLevel) return 5;
     if (store.budget !== 5000) return 4;
-    if (store.benchmarkStore) return 3;
-    if (store.industryCode !== "CS100010") return 3;
-    return 0;
+    if (selectedSubType.length > 0) return 3;
+    if (hasExplicitIndustrySelection) return 2;
+    return 1;
   }, [
     store.preferredDistricts,
     store.employeeCount,
     store.experienceLevel,
     store.budget,
-    store.benchmarkStore,
-    store.industryCode,
+    selectedSubType,
+    hasExplicitIndustrySelection,
   ]);
 
-  const [chatStep, setChatStep] = useState(() => {
-    const restored = computeRestoredStep();
-    return restored > 0 ? restored : 0;
-  });
+  const [chatStep, setChatStep] = useState(() => computeRestoredStep());
 
   // Answers for display as user bubbles
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     const a: Record<number, string> = {};
     const restored = computeRestoredStep();
-    if (store.benchmarkStore) {
-      const restoredSubCategory = store.benchmarkStore.subCategory || (
-        store.benchmarkStore.category.includes(" > ")
-          ? store.benchmarkStore.category.split(" > ").pop()?.trim() || ""
-          : store.benchmarkStore.category
-      );
-      a[1] = `벤치마킹: ${store.benchmarkStore.name} (${restoredSubCategory})`;
-      const ind = INDUSTRY_OPTIONS.find((i) => i.code === store.benchmarkStore?.industryCode);
-      const fallbackName = store.benchmarkStore.industryCode === "CS100009" ? "호프/주점" : "카페";
-      a[2] = ind
-        ? `업종: ${ind.icon} ${ind.name} (벤치마킹 기반 자동 선택)`
-        : `업종: ☕ ${fallbackName} (벤치마킹 기반 자동 선택)`;
-    } else if (restored >= 3) {
+    if (restored >= 2) {
       const ind = INDUSTRY_OPTIONS.find((i) => i.code === store.industryCode);
-      if (ind) a[2] = `${ind.icon} ${ind.name}`;
+      if (ind) a[1] = `${ind.icon} ${ind.name}`;
+    }
+    if (restored >= 3 && selectedSubType) {
+      a[2] = selectedSubType;
     }
     if (restored >= 4) {
       const b = BUDGET_OPTIONS.find((opt) => opt.value === store.budget);
@@ -320,6 +335,28 @@ export default function AnalyzePage() {
     return () => clearTimeout(timer);
   }, [benchmarkQuery]);
 
+  useEffect(() => {
+    if (chatStep !== 2 || showTyping) return;
+    if (selectedIndustrySubTypes.length > 0) return;
+    setShowTyping(true);
+    const t = setTimeout(() => {
+      setShowTyping(false);
+      setChatStep(3);
+      setReadyStep(3);
+    }, 450);
+    return () => clearTimeout(t);
+  }, [chatStep, showTyping, selectedIndustrySubTypes.length]);
+
+  useEffect(() => {
+    try {
+      if (selectedSubType) {
+        localStorage.setItem(SUB_TYPE_STORAGE_KEY, selectedSubType);
+      } else {
+        localStorage.removeItem(SUB_TYPE_STORAGE_KEY);
+      }
+    } catch {}
+  }, [selectedSubType]);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -361,35 +398,14 @@ export default function AnalyzePage() {
       x: result.x,
       y: result.y,
     });
-    store.setIndustry(result.industry_code);
-
-    const ind = INDUSTRY_OPTIONS.find((item) => item.code === result.industry_code);
-    const industryAnswer = ind
-      ? `업종: ${ind.icon} ${ind.name} (벤치마킹 기반 자동 선택)`
-      : `업종: ☕ ${result.industry_name} (벤치마킹 기반 자동 선택)`;
-
-    setAnswers((prev) => ({
-      ...prev,
-      1: `벤치마킹: ${result.name} (${subCat})`,
-      2: industryAnswer,
-    }));
 
     setBenchmarkQuery(result.name);
     setBenchmarkResults([]);
-    setShowTyping(true);
-    scrollToBottom();
+    setShowBenchmarkSearch(false);
 
-    setTimeout(() => {
-      setShowTyping(false);
-      setChatStep(3);
-      setReadyStep(3);
-      scrollToBottom();
-    }, 600);
-  };
-
-  const handleSkipBenchmark = () => {
-    store.setBenchmarkStore(null);
-    advance(1, "아직 없어요");
+    if (!selectedSubType && subCat) {
+      setSelectedSubType(subCat);
+    }
   };
 
   const handleIndustry = (code: string) => {
@@ -397,8 +413,14 @@ export default function AnalyzePage() {
     track("industry_select", { industry_code: code });
     store.setBenchmarkStore(null);
     store.setIndustry(code);
+    setSelectedSubType("");
     const ind = INDUSTRY_OPTIONS.find((i) => i.code === code);
-    advance(2, ind ? `${ind.icon} ${ind.name}` : code);
+    advance(1, ind ? `${ind.icon} ${ind.name}` : code);
+  };
+
+  const handleSubType = (subType: string) => {
+    setSelectedSubType(subType);
+    advance(2, subType);
   };
 
   const handleBudget = (value: number) => {
@@ -519,68 +541,6 @@ export default function AnalyzePage() {
                   {AI_QUESTIONS[0]}
                 </p>
               </AiMessage>
-              <div className="ml-0 space-y-3 sm:ml-11">
-                <div className="relative rounded-xl border-2 border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-blue-400">
-                  <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={benchmarkQuery}
-                    onChange={(e) => setBenchmarkQuery(e.target.value)}
-                    placeholder="매장 이름을 입력하세요 (예: 캣툰, 벌툰)"
-                    className="w-full bg-transparent py-1 pl-7 pr-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                    aria-label="벤치마킹 매장 검색"
-                  />
-                </div>
-
-                {(benchmarkQuery.trim().length > 0 || isBenchmarkSearching || benchmarkError) && (
-                  <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-sm">
-                    {isBenchmarkSearching && (
-                      <p className="px-4 py-3 text-sm text-slate-500">매장을 검색하고 있어요...</p>
-                    )}
-                    {!isBenchmarkSearching && benchmarkError && (
-                      <p className="px-4 py-3 text-sm text-rose-600">{benchmarkError}</p>
-                    )}
-                    {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length === 0 && (
-                      <p className="px-4 py-3 text-sm text-slate-500">검색 결과가 없어요.</p>
-                    )}
-                    {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length > 0 && (
-                      <div className="divide-y divide-slate-100">
-                        {benchmarkResults.map((result) => (
-                          <button
-                            key={result.id}
-                            type="button"
-                            onClick={() => handleBenchmarkSelect(result)}
-                            className="w-full px-4 py-3 text-left transition hover:bg-slate-50"
-                          >
-                            <p className="text-sm font-semibold text-slate-800">{result.name}</p>
-                            <p className="mt-0.5 text-xs text-slate-500">{result.category}</p>
-                            <p className="mt-1 text-xs text-slate-400">{result.road_address || result.address}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSkipBenchmark}
-                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-all duration-200 hover:border-blue-300 hover:text-blue-700 hover:shadow-md active:scale-[0.98]"
-                >
-                  아직 없어요
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Q1: Industry ──────────────────────────────────────────── */}
-          {readyStep >= 2 && chatStep === 2 && !showTyping && (
-            <div className="space-y-4 animate-slide-up">
-              <AiMessage>
-                <p className="text-sm font-medium text-slate-700">
-                  {AI_QUESTIONS[1]}
-                </p>
-              </AiMessage>
                <div className="ml-0 grid grid-cols-2 gap-2 sm:ml-11 sm:grid-cols-5">
                  {INDUSTRY_OPTIONS.map((ind) => {
                    const available = industryAvailability[ind.code] !== false;
@@ -609,11 +569,32 @@ export default function AnalyzePage() {
                      </button>
                    );
                  })}
-               </div>
+              </div>
             </div>
           )}
 
-          {/* ── Q2: Budget ────────────────────────────────────────────── */}
+          {readyStep >= 2 && chatStep === 2 && !showTyping && (
+            <div className="space-y-4 animate-slide-up">
+              <AiMessage>
+                <p className="text-sm font-medium text-slate-700">
+                  {AI_QUESTIONS[1]}
+                </p>
+              </AiMessage>
+              <div className="ml-0 grid grid-cols-2 gap-2.5 sm:ml-11 sm:grid-cols-3">
+                {selectedIndustrySubTypes.map((subType) => (
+                  <button
+                    key={subType}
+                    type="button"
+                    onClick={() => handleSubType(subType)}
+                    className="rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-all duration-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md active:scale-[0.98]"
+                  >
+                    {subType}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {readyStep >= 3 && chatStep === 3 && !showTyping && (
             <div className="space-y-4 animate-slide-up">
               <AiMessage>
@@ -802,8 +783,8 @@ export default function AnalyzePage() {
                 </div>
                 <div className="divide-y divide-slate-100 px-5">
                   {[
-                    { label: "벤치마킹", value: answers[1] || "아직 없어요" },
-                    { label: "업종", value: answers[2] },
+                    { label: "업종", value: answers[1] },
+                    { label: "세부타입", value: answers[2] || "미선택" },
                     { label: "예산", value: answers[3] },
                     { label: "경험", value: answers[4] },
                     { label: "인원", value: answers[5] },
@@ -822,6 +803,85 @@ export default function AnalyzePage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="ml-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:ml-11">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      선택 기능
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      벤치마킹 매장 검색
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBenchmarkSearch((prev) => !prev)}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
+                  >
+                    {showBenchmarkSearch ? "닫기" : "열기"}
+                  </button>
+                </div>
+
+                {store.benchmarkStore?.name ? (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                    <p className="text-sm font-semibold text-blue-800">{store.benchmarkStore.name}</p>
+                    <p className="mt-0.5 text-xs text-blue-700">
+                      {store.benchmarkStore.subCategory || store.benchmarkStore.category}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-slate-500">
+                    벤치마킹 매장은 선택 사항입니다.
+                  </p>
+                )}
+
+                {showBenchmarkSearch && (
+                  <div className="mt-3 space-y-3">
+                    <div className="relative rounded-xl border-2 border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-blue-400">
+                      <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={benchmarkQuery}
+                        onChange={(e) => setBenchmarkQuery(e.target.value)}
+                        placeholder="매장 이름을 입력하세요 (예: 캣툰, 벌툰)"
+                        className="w-full bg-transparent py-1 pl-7 pr-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                        aria-label="벤치마킹 매장 검색"
+                      />
+                    </div>
+
+                    {(benchmarkQuery.trim().length > 0 || isBenchmarkSearching || benchmarkError) && (
+                      <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-sm">
+                        {isBenchmarkSearching && (
+                          <p className="px-4 py-3 text-sm text-slate-500">매장을 검색하고 있어요...</p>
+                        )}
+                        {!isBenchmarkSearching && benchmarkError && (
+                          <p className="px-4 py-3 text-sm text-rose-600">{benchmarkError}</p>
+                        )}
+                        {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length === 0 && (
+                          <p className="px-4 py-3 text-sm text-slate-500">검색 결과가 없어요.</p>
+                        )}
+                        {!isBenchmarkSearching && !benchmarkError && benchmarkResults.length > 0 && (
+                          <div className="divide-y divide-slate-100">
+                            {benchmarkResults.map((result) => (
+                              <button
+                                key={result.id}
+                                type="button"
+                                onClick={() => handleBenchmarkSelect(result)}
+                                className="w-full px-4 py-3 text-left transition hover:bg-slate-50"
+                              >
+                                <p className="text-sm font-semibold text-slate-800">{result.name}</p>
+                                <p className="mt-0.5 text-xs text-slate-500">{result.category}</p>
+                                <p className="mt-1 text-xs text-slate-400">{result.road_address || result.address}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* CTA */}
