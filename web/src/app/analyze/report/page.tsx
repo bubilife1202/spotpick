@@ -17,6 +17,7 @@ import { FloatingTOC } from "@/components/FloatingTOC";
 import { CafeTypeCard } from "@/components/CafeTypeCard";
 import { BenchmarkAnalysisCard } from "@/components/BenchmarkAnalysisCard";
 import { CompetitiveInsightCard } from "@/components/CompetitiveInsightCard";
+import { TrademarkCheckCard } from "@/components/TrademarkCheckCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ErrorCard } from "@/components/ErrorCard";
 import {
@@ -42,6 +43,7 @@ import {
   CheckCircle2,
   XCircle,
   ShieldAlert,
+  ShieldCheck,
   ArrowLeft,
   ExternalLink,
 } from "lucide-react";
@@ -2247,6 +2249,13 @@ function ReportContent() {
           ? <ErrorCard message={sectionErrors.support} />
           : <SupportSection data={supportData} loading={supportLoading} industryName={industryName} />
       ),
+    },
+    {
+      id: "trademark",
+      icon: <ShieldCheck className="h-4 w-4 text-purple-500" />,
+      title: "상표 검사",
+      loading: false,
+      content: <TrademarkCheckCard industryCode={industryCode} />,
     },
     {
       id: "simulator",
