@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import { useAnalyzeStore, type TopDistrict } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import { LocationProfile } from "@/components/LocationProfile";
@@ -370,15 +371,21 @@ function VerdictLoadingSkeleton() {
 // ─── AI Briefing Card ──────────────────────────────────────────────────
 function BriefingCard({ districtCode, industryCode }: { districtCode: string; industryCode: string }) {
   const [briefing, setBriefing] = useState<string>("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!districtCode) return;
     setLoading(true);
     setBriefing("");
+    setSummary(null);
     fetchWithTimeout(`${API_BASE}/districts/${districtCode}/briefing?industry_code=${industryCode}`)
       .then((r) => r.json())
-      .then((data) => setBriefing(data.briefing || ""))
+      .then((data) => {
+        setBriefing(data.briefing || "");
+        setSummary(data.summary || null);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [districtCode, industryCode]);
@@ -389,7 +396,7 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
     return (
       <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
         <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-blue-500" />
+          <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
           <h3 className="text-sm font-bold text-blue-900">AI 실시간 브리핑</h3>
         </div>
         <p className="mb-3 text-xs text-blue-600">AI가 상권을 분석하고 있습니다...</p>
@@ -404,6 +411,12 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
 
   if (!briefing) return null;
 
+  const formatWonBriefing = (v: number): string => {
+    if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}억원`;
+    if (v >= 10_000) return `${Math.round(v / 10_000).toLocaleString()}만원`;
+    return `${v.toLocaleString()}원`;
+  };
+
   return (
     <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5">
       <div className="mb-2 flex items-center gap-2">
@@ -411,6 +424,36 @@ function BriefingCard({ districtCode, industryCode }: { districtCode: string; in
         <h3 className="text-sm font-bold text-blue-900">AI 실시간 브리핑</h3>
       </div>
       <p className="text-sm leading-relaxed text-blue-900/80">{briefing}</p>
+      {summary && (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-lg bg-white/60 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-blue-900">{summary.total_score}점</p>
+            <p className="text-[10px] text-blue-700">종합점수</p>
+          </div>
+          <div className="rounded-lg bg-white/60 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-blue-900">{(summary.survival_rate * 100).toFixed(0)}%</p>
+            <p className="text-[10px] text-blue-700">생존율</p>
+          </div>
+          <div className="rounded-lg bg-white/60 px-3 py-2 text-center">
+            <p className="text-lg font-bold text-blue-900">{formatWonBriefing(summary.sales_per_store)}</p>
+            <p className="text-[10px] text-blue-700">점포당 매출</p>
+          </div>
+          <div className="rounded-lg bg-white/60 px-3 py-2 text-center">
+            <p className={cn("text-lg font-bold", summary.risk_level === "high" ? "text-rose-600" : summary.risk_level === "medium" ? "text-amber-600" : "text-emerald-600")}>
+              {summary.risk_level === "high" ? "높음" : summary.risk_level === "medium" ? "보통" : "낮음"}
+            </p>
+            <p className="text-[10px] text-blue-700">위험도</p>
+          </div>
+        </div>
+      )}
+      <div className="mt-3 flex items-center gap-3">
+        <button onClick={() => document.getElementById("section-scorecard")?.scrollIntoView({ behavior: "smooth" })} className="text-xs font-semibold text-blue-700 underline underline-offset-2">
+          자세히 보기
+        </button>
+        <Link href={`/compare?a=${districtCode}&industry_code=${industryCode}`} className="text-xs font-semibold text-blue-700 underline underline-offset-2">
+          비교하기
+        </Link>
+      </div>
     </div>
   );
 }
@@ -420,6 +463,7 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [riskData, setRiskAlertData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!districtCode) return;
@@ -441,6 +485,7 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (s: any) => s.level === "danger" || s.level === "warning"
   );
+  const visibleSignals = expanded ? signals : signals.slice(0, 2);
 
   return (
     <div
@@ -464,24 +509,39 @@ function RiskAlertBanner({ districtCode, industryCode }: { districtCode: string;
           {isHigh ? "폐업 위험 높음" : "주의 필요"} — 위험도 {riskData.risk_score}점
         </h3>
       </div>
-      {signals.length > 0 && (
-        <ul className="mt-2 space-y-1">
-          {signals.slice(0, 3).map(
+      {visibleSignals.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {visibleSignals.map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any, i: number) => (
-              <li
-                key={`${s.title}-${i}`}
-                className={cn(
-                  "text-xs",
-                  isHigh ? "text-rose-700" : "text-amber-700",
+              <li key={`${s.title}-${i}`}>
+                <p className={cn("text-xs", isHigh ? "text-rose-700" : "text-amber-700")}>
+                  · {s.title}: {s.detail}
+                </p>
+                {s.advice && (
+                  <p className={cn("ml-2 mt-0.5 text-[11px] italic", isHigh ? "text-rose-500" : "text-amber-500")}>
+                    {s.advice}
+                  </p>
                 )}
-              >
-                · {s.title}: {s.detail}
               </li>
             ),
           )}
         </ul>
       )}
+      {signals.length > 2 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className={cn("mt-1.5 text-xs font-medium underline", isHigh ? "text-rose-600" : "text-amber-600")}
+        >
+          {expanded ? "접기" : `더 보기 (${signals.length - 2}개)`}
+        </button>
+      )}
+      <Link
+        href={`/compare?industry_code=${industryCode}`}
+        className={cn("mt-3 inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-2", isHigh ? "text-rose-700" : "text-amber-700")}
+      >
+        대안 상권 찾기 →
+      </Link>
     </div>
   );
 }
@@ -1676,6 +1736,7 @@ function ReportContent() {
         if (results.length > 0) {
           setSelectedCode(results[0].district_code);
           useAnalyzeStore.getState().setSelectedDistrict(results[0].district_code);
+          track("report_view", { district_code: results[0].district_code, industry_code: industryCode });
         }
       } catch (err) {
         console.error("Failed to fetch TOP 3:", err);
@@ -2298,13 +2359,21 @@ function ReportContent() {
               다음 단계: 실행 체크리스트
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <Link
-              href="/analyze"
-              className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-700"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              조건 변경
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/timeline?district_code=${selectedCode}&industry_code=${industryCode}&budget=${budget}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                타임라인 보기
+              </Link>
+              <Link
+                href="/analyze"
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                조건 변경
+              </Link>
+            </div>
           </div>
         )}
       </main>

@@ -6,6 +6,7 @@ import {
   Utensils,
   BarChart3,
   FileText,
+  GitCompareArrows,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,12 +21,16 @@ function Header() {
           <span className="text-lg font-bold text-slate-900">SpotPick</span>
         </Link>
 
-        <Link
-          href="/analyze"
-          className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-        >
-          시작하기
-        </Link>
+        <nav className="flex items-center gap-4">
+          <Link href="/compare" className="hidden text-sm font-medium text-slate-600 transition hover:text-slate-900 sm:block">비교</Link>
+          <Link href="/dev-log" className="hidden text-sm font-medium text-slate-600 transition hover:text-slate-900 sm:block">개발기</Link>
+          <Link
+            href="/analyze"
+            className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+          >
+            시작하기
+          </Link>
+        </nav>
       </div>
     </header>
   );
@@ -204,6 +209,25 @@ function Footer() {
   );
 }
 
+function CompareCtaSection() {
+  return (
+    <section className="bg-slate-50 py-12 sm:py-16">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Link href="/compare" className="group mx-auto flex max-w-lg items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
+            <GitCompareArrows className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold text-slate-900">A vs B 어디가 나아?</p>
+            <p className="mt-0.5 text-sm text-slate-500">두 상권을 나란히 비교하고 AI가 판정해드려요</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:text-blue-500" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
@@ -211,6 +235,7 @@ export default function LandingPage() {
       <main>
         <HeroSection />
         <PipelineSection />
+        <CompareCtaSection />
         <FinalCtaBanner />
       </main>
       <Footer />

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn, formatMoney } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import { useAnalyzeStore } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -1626,7 +1627,10 @@ function ActionContent() {
   // Track completed phases (simple heuristic: data loaded without error)
   useEffect(() => {
     const completed = new Set<number>();
-    if (blueprint.data && !blueprint.error) completed.add(1);
+    if (blueprint.data && !blueprint.error) {
+      completed.add(1);
+      track("plan_generate");
+    }
     if (funding.data && !funding.error) completed.add(2);
     if ((tax.data || labor.data) && !tax.error && !labor.error) completed.add(3);
     if ((lease.data || compliance.data) && !lease.error && !compliance.error)

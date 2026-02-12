@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import { useAnalyzeStore } from "@/lib/analyze-store";
 import { AnalyzeStepper } from "@/components/AnalyzeStepper";
 import { MapPin, ArrowRight, Sparkles, Search } from "lucide-react";
@@ -393,6 +394,7 @@ export default function AnalyzePage() {
 
   const handleIndustry = (code: string) => {
     if (industryAvailability[code] === false) return;
+    track("industry_select", { industry_code: code });
     store.setBenchmarkStore(null);
     store.setIndustry(code);
     const ind = INDUSTRY_OPTIONS.find((i) => i.code === code);
@@ -435,6 +437,7 @@ export default function AnalyzePage() {
   };
 
   const handleStartAnalysis = () => {
+    track("journey_start");
     store.setStep(2);
     const p = new URLSearchParams({
       industry_code: store.industryCode,

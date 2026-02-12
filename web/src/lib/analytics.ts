@@ -16,7 +16,11 @@ type EventName =
   | "business_plan_download"
   | "cta_click"
   | "premium_nudge_shown"
-  | "premium_nudge_click";
+  | "premium_nudge_click"
+  | "compare_start"
+  | "risk_alert_view"
+  | "timeline_view"
+  | "plan_generate";
 
 interface AnalyticsEvent {
   event: EventName;
