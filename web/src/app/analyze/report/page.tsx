@@ -15,6 +15,7 @@ import { SalesTrendChart } from "@/components/SalesTrendChart";
 import { FloatingTOC } from "@/components/FloatingTOC";
 import { CafeTypeCard } from "@/components/CafeTypeCard";
 import { BenchmarkAnalysisCard } from "@/components/BenchmarkAnalysisCard";
+import { CompetitiveInsightCard } from "@/components/CompetitiveInsightCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   MapPin,
@@ -2180,6 +2181,18 @@ function ReportContent() {
         {!top3Loading && store.benchmarkStore && store.benchmarkStore.x && store.benchmarkStore.y && (
           <div className="mb-6">
             <BenchmarkAnalysisCard benchmark={store.benchmarkStore} />
+          </div>
+        )}
+
+        {/* ── COMPETITIVE INSIGHT ── */}
+        {!top3Loading && selectedCode && (
+          <div className="mb-6">
+            <CompetitiveInsightCard
+              districtName={districtName}
+              industryCode={industryCode}
+              industryName={industryName}
+              benchmarkSubCategory={store.benchmarkStore?.subCategory}
+            />
           </div>
         )}
 
