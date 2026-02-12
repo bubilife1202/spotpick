@@ -18,6 +18,7 @@ import { CafeTypeCard } from "@/components/CafeTypeCard";
 import { BenchmarkAnalysisCard } from "@/components/BenchmarkAnalysisCard";
 import { CompetitiveInsightCard } from "@/components/CompetitiveInsightCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ErrorCard } from "@/components/ErrorCard";
 import {
   MapPin,
   ArrowRight,
@@ -1637,6 +1638,19 @@ function ReportContent() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [localdataLoading, setLocaldataLoading] = useState(false);
   const [salesTrendLoading, setSalesTrendLoading] = useState(false);
+  const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
+
+  const setSectionError = useCallback((key: string, msg: string | null) => {
+    setSectionErrors((prev) => {
+      const next = { ...prev };
+      if (msg) {
+        next[key] = msg;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
+  }, []);
 
   const [similarityScores, setSimilarityScores] = useState<Record<string, number>>({});
 
@@ -1784,6 +1798,8 @@ function ReportContent() {
 
       // B1: Scorecard
       if (!cached?.scorecard) {
+        setSectionError("scorecard", null);
+        setScorecardData(null);
         setScorecardLoading(true);
         fetchWithTimeout(`${API_BASE}/scorecard/${industryCode}/${districtCode}`)
           .then((r) => r.json())
@@ -1791,14 +1807,20 @@ function ReportContent() {
             setScorecardData({ ...data, district_code: districtCode, industry_code: industryCode });
             useAnalyzeStore.getState().setSectionData(districtCode, "scorecard", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("scorecard", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setScorecardLoading(false));
       } else {
+        setSectionError("scorecard", null);
         setScorecardData({ ...cached.scorecard, district_code: districtCode, industry_code: industryCode });
       }
 
       // B2: Simulation
       if (!cached?.simulation) {
+        setSectionError("simulation", null);
+        setSimulationData(null);
         setSimulationLoading(true);
         fetchWithTimeout(`${API_BASE}/simulation/simulate`, {
           method: "POST",
@@ -1815,14 +1837,20 @@ function ReportContent() {
             setSimulationData({ ...data, district_code: districtCode, industry_code: industryCode });
             useAnalyzeStore.getState().setSectionData(districtCode, "simulation", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("simulation", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setSimulationLoading(false));
       } else {
+        setSectionError("simulation", null);
         setSimulationData({ ...cached.simulation, district_code: districtCode, industry_code: industryCode });
       }
 
       // B3: Competition
       if (!cached?.competition) {
+        setSectionError("competition", null);
+        setCompetitionData(null);
         setCompetitionLoading(true);
         fetchWithTimeout(`${API_BASE}/explore/stores?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
@@ -1847,14 +1875,20 @@ function ReportContent() {
                 useAnalyzeStore.getState().setSectionData(districtCode, "competition", { stores: storesInfo });
               });
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("competition", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setCompetitionLoading(false));
       } else {
+        setSectionError("competition", null);
         setCompetitionData(cached.competition);
       }
 
       // B5: Customer
       if (!cached?.customer) {
+        setSectionError("customer", null);
+        setCustomerData(null);
         setCustomerLoading(true);
         fetchWithTimeout(`${API_BASE}/explore/sales-breakdown?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
@@ -1862,14 +1896,20 @@ function ReportContent() {
             setCustomerData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "customer", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("customer", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setCustomerLoading(false));
       } else {
+        setSectionError("customer", null);
         setCustomerData(cached.customer);
       }
 
       // B7: Franchise
       if (!cached?.franchise) {
+        setSectionError("franchise", null);
+        setFranchiseData(null);
         setFranchiseLoading(true);
         fetchWithTimeout(`${API_BASE}/franchise/benchmark/${industryCode}`)
           .then((r) => r.json())
@@ -1877,14 +1917,20 @@ function ReportContent() {
             setFranchiseData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "franchise", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("franchise", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setFranchiseLoading(false));
       } else {
+        setSectionError("franchise", null);
         setFranchiseData(cached.franchise);
       }
 
       // D: Risk
       if (!cached?.risk) {
+        setSectionError("risk", null);
+        setRiskData(null);
         setRiskLoading(true);
         fetchWithTimeout(`${API_BASE}/districts/${districtCode}/analysis?industry_code=${industryCode}`)
           .then((r) => r.json())
@@ -1892,14 +1938,20 @@ function ReportContent() {
             setRiskData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "risk", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("risk", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setRiskLoading(false));
       } else {
+        setSectionError("risk", null);
         setRiskData(cached.risk);
       }
 
       // E: Support
       if (!cached?.support) {
+        setSectionError("support", null);
+        setSupportData(null);
         setSupportLoading(true);
         const districtParam = distName ? `&district=${encodeURIComponent(distName)}` : "";
         const budgetParam = budget > 0 ? `&budget_max=${Math.round(budget * 10000)}` : "";
@@ -1909,14 +1961,20 @@ function ReportContent() {
             setSupportData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "support", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("support", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setSupportLoading(false));
       } else {
+        setSectionError("support", null);
         setSupportData(cached.support);
       }
 
       // B4: Location Profile
       if (!cached?.location) {
+        setSectionError("location", null);
+        setLocationData(null);
         setLocationLoading(true);
         fetchWithTimeout(`${API_BASE}/location/profile?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
@@ -1924,14 +1982,20 @@ function ReportContent() {
             setLocationData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "location", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("location", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setLocationLoading(false));
       } else {
+        setSectionError("location", null);
         setLocationData(cached.location);
       }
 
       // B6: Rent Trend
       if (!cached?.rent) {
+        setSectionError("rent", null);
+        setRentData(null);
         setRentLoading(true);
         fetchWithTimeout(`${API_BASE}/kosis/rent-trend?district_code=${districtCode}`)
           .then((r) => r.json())
@@ -1939,14 +2003,20 @@ function ReportContent() {
             setRentData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "rent", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("rent", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setRentLoading(false));
       } else {
+        setSectionError("rent", null);
         setRentData(cached.rent);
       }
 
       // Sales Trend
       if (!cached?.salesTrend) {
+        setSectionError("salesTrend", null);
+        setSalesTrendData(null);
         setSalesTrendLoading(true);
         fetchWithTimeout(`${API_BASE}/explore/sales-trend?district_code=${districtCode}&industry_code=${industryCode}`)
           .then((r) => r.json())
@@ -1954,9 +2024,13 @@ function ReportContent() {
             setSalesTrendData(data);
             useAnalyzeStore.getState().setSectionData(districtCode, "salesTrend", data);
           })
-          .catch((err) => { console.error("API error:", err); })
+          .catch((err) => {
+            console.error("API error:", err);
+            setSectionError("salesTrend", "데이터를 불러오지 못했습니다");
+          })
           .finally(() => setSalesTrendLoading(false));
       } else {
+        setSectionError("salesTrend", null);
         setSalesTrendData(cached.salesTrend);
       }
 
@@ -1980,7 +2054,7 @@ function ReportContent() {
         setLocaldataData(cached.localdata);
       }
     },
-    [industryCode, industryName, budget],
+    [industryCode, industryName, budget, setSectionError],
   );
 
   useEffect(() => {
@@ -2014,7 +2088,7 @@ function ReportContent() {
       setOpenGroups(new Set(["core"]));
       setOpenSections(new Set(["scorecard", "revenue", "competition"]));
     }
-  }, [verdict, selectedCode]);
+  }, [verdict]);
 
   // Build CTA query params
   const ctaParams = new URLSearchParams({
@@ -2032,9 +2106,13 @@ function ReportContent() {
       title: "성공 점수",
       loading: scorecardLoading,
       content: (
-        <ProGateSection feature="detailed_scorecard">
-          <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
+        sectionErrors.scorecard && !scorecardData
+          ? <ErrorCard message={sectionErrors.scorecard} />
+          : (
+            <ProGateSection feature="detailed_scorecard">
+              <ScorecardSection data={scorecardData} loading={scorecardLoading} districtName={districtName} industryName={industryName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2043,9 +2121,13 @@ function ReportContent() {
       title: "수익 구조",
       loading: simulationLoading,
       content: (
-        <ProGateSection feature="revenue_waterfall">
-          <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
+        sectionErrors.simulation && !simulationData
+          ? <ErrorCard message={sectionErrors.simulation} />
+          : (
+            <ProGateSection feature="revenue_waterfall">
+              <RevenueSection data={simulationData} loading={simulationLoading} districtName={districtName} industryName={industryName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2054,9 +2136,13 @@ function ReportContent() {
       title: "경쟁 환경",
       loading: competitionLoading,
       content: (
-        <ProGateSection feature="competition_map">
-          <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
+        sectionErrors.competition && !competitionData
+          ? <ErrorCard message={sectionErrors.competition} />
+          : (
+            <ProGateSection feature="competition_map">
+              <CompetitionSection data={competitionData} loading={competitionLoading} localdataData={localdataData} localdataLoading={localdataLoading} districtName={districtName} industryName={industryName} />
+            </ProGateSection>
+          )
       ),
     },
   ];
@@ -2068,9 +2154,13 @@ function ReportContent() {
       title: "입지 분석",
       loading: locationLoading,
       content: (
-        <ProGateSection feature="location_profile">
-          <LocationProfile data={locationData} loading={locationLoading} districtName={districtName} />
-        </ProGateSection>
+        sectionErrors.location && !locationData
+          ? <ErrorCard message={sectionErrors.location} />
+          : (
+            <ProGateSection feature="location_profile">
+              <LocationProfile data={locationData} loading={locationLoading} districtName={districtName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2079,9 +2169,13 @@ function ReportContent() {
       title: "임대료 트렌드",
       loading: rentLoading,
       content: (
-        <ProGateSection feature="rent_trend">
-          <RentTrendChart data={rentData} loading={rentLoading} districtName={districtName} />
-        </ProGateSection>
+        sectionErrors.rent && !rentData
+          ? <ErrorCard message={sectionErrors.rent} />
+          : (
+            <ProGateSection feature="rent_trend">
+              <RentTrendChart data={rentData} loading={rentLoading} districtName={districtName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2090,7 +2184,9 @@ function ReportContent() {
       title: "매출 트렌드",
       loading: salesTrendLoading,
       content: (
-        <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} districtName={districtName} industryName={industryName} />
+        sectionErrors.salesTrend && !salesTrendData
+          ? <ErrorCard message={sectionErrors.salesTrend} />
+          : <SalesTrendChart data={salesTrendData} loading={salesTrendLoading} districtName={districtName} industryName={industryName} />
       ),
     },
     {
@@ -2099,9 +2195,13 @@ function ReportContent() {
       title: "고객 분석",
       loading: customerLoading,
       content: (
-        <ProGateSection feature="full_customer_charts">
-          <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
-        </ProGateSection>
+        sectionErrors.customer && !customerData
+          ? <ErrorCard message={sectionErrors.customer} />
+          : (
+            <ProGateSection feature="full_customer_charts">
+              <CustomerSection data={customerData} loading={customerLoading} districtName={districtName} industryName={industryName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2110,9 +2210,13 @@ function ReportContent() {
       title: "프랜차이즈",
       loading: franchiseLoading,
       content: (
-        <ProGateSection feature="franchise_comparison">
-          <FranchiseSection data={franchiseData} loading={franchiseLoading} industryName={industryName} />
-        </ProGateSection>
+        sectionErrors.franchise && !franchiseData
+          ? <ErrorCard message={sectionErrors.franchise} />
+          : (
+            <ProGateSection feature="franchise_comparison">
+              <FranchiseSection data={franchiseData} loading={franchiseLoading} industryName={industryName} />
+            </ProGateSection>
+          )
       ),
     },
   ];
@@ -2124,9 +2228,13 @@ function ReportContent() {
       title: "리스크 & 기회",
       loading: riskLoading,
       content: (
-        <ProGateSection feature="risk_full">
-          <RiskSection data={riskData} loading={riskLoading} districtName={districtName} />
-        </ProGateSection>
+        sectionErrors.risk && !riskData
+          ? <ErrorCard message={sectionErrors.risk} />
+          : (
+            <ProGateSection feature="risk_full">
+              <RiskSection data={riskData} loading={riskLoading} districtName={districtName} />
+            </ProGateSection>
+          )
       ),
     },
     {
@@ -2135,7 +2243,9 @@ function ReportContent() {
       title: "지원금",
       loading: supportLoading,
       content: (
-        <SupportSection data={supportData} loading={supportLoading} industryName={industryName} />
+        sectionErrors.support && !supportData
+          ? <ErrorCard message={sectionErrors.support} />
+          : <SupportSection data={supportData} loading={supportLoading} industryName={industryName} />
       ),
     },
     {
@@ -2144,9 +2254,13 @@ function ReportContent() {
       title: "수익 시뮬레이터",
       loading: simulationLoading,
       content: (
-        <ProGateSection feature="simulator_full">
-          <InlineSimulatorSection defaults={simulationData} loading={simulationLoading} districtName={districtName} />
-        </ProGateSection>
+        sectionErrors.simulation && !simulationData
+          ? <ErrorCard message={sectionErrors.simulation} />
+          : (
+            <ProGateSection feature="simulator_full">
+              <InlineSimulatorSection defaults={simulationData} loading={simulationLoading} districtName={districtName} />
+            </ProGateSection>
+          )
       ),
     },
   ];

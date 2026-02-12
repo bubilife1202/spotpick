@@ -1228,12 +1228,18 @@ function Phase4Content({
 function Phase5Content({
   blueprintData,
   fundingData,
+  districtCode,
+  industryCode,
+  budget,
   checked,
   onToggle,
 }: {
   blueprintData: BlueprintData | null;
   fundingData: FundingData | null;
   complianceData: ComplianceData | null;
+  districtCode: string;
+  industryCode: string;
+  budget: number;
   checked: Set<string>;
   onToggle: (id: string) => void;
 }) {
@@ -1356,6 +1362,16 @@ function Phase5Content({
           />
         </div>
       )}
+
+      <div className="flex justify-center">
+        <Link
+          href={`/timeline?district_code=${districtCode}&industry_code=${industryCode}&budget=${budget}`}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+        >
+          <Clock className="h-4 w-4" />
+          창업 타임라인 보기
+        </Link>
+      </div>
 
       {/* Launch checklist */}
       <div className="space-y-2.5">
@@ -1765,6 +1781,9 @@ function ActionContent() {
             blueprintData={blueprint.data}
             fundingData={funding.data}
             complianceData={compliance.data}
+            districtCode={districtCode}
+            industryCode={industryCode}
+            budget={budget}
             checked={checked}
             onToggle={toggle}
           />

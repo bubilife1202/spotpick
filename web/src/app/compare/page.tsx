@@ -5,11 +5,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
+import { ErrorCard } from "@/components/ErrorCard";
 import {
   MapPin,
   Sparkles,
   Loader2,
-  AlertTriangle,
   Search,
   ArrowRight,
   Trophy,
@@ -595,19 +595,7 @@ function CompareInner() {
         {/* States */}
         {loading && <ComparisonSkeleton />}
 
-        {error && !loading && (
-          <div className="mx-auto max-w-md rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
-            <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" />
-            <p className="mt-3 text-sm font-semibold text-rose-800">{error}</p>
-            <button
-              type="button"
-              onClick={handleCompare}
-              className="mt-4 rounded-lg bg-rose-600 px-5 py-2 text-xs font-bold text-white transition hover:bg-rose-700"
-            >
-              다시 시도
-            </button>
-          </div>
-        )}
+        {error && !loading && <ErrorCard message={error} onRetry={() => handleCompare()} />}
 
         {!loading && !error && !compareData && (
           <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-10 text-center">
