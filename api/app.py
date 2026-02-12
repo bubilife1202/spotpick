@@ -175,6 +175,9 @@ def create_app() -> FastAPI:
     benchmark_router = cast(APIRouter, import_module("api.routes.benchmark").router)
     app.include_router(benchmark_router, prefix="/api/v1", tags=["Benchmark"])
 
+    competition_router = cast(APIRouter, import_module("api.routes.competition").router)
+    app.include_router(competition_router, prefix="/api/v1", tags=["Competition"])
+
     return app
 
 

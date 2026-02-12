@@ -44,6 +44,7 @@ export interface TopDistrict {
   store_count: number;
   survival_rate: number;
   scorecard_total: number;
+  foot_traffic_total?: number;
   key_factors: string[];
   coordinates?: { lat: number; lng: number };
 }

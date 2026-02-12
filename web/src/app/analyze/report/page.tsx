@@ -15,9 +15,12 @@ import { ProGateSection } from "@/components/ProGateSection";
 import { SalesTrendChart } from "@/components/SalesTrendChart";
 import { FloatingTOC } from "@/components/FloatingTOC";
 import { CafeTypeCard } from "@/components/CafeTypeCard";
+import { StartupCostCard } from "@/components/StartupCostCard";
 import { BenchmarkAnalysisCard } from "@/components/BenchmarkAnalysisCard";
+import { BenchmarkHeroCard } from "@/components/BenchmarkHeroCard";
 import { CompetitiveInsightCard } from "@/components/CompetitiveInsightCard";
 import { TrademarkCheckCard } from "@/components/TrademarkCheckCard";
+import { CompetitorCountCard } from "@/components/CompetitorCountCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ErrorCard } from "@/components/ErrorCard";
 import {
@@ -1751,6 +1754,7 @@ function ReportContent() {
             store_count: r.store_count,
             survival_rate: r.survival_rate,
             scorecard_total: r.scorecard_total,
+            foot_traffic_total: r.foot_traffic_total,
             key_factors: r.key_factors || [],
             coordinates: typeof r.lat === "number" && typeof r.lng === "number" && !(r.lat === 0 && r.lng === 0)
               ? { lat: r.lat, lng: r.lng }
@@ -2081,7 +2085,10 @@ function ReportContent() {
   };
 
   const selectedDistrict = topDistricts.find((d) => d.district_code === selectedCode);
+  const defaults = topDistricts[0];
   const districtName = selectedDistrict?.district_name || "";
+  const districtLng = selectedDistrict?.coordinates ? String(selectedDistrict.coordinates.lng) : "";
+  const districtLat = selectedDistrict?.coordinates ? String(selectedDistrict.coordinates.lat) : "";
 
   const verdict: "GO" | "CAUTION" | "NO_GO" | null = verdictData?.verdict || null;
   const isNoGo = verdict === "NO_GO";
@@ -2160,6 +2167,22 @@ function ReportContent() {
   ];
 
   const detailSections = [
+    ...(selectedSubType && districtLng && districtLat
+      ? [{
+          id: "competitorCount",
+          icon: <Users className="h-4 w-4 text-emerald-500" />,
+          title: "세부 업종 경쟁",
+          loading: false,
+          content: (
+            <CompetitorCountCard
+              keyword={selectedSubType}
+              x={districtLng}
+              y={districtLat}
+              districtName={districtName}
+            />
+          ),
+        }]
+      : []),
     {
       id: "location",
       icon: <MapPin className="h-4 w-4 text-indigo-500" />,
@@ -2355,6 +2378,33 @@ function ReportContent() {
               onViewAlternative={(code) => {
                 handleDistrictSelect(code);
               }}
+            />
+          </div>
+        )}
+
+        {!top3Loading && store.benchmarkStore && defaults && (
+          <div className="mb-6">
+            <BenchmarkHeroCard
+              benchmarkStore={store.benchmarkStore}
+              topDistrict={{
+                district_name: defaults.district_name,
+                scorecard_total: defaults.scorecard_total,
+                store_count: defaults.store_count,
+                survival_rate: defaults.survival_rate,
+                foot_traffic_total: defaults.foot_traffic_total || 0,
+                estimated_rent: defaults.estimated_rent,
+              }}
+              similarityScore={similarityScores[defaults.district_code]}
+            />
+          </div>
+        )}
+
+        {!top3Loading && selectedSubType && (
+          <div className="mb-6">
+            <StartupCostCard
+              industryCode={industryCode}
+              subType={selectedSubType}
+              userBudget={budget}
             />
           </div>
         )}

@@ -41,6 +41,7 @@ htmlcov/
 
 # Data
 data/
+!api/data/
 !package.json
 !tsconfig.json
 !*.eslintrc.json
