@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """Go/No-Go verdict endpoint — exposes the verdict engine directly."""
 
 from __future__ import annotations
@@ -15,6 +16,10 @@ logger = logging.getLogger(__name__)
 async def get_verdict(
     industry_code: str,
     district_code: str,
+    budget: Annotated[
+        Optional[int],
+        Query(description="Total startup budget in 만원 (legacy query key)"),
+    ] = None,
     budget_max: Annotated[
         Optional[int],
         Query(description="Total startup budget in 만원 (e.g., 5000)"),
@@ -49,20 +54,28 @@ async def get_verdict(
     # Budget feasibility: Instead of hard NO-GO against KREI industry average,
     # we check against cafe-type-specific minimums. A 5,000만원 budget is NO-GO
     # for a standard cafe but perfectly fine for a takeout cafe.
+    startup_budget_man = budget_max if (budget_max is not None and budget_max > 0) else budget
+
     rent_budget_max_won: Optional[int] = None
     budget_warning_reason = None
-    if budget_max is not None and budget_max > 0:
+    cafe_cheapest_min_budget_man: Optional[int] = None
+    if startup_budget_man is not None and startup_budget_man > 0:
         try:
             if industry_code == "CS100010":
                 from api.services.cafe_type_service import MIN_BUDGET_MAN as CAFE_MIN_BUDGETS
 
                 cheapest_min = min(CAFE_MIN_BUDGETS.values())
-                if budget_max < cheapest_min:
+                cafe_cheapest_min_budget_man = cheapest_min
+                if startup_budget_man < cheapest_min:
+                    severe_shortage = startup_budget_man < int(cheapest_min * 0.25)
                     budget_warning_reason = {
                         "factor": "예산",
-                        "level": "danger",
-                        "detail": f"모든 카페 유형의 최소 예산에 미달합니다 (최소 {cheapest_min:,}만원)",
-                        "data_value": f"{budget_max:,}만원",
+                        "level": "danger" if severe_shortage else "warning",
+                        "detail": (
+                            f"예산이 모든 카페 유형 최소 예산에 미달합니다"
+                            f" (최소 {cheapest_min:,}만원)"
+                        ),
+                        "data_value": f"{startup_budget_man:,}만원",
                         "threshold": f"최소 {cheapest_min:,}만원 (테이크아웃 기준)",
                     }
                 else:
@@ -71,8 +84,10 @@ async def get_verdict(
                     inv = get_startup_investment(industry_code)
                     if inv and inv.get("total"):
                         startup_total_man = int(inv.get("total") or 0)
-                        if budget_max < startup_total_man:
-                            affordable = [t for t, m in CAFE_MIN_BUDGETS.items() if budget_max >= m]
+                        if startup_budget_man < startup_total_man:
+                            affordable = [
+                                t for t, m in CAFE_MIN_BUDGETS.items() if startup_budget_man >= m
+                            ]
                             budget_warning_reason = {
                                 "factor": "예산",
                                 "level": "warning",
@@ -80,7 +95,7 @@ async def get_verdict(
                                     f"업종 평균({startup_total_man:,}만원) 대비 낮지만, "
                                     f"{len(affordable)}개 카페 유형은 가능합니다"
                                 ),
-                                "data_value": f"{budget_max:,}만원",
+                                "data_value": f"{startup_budget_man:,}만원",
                                 "threshold": f"평균 {startup_total_man:,}만원 ({str(inv.get('source') or 'KREI 2023')})",
                             }
             else:
@@ -89,12 +104,12 @@ async def get_verdict(
                 inv = get_startup_investment(industry_code)
                 if inv and inv.get("total"):
                     startup_total_man = int(inv.get("total") or 0)
-                    if budget_max < startup_total_man:
+                    if startup_budget_man < startup_total_man:
                         budget_warning_reason = {
                             "factor": "예산",
                             "level": "warning",
                             "detail": "예산이 업종 평균 창업비용보다 낮습니다",
-                            "data_value": f"{budget_max:,}만원",
+                            "data_value": f"{startup_budget_man:,}만원",
                             "threshold": f"평균 {startup_total_man:,}만원 ({str(inv.get('source') or 'KREI 2023')})",
                         }
         except Exception:
@@ -104,8 +119,8 @@ async def get_verdict(
             from api.routes.dashboard import _budget_to_rent
 
             _, rent_budget_max_won = _budget_to_rent(
-                budget_min=budget_max,
-                budget_max=budget_max,
+                budget_min=startup_budget_man,
+                budget_max=startup_budget_man,
                 industry_code=industry_code,
             )
         except Exception:
@@ -151,6 +166,28 @@ async def get_verdict(
         experience_level=experience_level,
         estimated_rent=estimated_rent,
     )
+
+    # Enforce cafe startup-minimum budget floors on final verdict.
+    # budget_max query param is in 만원 and should not allow GO when below all cafe minima.
+    if (
+        startup_budget_man is not None
+        and startup_budget_man > 0
+        and industry_code == "CS100010"
+        and cafe_cheapest_min_budget_man
+        and cafe_cheapest_min_budget_man > 0
+    ):
+        if startup_budget_man < int(cafe_cheapest_min_budget_man * 0.25):
+            result["verdict"] = "NO_GO"
+            result["confidence"] = max(int(result.get("confidence", 0) or 0), 80)
+            result["summary"] = (
+                f"NO_GO — 예산이 카페 창업 최소 기준({cafe_cheapest_min_budget_man:,}만원)에 크게 미달합니다."
+            )
+        elif startup_budget_man < cafe_cheapest_min_budget_man and result.get("verdict") == "GO":
+            result["verdict"] = "CAUTION"
+            result["confidence"] = max(int(result.get("confidence", 0) or 0), 70)
+            result["summary"] = (
+                f"CAUTION — 예산이 카페 창업 최소 기준({cafe_cheapest_min_budget_man:,}만원)보다 낮습니다."
+            )
 
     if budget_warning_reason:
         budget_level = budget_warning_reason["level"]

@@ -63,11 +63,13 @@ export function CafeTypeCard({
   districtCode,
   budgetMan,
   experienceLevel,
+  selectedSubType,
 }: {
   industryCode: string;
   districtCode: string;
   budgetMan: number;
   experienceLevel?: string;
+  selectedSubType?: string;
 }) {
   const [data, setData] = useState<CafeTypeResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,8 +79,9 @@ export function CafeTypeCard({
     const params = new URLSearchParams();
     if (budgetMan > 0) params.set("budget_max", String(budgetMan));
     if (experienceLevel) params.set("experience_level", experienceLevel);
+    if (selectedSubType) params.set("sub_type", selectedSubType);
     return `${API_BASE}/cafe-type/${industryCode}/${districtCode}?${params.toString()}`;
-  }, [industryCode, districtCode, budgetMan, experienceLevel]);
+  }, [industryCode, districtCode, budgetMan, experienceLevel, selectedSubType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +133,11 @@ export function CafeTypeCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedSubType ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+              선택: {selectedSubType}
+            </span>
+          ) : null}
           {loading ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> 분석 중

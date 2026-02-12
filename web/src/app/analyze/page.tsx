@@ -61,7 +61,7 @@ const INDUSTRY_SUB_TYPE_OPTIONS: Record<string, string[]> = {
   CS100007: ["배달전문", "홀+배달", "포장특화", "프랜차이즈"],
   CS100008: ["홀+포장", "배달전문", "포장특화", "프랜차이즈"],
   CS100009: ["직장인 회식", "감성주점", "스포츠바", "야식/포차"],
-  CS100010: ["테이크아웃", "브런치 카페", "감성 카페", "스터디 카페"],
+  CS100010: ["테이크아웃", "브런치 카페", "감성 카페", "스터디 카페", "만화카페", "보드게임 카페"],
 };
 
 const AI_QUESTIONS = [
@@ -467,6 +467,7 @@ export default function AnalyzePage() {
     });
     if (store.experienceLevel) p.set("experience_level", store.experienceLevel);
     if (store.employeeCount) p.set("employee_count", store.employeeCount);
+    if (selectedSubType) p.set("sub_type", selectedSubType);
     if (store.preferredDistricts.length > 0) {
       p.set("preferred_districts", store.preferredDistricts.join(","));
     }

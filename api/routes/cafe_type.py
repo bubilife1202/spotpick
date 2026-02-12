@@ -5,6 +5,8 @@ Returns a ranked list of cafe business models (types) for a single district.
 
 from __future__ import annotations
 
+# pyright: reportMissingImports=false
+
 import logging
 from typing import Annotated, Optional
 
@@ -25,6 +27,10 @@ async def get_cafe_type(
     experience_level: Annotated[
         Optional[str],
         Query(description="beginner, experienced, or expert"),
+    ] = None,
+    sub_type: Annotated[
+        Optional[str],
+        Query(description="사용자 선택 세부타입"),
     ] = None,
 ):
     from api.services.cafe_type_service import compute_cafe_type_recommendation
@@ -49,4 +55,5 @@ async def get_cafe_type(
         district=district,
         budget_max_man=budget_max,
         experience_level=experience_level,
+        sub_type=sub_type,
     )

@@ -79,6 +79,19 @@ DISTRICT_TYPE_BONUS: dict[CafeTypeCode, dict[str, float]] = {
 }
 
 
+SUB_TYPE_TO_CAFE_TYPE: dict[str, CafeTypeCode] = {
+    "테이크아웃": "EXPRESS",
+    "브런치 카페": "DESSERT",
+    "감성 카페": "SPECIALTY",
+    "스터디 카페": "STUDY",
+    "만화카페": "STUDY",
+    "보드게임 카페": "STUDY",
+}
+
+
+SUB_TYPE_SCORE_BOOST = 15.0
+
+
 class CafeTypeComponent(TypedDict):
     key: str
     label: str
@@ -1085,6 +1098,7 @@ def compute_cafe_type_recommendation(
     district: dict[str, Any],
     budget_max_man: int | None = None,
     experience_level: str | None = None,
+    sub_type: str | None = None,
 ) -> CafeTypeResult:
     d = _derive(district)
     exp = _experience_level(experience_level)
@@ -1110,6 +1124,22 @@ def compute_cafe_type_recommendation(
         boost = min(12.0, (60.0 - max_niche) * 0.4)
         s, comps = raw["STANDARD"]
         raw["STANDARD"] = (round(s + boost, 1), comps)
+
+    preference_code = SUB_TYPE_TO_CAFE_TYPE.get((sub_type or "").strip())
+    if preference_code:
+        s, comps = raw[preference_code]
+        boosted_score = round(float(s) + SUB_TYPE_SCORE_BOOST, 1)
+        preference_component: CafeTypeComponent = {
+            "key": "sub_type_preference",
+            "label": "사용자 선호",
+            "points": round(SUB_TYPE_SCORE_BOOST, 2),
+            "detail": f"선택 세부타입 반영: {(sub_type or '').strip()}",
+        }
+        pref_comps = [
+            *comps,
+            preference_component,
+        ]
+        raw[preference_code] = (boosted_score, pref_comps)
 
     # Apply gates
     final_scores: dict[CafeTypeCode, float] = {}
@@ -1199,6 +1229,15 @@ def compute_cafe_type_recommendation(
             {
                 "code": "CLOSE_CALL",
                 "message": "1위와 2위 점수 차이가 작습니다. 두 타입 모두 검토를 권장합니다.",
+                "severity": "low",
+            }
+        )
+
+    if preference_code and sub_type:
+        warnings.append(
+            {
+                "code": "SUB_TYPE_PREFERENCE_APPLIED",
+                "message": f"선택한 세부타입({sub_type.strip()}) 선호를 점수에 반영했습니다.",
                 "severity": "low",
             }
         )

@@ -588,6 +588,22 @@ function Top3Section({
     );
   }
 
+  const topDistrictMarkers = districts
+    .filter(
+      (d) =>
+        typeof d.coordinates?.lat === "number" &&
+        typeof d.coordinates?.lng === "number" &&
+        !(d.coordinates.lat === 0 && d.coordinates.lng === 0),
+    )
+    .map((d, i) => ({
+      lat: d.coordinates!.lat,
+      lng: d.coordinates!.lng,
+      label: d.district_name,
+      type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
+      rank: i + 1,
+      successProbability: d.success_probability,
+    }));
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -644,7 +660,7 @@ function Top3Section({
                   <p className="text-sm font-extrabold text-slate-900">{(d.survival_rate * 100).toFixed(0)}%</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
-                  <p className="text-[10px] font-medium text-slate-500">상권 전체 월 매출</p>
+                  <p className="text-[10px] font-medium text-slate-500">{industryName} 점포당 월 매출</p>
                   <p className="text-sm font-extrabold text-slate-900">{formatWon(d.monthly_sales)}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-1.5">
@@ -687,14 +703,7 @@ function Top3Section({
       {/* Map visualization */}
       <MiniMap
         markers={[
-          ...districts.map((d, i) => ({
-            lat: d.coordinates?.lat || 37.5665,
-            lng: d.coordinates?.lng || 126.9780,
-            label: d.district_name,
-            type: d.district_code === selectedCode ? ("selected" as const) : ("recommended" as const),
-            rank: i + 1,
-            successProbability: d.success_probability,
-          })),
+          ...topDistrictMarkers,
           ...(benchmarkMarker
             ? [{
                 lat: benchmarkMarker.lat,
@@ -1575,6 +1584,7 @@ function ReportContent() {
   const budget = Number(searchParams?.get("budget")) || Number(searchParams?.get("budget_max")) || store.budget;
   const experienceLevel = searchParams?.get("experience_level") || store.experienceLevel;
   const employeeCount = searchParams?.get("employee_count") || store.employeeCount;
+  const selectedSubType = searchParams?.get("sub_type") || "";
 
   useEffect(() => {
     const s = useAnalyzeStore.getState();
@@ -2357,6 +2367,7 @@ function ReportContent() {
               districtCode={selectedCode}
               budgetMan={budget}
               experienceLevel={experienceLevel || undefined}
+              selectedSubType={selectedSubType}
             />
           </div>
         )}
